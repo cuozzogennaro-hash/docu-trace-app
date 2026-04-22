@@ -72,7 +72,7 @@ export default function AuthPage() {
         setOpPin("");
         return;
       }
-      signInOperator({ id: res.operator_id!, name: res.name!, role: res.role ?? null });
+      signInOperator({ id: res.operator_id!, name: res.name!, role: res.role ?? null, pin: opPin });
       toast.success(`Benvenuto ${res.name}`);
     } catch (err: any) {
       toast.error(err.message ?? "Errore");
