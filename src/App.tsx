@@ -1,12 +1,28 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
-import { BrowserRouter, Route, Routes } from "react-router-dom";
+import { BrowserRouter, Navigate, Route, Routes } from "react-router-dom";
 import { Toaster as Sonner } from "@/components/ui/sonner";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
+import AuthPage from "./pages/Auth";
+import Sanitations from "./pages/Sanitations";
+import Temperatures from "./pages/Temperatures";
+import Incoming from "./pages/Incoming";
+import Production from "./pages/Production";
+import Clients from "./pages/Clients";
+import Shopping from "./pages/Shopping";
+import AppShell from "./components/AppShell";
+import { AuthProvider, useAuth } from "./hooks/useAuth";
 
 const queryClient = new QueryClient();
+
+function Protected() {
+  const { session, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Caricamento…</div>;
+  if (!session) return <Navigate to="/auth" replace />;
+  return <AppShell />;
+}
 
 const App = () => (
   <QueryClientProvider client={queryClient}>
@@ -14,11 +30,21 @@ const App = () => (
       <Toaster />
       <Sonner />
       <BrowserRouter>
-        <Routes>
-          <Route path="/" element={<Index />} />
-          {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
-          <Route path="*" element={<NotFound />} />
-        </Routes>
+        <AuthProvider>
+          <Routes>
+            <Route path="/auth" element={<AuthPage />} />
+            <Route element={<Protected />}>
+              <Route path="/" element={<Index />} />
+              <Route path="/sanificazione" element={<Sanitations />} />
+              <Route path="/temperature" element={<Temperatures />} />
+              <Route path="/ingresso" element={<Incoming />} />
+              <Route path="/produzione" element={<Production />} />
+              <Route path="/clienti" element={<Clients />} />
+              <Route path="/acquisti" element={<Shopping />} />
+            </Route>
+            <Route path="*" element={<NotFound />} />
+          </Routes>
+        </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
   </QueryClientProvider>
