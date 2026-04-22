@@ -1,9 +1,12 @@
+import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCog } from "lucide-react";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, RefreshCw } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
 
-const nav = [
+const adminNav = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
   { to: "/sanificazione", icon: Sparkles, label: "Sanificazione" },
   { to: "/temperature", icon: Thermometer, label: "Temperature" },
@@ -12,13 +15,21 @@ const nav = [
   { to: "/clienti", icon: Users, label: "Clienti & Vendite" },
   { to: "/acquisti", icon: ShoppingCart, label: "Lista acquisti" },
   { to: "/archivio", icon: Archive, label: "Archivio" },
-  { to: "/operatori", icon: UserCog, label: "Operatori" },
   { to: "/impostazioni", icon: Settings, label: "Impostazioni" },
+];
+
+const operatorNav = [
+  { to: "/", icon: LayoutDashboard, label: "I miei compiti", end: true },
+  { to: "/produzione", icon: Factory, label: "Preparati" },
 ];
 
 export default function AppShell() {
   const { signOut } = useAuth();
+  const { operator, signOut: signOutOperator } = useOperatorSession();
   const navigate = useNavigate();
+  const [switcherOpen, setSwitcherOpen] = useState(false);
+
+  const nav = operator ? operatorNav : adminNav;
 
   return (
     <div className="min-h-screen bg-gradient-surface">
@@ -52,16 +63,36 @@ export default function AppShell() {
             </NavLink>
           ))}
         </nav>
-        <Button
+        <div className="space-y-2 pt-2 border-t border-border">
+          {operator ? (
+            <div className="px-2 py-2 rounded-lg bg-muted/60 flex items-center gap-2">
+              <div className="h-8 w-8 rounded-full bg-gradient-primary flex items-center justify-center shrink-0">
+                <UserCircle2 className="text-primary-foreground" size={18} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold truncate">{operator.name}</div>
+                <div className="text-[10px] text-muted-foreground">Operatore</div>
+              </div>
+              <Button size="icon" variant="ghost" onClick={signOutOperator} title="Esci operatore">
+                <RefreshCw size={14} />
+              </Button>
+            </div>
+          ) : (
+            <Button variant="outline" onClick={() => setSwitcherOpen(true)} className="w-full justify-start gap-2">
+              <UserCircle2 size={16} /> Accesso operatore
+            </Button>
+          )}
+          <Button
           variant="ghost"
           onClick={async () => {
             await signOut();
             navigate("/auth");
           }}
-          className="justify-start gap-3"
+            className="w-full justify-start gap-3"
         >
           <LogOut size={18} /> Esci
-        </Button>
+          </Button>
+        </div>
       </aside>
 
       {/* Mobile header */}
@@ -72,9 +103,21 @@ export default function AppShell() {
           </div>
           <span className="font-display font-bold">HACCP Pro</span>
         </div>
-        <Button variant="ghost" size="icon" onClick={async () => { await signOut(); navigate("/auth"); }}>
-          <LogOut size={18} />
-        </Button>
+        <div className="flex items-center gap-1">
+          {operator ? (
+            <Button variant="ghost" size="sm" onClick={signOutOperator} className="gap-1.5 px-2">
+              <UserCircle2 size={16} className="text-primary" />
+              <span className="text-xs font-semibold max-w-[80px] truncate">{operator.name}</span>
+            </Button>
+          ) : (
+            <Button variant="ghost" size="icon" onClick={() => setSwitcherOpen(true)} title="Accesso operatore">
+              <UserCircle2 size={18} />
+            </Button>
+          )}
+          <Button variant="ghost" size="icon" onClick={async () => { await signOut(); navigate("/auth"); }}>
+            <LogOut size={18} />
+          </Button>
+        </div>
       </header>
 
       <main className="lg:pl-64 pb-24 lg:pb-8">
@@ -85,7 +128,7 @@ export default function AppShell() {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-card/95 backdrop-blur border-t border-border">
-        <div className="grid grid-cols-5 gap-1 px-2 py-2">
+        <div className={`grid gap-1 px-2 py-2`} style={{ gridTemplateColumns: `repeat(${Math.min(nav.length, 5)}, minmax(0, 1fr))` }}>
           {nav.slice(0, 5).map((item) => (
             <NavLink
               key={item.to}
@@ -109,6 +152,8 @@ export default function AppShell() {
           ))}
         </div>
       </nav>
+
+      <OperatorSwitcherDialog open={switcherOpen} onOpenChange={setSwitcherOpen} />
     </div>
   );
 }
