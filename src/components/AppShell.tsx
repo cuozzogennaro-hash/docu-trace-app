@@ -78,8 +78,8 @@ export default function AppShell() {
                 <div className="text-xs font-semibold truncate">{operator.name}</div>
                 <div className="text-[10px] text-muted-foreground">Operatore</div>
               </div>
-              <Button size="icon" variant="ghost" onClick={signOutOperator} title="Esci operatore">
-                <RefreshCw size={14} />
+              <Button size="icon" variant="ghost" onClick={() => { signOutOperator(); if (!session) navigate("/auth"); }} title="Esci operatore">
+                <LogOut size={14} />
               </Button>
             </div>
           ) : (
@@ -87,16 +87,15 @@ export default function AppShell() {
               <UserCircle2 size={16} /> Accesso operatore
             </Button>
           )}
-          <Button
-          variant="ghost"
-          onClick={async () => {
-            await signOut();
-            navigate("/auth");
-          }}
-            className="w-full justify-start gap-3"
-        >
-          <LogOut size={18} /> Esci
-          </Button>
+          {session && (
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="w-full justify-start gap-3"
+            >
+              <LogOut size={18} /> Esci titolare
+            </Button>
+          )}
         </div>
       </aside>
 
@@ -119,7 +118,7 @@ export default function AppShell() {
               <UserCircle2 size={18} />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={async () => { await signOut(); navigate("/auth"); }}>
+          <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut size={18} />
           </Button>
         </div>
