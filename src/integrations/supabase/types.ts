@@ -17,6 +17,7 @@ export type Database = {
       assets: {
         Row: {
           asset_type: string
+          cleaning_product: string | null
           created_at: string
           id: string
           name: string
@@ -26,6 +27,7 @@ export type Database = {
         }
         Insert: {
           asset_type?: string
+          cleaning_product?: string | null
           created_at?: string
           id?: string
           name: string
@@ -35,6 +37,7 @@ export type Database = {
         }
         Update: {
           asset_type?: string
+          cleaning_product?: string | null
           created_at?: string
           id?: string
           name?: string
@@ -408,6 +411,36 @@ export type Database = {
           name?: string
           user_id?: string
           vat?: string | null
+        }
+        Relationships: []
+      }
+      task_assignments: {
+        Row: {
+          asset_id: string
+          created_at: string
+          frequency: string
+          id: string
+          operator_id: string
+          task_type: string
+          user_id: string
+        }
+        Insert: {
+          asset_id: string
+          created_at?: string
+          frequency?: string
+          id?: string
+          operator_id: string
+          task_type: string
+          user_id: string
+        }
+        Update: {
+          asset_id?: string
+          created_at?: string
+          frequency?: string
+          id?: string
+          operator_id?: string
+          task_type?: string
+          user_id?: string
         }
         Relationships: []
       }
