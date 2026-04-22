@@ -47,7 +47,7 @@ export default function OperatorSwitcherDialog({
         setPin("");
         return;
       }
-      signIn({ id: data.id, name: data.name, role: data.role });
+      signIn({ id: data.id, name: data.name, role: data.role, pin });
       toast.success(`Benvenuto ${data.name}`);
       onOpenChange(false);
     } finally {

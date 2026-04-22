@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
-import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, RefreshCw } from "lucide-react";
+import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
 
@@ -20,16 +20,21 @@ const adminNav = [
 
 const operatorNav = [
   { to: "/", icon: LayoutDashboard, label: "I miei compiti", end: true },
-  { to: "/produzione", icon: Factory, label: "Preparati" },
 ];
 
 export default function AppShell() {
-  const { signOut } = useAuth();
+  const { session, signOut } = useAuth();
   const { operator, signOut: signOutOperator } = useOperatorSession();
   const navigate = useNavigate();
   const [switcherOpen, setSwitcherOpen] = useState(false);
 
   const nav = operator ? operatorNav : adminNav;
+
+  async function handleLogout() {
+    signOutOperator();
+    if (session) await signOut();
+    navigate("/auth");
+  }
 
   return (
     <div className="min-h-screen bg-gradient-surface">
@@ -73,8 +78,8 @@ export default function AppShell() {
                 <div className="text-xs font-semibold truncate">{operator.name}</div>
                 <div className="text-[10px] text-muted-foreground">Operatore</div>
               </div>
-              <Button size="icon" variant="ghost" onClick={signOutOperator} title="Esci operatore">
-                <RefreshCw size={14} />
+              <Button size="icon" variant="ghost" onClick={() => { signOutOperator(); if (!session) navigate("/auth"); }} title="Esci operatore">
+                <LogOut size={14} />
               </Button>
             </div>
           ) : (
@@ -82,16 +87,15 @@ export default function AppShell() {
               <UserCircle2 size={16} /> Accesso operatore
             </Button>
           )}
-          <Button
-          variant="ghost"
-          onClick={async () => {
-            await signOut();
-            navigate("/auth");
-          }}
-            className="w-full justify-start gap-3"
-        >
-          <LogOut size={18} /> Esci
-          </Button>
+          {session && (
+            <Button
+              variant="ghost"
+              onClick={handleLogout}
+              className="w-full justify-start gap-3"
+            >
+              <LogOut size={18} /> Esci titolare
+            </Button>
+          )}
         </div>
       </aside>
 
@@ -114,7 +118,7 @@ export default function AppShell() {
               <UserCircle2 size={18} />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={async () => { await signOut(); navigate("/auth"); }}>
+          <Button variant="ghost" size="icon" onClick={handleLogout}>
             <LogOut size={18} />
           </Button>
         </div>
