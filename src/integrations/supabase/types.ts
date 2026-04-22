@@ -500,6 +500,27 @@ export type Database = {
         Args: { p_handle: string; p_pin: string }
         Returns: Json
       }
+      operator_period_status: { Args: { p_operator_id: string }; Returns: Json }
+      operator_record_sanitation: {
+        Args: {
+          p_asset_id: string
+          p_event_date?: string
+          p_operator_id: string
+          p_pin: string
+        }
+        Returns: Json
+      }
+      operator_record_temperature: {
+        Args: {
+          p_asset_id: string
+          p_event_date?: string
+          p_operator_id: string
+          p_pin: string
+          p_temperature: number
+        }
+        Returns: Json
+      }
+      operator_tasks: { Args: { p_operator_id: string }; Returns: Json }
       slugify: { Args: { input: string }; Returns: string }
       unaccent_safe: { Args: { input: string }; Returns: string }
     }
