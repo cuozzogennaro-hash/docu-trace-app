@@ -16,14 +16,15 @@ import Settings from "./pages/Settings";
 import Archive from "./pages/Archive";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
-import { OperatorSessionProvider } from "./hooks/useOperatorSession";
+import { OperatorSessionProvider, useOperatorSession } from "./hooks/useOperatorSession";
 
 const queryClient = new QueryClient();
 
 function Protected() {
   const { session, loading } = useAuth();
+  const { operator } = useOperatorSession();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Caricamento…</div>;
-  if (!session) return <Navigate to="/auth" replace />;
+  if (!session && !operator) return <Navigate to="/auth" replace />;
   return <AppShell />;
 }
 
