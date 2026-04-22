@@ -71,6 +71,75 @@ export type Database = {
         }
         Relationships: []
       }
+      company_settings: {
+        Row: {
+          address: string | null
+          business_name: string | null
+          created_at: string
+          email: string | null
+          id: string
+          logo_url: string | null
+          phone: string | null
+          updated_at: string
+          user_id: string
+          vat: string | null
+        }
+        Insert: {
+          address?: string | null
+          business_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id: string
+          vat?: string | null
+        }
+        Update: {
+          address?: string | null
+          business_name?: string | null
+          created_at?: string
+          email?: string | null
+          id?: string
+          logo_url?: string | null
+          phone?: string | null
+          updated_at?: string
+          user_id?: string
+          vat?: string | null
+        }
+        Relationships: []
+      }
+      operators: {
+        Row: {
+          created_at: string
+          id: string
+          is_active: boolean
+          name: string
+          pin_hash: string
+          role: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name: string
+          pin_hash: string
+          role?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          is_active?: boolean
+          name?: string
+          pin_hash?: string
+          role?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       product_ingredients: {
         Row: {
           id: string
@@ -114,6 +183,7 @@ export type Database = {
           internal_lot: string
           name: string
           notes: string | null
+          operator_id: string | null
           production_date: string
           user_id: string
         }
@@ -123,6 +193,7 @@ export type Database = {
           internal_lot: string
           name: string
           notes?: string | null
+          operator_id?: string | null
           production_date: string
           user_id: string
         }
@@ -132,6 +203,7 @@ export type Database = {
           internal_lot?: string
           name?: string
           notes?: string | null
+          operator_id?: string | null
           production_date?: string
           user_id?: string
         }
@@ -168,6 +240,7 @@ export type Database = {
           id: string
           internal_lot: string
           is_out_of_stock: boolean
+          operator_id: string | null
           product_name: string
           quantity: string | null
           supplier_id: string | null
@@ -184,6 +257,7 @@ export type Database = {
           id?: string
           internal_lot: string
           is_out_of_stock?: boolean
+          operator_id?: string | null
           product_name: string
           quantity?: string | null
           supplier_id?: string | null
@@ -200,6 +274,7 @@ export type Database = {
           id?: string
           internal_lot?: string
           is_out_of_stock?: boolean
+          operator_id?: string | null
           product_name?: string
           quantity?: string | null
           supplier_id?: string | null
@@ -275,6 +350,7 @@ export type Database = {
           id: string
           notes: string | null
           operator: string | null
+          operator_id: string | null
           product_used: string | null
           recorded_at: string
           user_id: string
@@ -285,6 +361,7 @@ export type Database = {
           id?: string
           notes?: string | null
           operator?: string | null
+          operator_id?: string | null
           product_used?: string | null
           recorded_at?: string
           user_id: string
@@ -295,6 +372,7 @@ export type Database = {
           id?: string
           notes?: string | null
           operator?: string | null
+          operator_id?: string | null
           product_used?: string | null
           recorded_at?: string
           user_id?: string
@@ -340,6 +418,7 @@ export type Database = {
           id: string
           notes: string | null
           operator: string | null
+          operator_id: string | null
           recorded_at: string
           temperature: number
           user_id: string
@@ -350,6 +429,7 @@ export type Database = {
           id?: string
           notes?: string | null
           operator?: string | null
+          operator_id?: string | null
           recorded_at?: string
           temperature: number
           user_id: string
@@ -360,6 +440,7 @@ export type Database = {
           id?: string
           notes?: string | null
           operator?: string | null
+          operator_id?: string | null
           recorded_at?: string
           temperature?: number
           user_id?: string
