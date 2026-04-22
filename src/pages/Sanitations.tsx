@@ -2,22 +2,23 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import AssetManager, { useAssets } from "@/components/AssetManager";
+import OperatorPinDialog from "@/components/OperatorPinDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Sparkles } from "lucide-react";
+import { Sparkles, ShieldCheck } from "lucide-react";
 
 export default function Sanitations() {
   const { assets, refresh } = useAssets();
   const [assetId, setAssetId] = useState("");
   const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
-  const [operator, setOperator] = useState("");
   const [productUsed, setProductUsed] = useState("");
   const [rows, setRows] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
+  const [pinOpen, setPinOpen] = useState(false);
 
   async function load() {
     const { data } = await supabase
@@ -31,21 +32,25 @@ export default function Sanitations() {
     load();
   }, []);
 
-  async function save() {
+  function handleSave() {
     if (!assetId) return toast.error("Seleziona un asset");
+    setPinOpen(true);
+  }
+
+  async function saveWithOperator(op: { id: string; name: string }) {
     setBusy(true);
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("sanitations").insert({
       user_id: user!.id,
       asset_id: assetId,
       event_date: eventDate,
-      operator,
+      operator: op.name,
+      operator_id: op.id,
       product_used: productUsed,
     });
     setBusy(false);
     if (error) return toast.error(error.message);
-    toast.success("Sanificazione registrata");
-    setOperator("");
+    toast.success(`Registrato da ${op.name}`);
     setProductUsed("");
     load();
   }
@@ -72,19 +77,22 @@ export default function Sanitations() {
             <Label>Data</Label>
             <Input type="date" value={eventDate} onChange={(e) => setEventDate(e.target.value)} />
           </div>
-          <div className="space-y-2">
-            <Label>Operatore</Label>
-            <Input value={operator} onChange={(e) => setOperator(e.target.value)} placeholder="Nome operatore" />
-          </div>
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-2">
             <Label>Prodotto usato</Label>
             <Input value={productUsed} onChange={(e) => setProductUsed(e.target.value)} placeholder="Detergente/sanificante" />
           </div>
         </div>
-        <Button onClick={save} disabled={busy} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
-          <Sparkles size={16} /> Registra sanificazione
+        <Button onClick={handleSave} disabled={busy} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
+          <ShieldCheck size={16} /> Identifica e registra
         </Button>
       </Card>
+
+      <OperatorPinDialog
+        open={pinOpen}
+        onOpenChange={setPinOpen}
+        onConfirm={saveWithOperator}
+        title="Chi sta registrando questa sanificazione?"
+      />
 
       <div className="space-y-2">
         {rows.map((r) => (
