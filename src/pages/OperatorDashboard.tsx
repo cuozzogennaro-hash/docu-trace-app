@@ -43,31 +43,16 @@ export default function OperatorDashboard() {
   async function load() {
     if (!operator) return;
     setLoading(true);
-
-    const { data: ass } = await supabase
-      .from("task_assignments")
-      .select("id, asset_id, task_type, frequency, asset:assets(id, name, asset_type, cleaning_product, target_temp_min, target_temp_max)")
-      .eq("operator_id", operator.id);
-
-    const list = (ass as any as Assignment[]) ?? [];
-    setAssignments(list);
-
-    // Check completions for each assignment in its current period
-    const doneMap: Record<string, boolean> = {};
-    await Promise.all(
-      list.map(async (a) => {
-        const start = periodStart(a.frequency);
-        const table = a.task_type === "sanitation" ? "sanitations" : "temperatures";
-        const { count } = await supabase
-          .from(table)
-          .select("id", { count: "exact", head: true })
-          .eq("operator_id", operator.id)
-          .eq("asset_id", a.asset_id)
-          .gte("event_date", start);
-        doneMap[`${a.asset_id}-${a.task_type}`] = (count ?? 0) > 0;
-      })
-    );
-    setDone(doneMap);
+    const [tasksRes, statusRes] = await Promise.all([
+      supabase.rpc("operator_tasks", { p_operator_id: operator.id }),
+      supabase.rpc("operator_period_status", { p_operator_id: operator.id }),
+    ]);
+    const tasksPayload = tasksRes.data as { ok: boolean; tasks?: Assignment[] } | null;
+    const statusPayload = statusRes.data as { ok: boolean; done?: Array<{ asset_id: string; task_type: string; done: boolean }> } | null;
+    setAssignments(tasksPayload?.tasks ?? []);
+    const map: Record<string, boolean> = {};
+    (statusPayload?.done ?? []).forEach((d) => { map[`${d.asset_id}-${d.task_type}`] = !!d.done; });
+    setDone(map);
     setLoading(false);
   }
 
@@ -76,42 +61,36 @@ export default function OperatorDashboard() {
   if (!operator) return null;
 
   async function checkSanitation(a: Assignment) {
+    if (!operator?.pin) return toast.error("Sessione scaduta, rifai login");
     setBusy(`s-${a.id}`);
-    const { data: { user } } = await supabase.auth.getUser();
-    const today = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from("sanitations").insert({
-      user_id: user!.id,
-      asset_id: a.asset_id,
-      event_date: today,
-      operator: operator!.name,
-      operator_id: operator!.id,
-      product_used: a.asset.cleaning_product,
+    const { data, error } = await supabase.rpc("operator_record_sanitation", {
+      p_operator_id: operator.id,
+      p_pin: operator.pin,
+      p_asset_id: a.asset_id,
     });
     setBusy(null);
-    if (error) return toast.error(error.message);
+    const res = data as { ok: boolean; error?: string } | null;
+    if (error || !res?.ok) return toast.error(res?.error === "pin" ? "PIN non valido" : "Errore");
     toast.success(`✓ ${a.asset.name} sanificato`);
     setDone((d) => ({ ...d, [`${a.asset_id}-sanitation`]: true }));
   }
 
   async function saveTemperature(a: Assignment) {
-    const key = `${a.asset_id}-temperature`;
+    if (!operator?.pin) return toast.error("Sessione scaduta, rifai login");
     const val = tempInputs[a.id];
     if (!val) return toast.error("Inserisci la temperatura");
     setBusy(`t-${a.id}`);
-    const { data: { user } } = await supabase.auth.getUser();
-    const today = new Date().toISOString().slice(0, 10);
-    const { error } = await supabase.from("temperatures").insert({
-      user_id: user!.id,
-      asset_id: a.asset_id,
-      event_date: today,
-      temperature: Number(val),
-      operator: operator!.name,
-      operator_id: operator!.id,
+    const { data, error } = await supabase.rpc("operator_record_temperature", {
+      p_operator_id: operator.id,
+      p_pin: operator.pin,
+      p_asset_id: a.asset_id,
+      p_temperature: Number(val),
     });
     setBusy(null);
-    if (error) return toast.error(error.message);
+    const res = data as { ok: boolean; error?: string } | null;
+    if (error || !res?.ok) return toast.error(res?.error === "pin" ? "PIN non valido" : "Errore");
     toast.success(`✓ ${a.asset.name}: ${val}°C`);
-    setDone((d) => ({ ...d, [key]: true }));
+    setDone((d) => ({ ...d, [`${a.asset_id}-temperature`]: true }));
     setTempInputs((t) => ({ ...t, [a.id]: "" }));
   }
 
