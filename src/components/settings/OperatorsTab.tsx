@@ -9,9 +9,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { hashPin } from "@/hooks/useOperators";
 import { toast } from "sonner";
-import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil } from "lucide-react";
+import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign } from "lucide-react";
 
-type Op = { id: string; name: string; role: string | null; is_active: boolean };
+type Op = { id: string; name: string; role: string | null; is_active: boolean; login_handle: string };
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null };
 type Assignment = {
   id: string;
@@ -39,13 +39,17 @@ export default function OperatorsTab() {
   // tasks dialog
   const [tasksFor, setTasksFor] = useState<Op | null>(null);
 
+  // edit handle dialog
+  const [editingHandle, setEditingHandle] = useState<Op | null>(null);
+  const [handleDraft, setHandleDraft] = useState("");
+
   async function load() {
     const [ops, ass, ta] = await Promise.all([
-      supabase.from("operators").select("id, name, role, is_active").order("name"),
+      supabase.from("operators").select("id, name, role, is_active, login_handle").order("name"),
       supabase.from("assets").select("id, name, asset_type, cleaning_product").order("name"),
       supabase.from("task_assignments").select("*"),
     ]);
-    setList(ops.data ?? []);
+    setList((ops.data as Op[]) ?? []);
     setAssets((ass.data as Asset[]) ?? []);
     setAssignments((ta.data as Assignment[]) ?? []);
   }
@@ -93,6 +97,25 @@ export default function OperatorsTab() {
     const pin_hash = await hashPin(newPin, user.id);
     await supabase.from("operators").update({ pin_hash }).eq("id", op.id);
     toast.success("PIN aggiornato");
+  }
+
+  async function saveHandle() {
+    if (!editingHandle) return;
+    const v = handleDraft.trim().toLowerCase().replace(/[^a-z0-9-]/g, "-").replace(/-+/g, "-").replace(/^-|-$/g, "");
+    if (v.length < 3) return toast.error("Min. 3 caratteri (lettere/numeri/trattini)");
+    const { error } = await supabase.from("operators").update({ login_handle: v }).eq("id", editingHandle.id);
+    if (error) {
+      if (error.code === "23505") return toast.error("Nome utente già in uso");
+      return toast.error(error.message);
+    }
+    toast.success("Nome utente aggiornato");
+    setEditingHandle(null);
+    load();
+  }
+
+  function copyHandle(handle: string) {
+    navigator.clipboard.writeText(handle);
+    toast.success("Copiato");
   }
 
   async function toggleAssignment(operatorId: string, assetId: string, taskType: "sanitation" | "temperature", checked: boolean) {
@@ -202,6 +225,16 @@ export default function OperatorsTab() {
                     </Button>
                   </div>
                 </div>
+                <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
+                  <AtSign size={14} className="text-muted-foreground shrink-0" />
+                  <code className="flex-1 text-xs font-mono bg-muted/60 rounded px-2 py-1 truncate">{op.login_handle}</code>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyHandle(op.login_handle)} title="Copia">
+                    <Copy size={13} />
+                  </Button>
+                  <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => { setEditingHandle(op); setHandleDraft(op.login_handle); }} title="Modifica">
+                    <Pencil size={13} />
+                  </Button>
+                </div>
               </Card>
             );
           })}
@@ -300,6 +333,34 @@ export default function OperatorsTab() {
 
           <DialogFooter>
             <Button onClick={() => setTasksFor(null)} className="bg-gradient-primary">Fatto</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit handle dialog */}
+      <Dialog open={!!editingHandle} onOpenChange={(v) => !v && setEditingHandle(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Nome utente di {editingHandle?.name}</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-3">
+            <div className="space-y-1.5">
+              <Label>Nome utente univoco</Label>
+              <Input
+                value={handleDraft}
+                onChange={(e) => setHandleDraft(e.target.value)}
+                placeholder="mario-bistrotdamario"
+                className="font-mono"
+                maxLength={60}
+              />
+              <p className="text-xs text-muted-foreground">
+                L'operatore lo userà per accedere dalla pagina di login. Solo lettere minuscole, numeri e trattini.
+              </p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingHandle(null)}>Annulla</Button>
+            <Button onClick={saveHandle} className="bg-gradient-primary">Salva</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
