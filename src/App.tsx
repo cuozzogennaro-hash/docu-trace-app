@@ -13,10 +13,10 @@ import Production from "./pages/Production";
 import Clients from "./pages/Clients";
 import Shopping from "./pages/Shopping";
 import Settings from "./pages/Settings";
-import Operators from "./pages/Operators";
 import Archive from "./pages/Archive";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
+import { OperatorSessionProvider } from "./hooks/useOperatorSession";
 
 const queryClient = new QueryClient();
 
@@ -34,7 +34,8 @@ const App = () => (
       <Sonner />
       <BrowserRouter>
         <AuthProvider>
-          <Routes>
+          <OperatorSessionProvider>
+            <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route element={<Protected />}>
               <Route path="/" element={<Index />} />
@@ -45,11 +46,11 @@ const App = () => (
               <Route path="/clienti" element={<Clients />} />
               <Route path="/acquisti" element={<Shopping />} />
               <Route path="/archivio" element={<Archive />} />
-              <Route path="/operatori" element={<Operators />} />
               <Route path="/impostazioni" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
-          </Routes>
+            </Routes>
+          </OperatorSessionProvider>
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>
