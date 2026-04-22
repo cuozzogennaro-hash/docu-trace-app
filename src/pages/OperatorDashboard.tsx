@@ -8,8 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Sparkles, Thermometer, CheckCircle2, Factory, Loader2 } from "lucide-react";
-import { Link } from "react-router-dom";
+import { Sparkles, Thermometer, CheckCircle2, Loader2 } from "lucide-react";
 
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null; target_temp_min: number | null; target_temp_max: number | null };
 type Assignment = {
@@ -19,17 +18,6 @@ type Assignment = {
   frequency: "daily" | "weekly" | "monthly";
   asset: Asset;
 };
-
-function periodStart(freq: "daily" | "weekly" | "monthly"): string {
-  const d = new Date();
-  if (freq === "weekly") {
-    const day = (d.getDay() + 6) % 7; // Monday = 0
-    d.setDate(d.getDate() - day);
-  } else if (freq === "monthly") {
-    d.setDate(1);
-  }
-  return d.toISOString().slice(0, 10);
-}
 
 export default function OperatorDashboard() {
   const { operator, signOut } = useOperatorSession();
@@ -106,12 +94,7 @@ export default function OperatorDashboard() {
         title={`Ciao, ${operator.name}`}
         subtitle={remaining === 0 ? "Tutti i compiti di oggi completati 🎉" : `${remaining} compiti da completare`}
         action={
-          <div className="flex gap-2">
-            <Link to="/produzione">
-              <Button variant="outline" className="gap-2"><Factory size={16} /> Preparati</Button>
-            </Link>
-            <Button variant="ghost" onClick={signOut}>Cambia utente</Button>
-          </div>
+          <Button variant="ghost" onClick={signOut}>Esci</Button>
         }
       />
 
