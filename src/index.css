@@ -8,35 +8,49 @@ All colors MUST be HSL.
 
 @layer base {
   :root {
-    --background: 0 0% 100%;
-    --foreground: 222.2 84% 4.9%;
+    /* HACCP Pro — fresh, clinical, food-safe palette */
+    --background: 150 30% 98%;
+    --foreground: 180 25% 12%;
 
     --card: 0 0% 100%;
-    --card-foreground: 222.2 84% 4.9%;
+    --card-foreground: 180 25% 12%;
 
     --popover: 0 0% 100%;
-    --popover-foreground: 222.2 84% 4.9%;
+    --popover-foreground: 180 25% 12%;
 
-    --primary: 222.2 47.4% 11.2%;
-    --primary-foreground: 210 40% 98%;
+    --primary: 165 72% 32%;
+    --primary-foreground: 0 0% 100%;
+    --primary-glow: 160 70% 45%;
 
-    --secondary: 210 40% 96.1%;
-    --secondary-foreground: 222.2 47.4% 11.2%;
+    --secondary: 150 25% 94%;
+    --secondary-foreground: 180 25% 18%;
 
-    --muted: 210 40% 96.1%;
-    --muted-foreground: 215.4 16.3% 46.9%;
+    --muted: 150 20% 95%;
+    --muted-foreground: 180 10% 42%;
 
-    --accent: 210 40% 96.1%;
-    --accent-foreground: 222.2 47.4% 11.2%;
+    --accent: 28 95% 55%;
+    --accent-foreground: 0 0% 100%;
 
-    --destructive: 0 84.2% 60.2%;
-    --destructive-foreground: 210 40% 98%;
+    --success: 150 65% 40%;
+    --success-foreground: 0 0% 100%;
 
-    --border: 214.3 31.8% 91.4%;
-    --input: 214.3 31.8% 91.4%;
-    --ring: 222.2 84% 4.9%;
+    --warning: 38 95% 52%;
+    --warning-foreground: 30 40% 12%;
 
-    --radius: 0.5rem;
+    --destructive: 0 78% 52%;
+    --destructive-foreground: 0 0% 100%;
+
+    --border: 150 20% 88%;
+    --input: 150 20% 90%;
+    --ring: 165 72% 32%;
+
+    --radius: 0.9rem;
+
+    --gradient-primary: linear-gradient(135deg, hsl(165 72% 32%), hsl(160 70% 45%));
+    --gradient-accent: linear-gradient(135deg, hsl(28 95% 55%), hsl(20 90% 58%));
+    --gradient-surface: linear-gradient(180deg, hsl(150 30% 98%), hsl(150 20% 95%));
+    --shadow-soft: 0 4px 16px -4px hsl(165 40% 20% / 0.08);
+    --shadow-elevated: 0 12px 32px -12px hsl(165 50% 20% / 0.18);
 
     --sidebar-background: 0 0% 98%;
 
