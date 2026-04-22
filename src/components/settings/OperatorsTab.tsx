@@ -65,6 +65,7 @@ export default function OperatorsTab() {
         name: name.trim(),
         role: role.trim() || null,
         pin_hash,
+        login_handle: "", // trigger fills automatically
       });
       if (error) throw error;
       toast.success("Operatore creato");
