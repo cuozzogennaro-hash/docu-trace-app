@@ -1,6 +1,6 @@
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
-import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck } from "lucide-react";
+import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCog } from "lucide-react";
 import { Button } from "@/components/ui/button";
 
 const nav = [
@@ -11,6 +11,9 @@ const nav = [
   { to: "/produzione", icon: Factory, label: "Produzione" },
   { to: "/clienti", icon: Users, label: "Clienti & Vendite" },
   { to: "/acquisti", icon: ShoppingCart, label: "Lista acquisti" },
+  { to: "/archivio", icon: Archive, label: "Archivio" },
+  { to: "/operatori", icon: UserCog, label: "Operatori" },
+  { to: "/impostazioni", icon: Settings, label: "Impostazioni" },
 ];
 
 export default function AppShell() {

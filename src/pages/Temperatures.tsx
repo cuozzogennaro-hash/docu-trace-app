@@ -2,21 +2,22 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import AssetManager, { useAssets } from "@/components/AssetManager";
+import OperatorPinDialog from "@/components/OperatorPinDialog";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Thermometer } from "lucide-react";
+import { Thermometer, ShieldCheck } from "lucide-react";
 
 export default function Temperatures() {
   const { assets, refresh } = useAssets();
   const [assetId, setAssetId] = useState("");
   const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
   const [temperature, setTemperature] = useState("");
-  const [operator, setOperator] = useState("");
   const [rows, setRows] = useState<any[]>([]);
+  const [pinOpen, setPinOpen] = useState(false);
 
   async function load() {
     const { data } = await supabase
@@ -30,18 +31,23 @@ export default function Temperatures() {
     load();
   }, []);
 
-  async function save() {
+  function handleSave() {
     if (!assetId || !temperature) return toast.error("Asset e temperatura obbligatori");
+    setPinOpen(true);
+  }
+
+  async function saveWithOperator(op: { id: string; name: string }) {
     const { data: { user } } = await supabase.auth.getUser();
     const { error } = await supabase.from("temperatures").insert({
       user_id: user!.id,
       asset_id: assetId,
       event_date: eventDate,
       temperature: Number(temperature),
-      operator,
+      operator: op.name,
+      operator_id: op.id,
     });
     if (error) return toast.error(error.message);
-    toast.success("Temperatura registrata");
+    toast.success(`Registrato da ${op.name}`);
     setTemperature("");
     load();
   }
@@ -72,15 +78,18 @@ export default function Temperatures() {
             <Label>Temperatura °C</Label>
             <Input type="number" step="0.1" inputMode="decimal" value={temperature} onChange={(e) => setTemperature(e.target.value)} />
           </div>
-          <div className="space-y-2">
-            <Label>Operatore</Label>
-            <Input value={operator} onChange={(e) => setOperator(e.target.value)} />
-          </div>
         </div>
-        <Button onClick={save} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
-          <Thermometer size={16} /> Registra temperatura
+        <Button onClick={handleSave} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
+          <ShieldCheck size={16} /> Identifica e registra
         </Button>
       </Card>
+
+      <OperatorPinDialog
+        open={pinOpen}
+        onOpenChange={setPinOpen}
+        onConfirm={saveWithOperator}
+        title="Chi sta registrando questa temperatura?"
+      />
 
       <div className="space-y-2">
         {rows.map((r) => {

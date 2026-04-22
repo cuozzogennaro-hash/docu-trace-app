@@ -2,6 +2,7 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import PageHeader from "@/components/PageHeader";
+import CompanyHeader from "@/components/CompanyHeader";
 import { Sparkles, Thermometer, Package, Factory, AlertTriangle, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
 
@@ -45,6 +46,7 @@ export default function Dashboard() {
 
   return (
     <>
+      <CompanyHeader />
       <PageHeader title="Dashboard" subtitle="Panoramica del tuo autocontrollo HACCP" />
 
       {stats.missingToday && (
