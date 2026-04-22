@@ -118,6 +118,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          login_handle: string
           name: string
           pin_hash: string
           role: string | null
@@ -127,6 +128,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          login_handle: string
           name: string
           pin_hash: string
           role?: string | null
@@ -136,6 +138,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          login_handle?: string
           name?: string
           pin_hash?: string
           role?: string | null
@@ -493,7 +496,12 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
-      [_ in never]: never
+      operator_login: {
+        Args: { p_handle: string; p_pin: string }
+        Returns: Json
+      }
+      slugify: { Args: { input: string }; Returns: string }
+      unaccent_safe: { Args: { input: string }; Returns: string }
     }
     Enums: {
       [_ in never]: never
