@@ -168,10 +168,11 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   async function load() {
     setLoading(true);
     const select = cfg.relation ? `*, ${cfg.relation}` : "*";
+    const orderCol = (tableKey === "temperatures" || tableKey === "sanitations") ? "recorded_at" : "created_at";
     const { data, error } = await supabase
       .from(tableKey)
       .select(select)
-      .order("created_at", { ascending: false })
+      .order(orderCol, { ascending: false })
       .limit(500);
     if (error) toast.error(error.message);
     const flattened = (data ?? []).map((r: any) => ({
