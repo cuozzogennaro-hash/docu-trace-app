@@ -12,6 +12,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { Pencil, Trash2, Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
+import { useNavigate } from "react-router-dom";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -164,6 +165,14 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any | null>(null);
+  const navigate = useNavigate();
+
+  function onRowClick(r: any) {
+    if (tableKey === "raw_materials") navigate(`/archivio/materia-prima/${r.id}`);
+    else if (tableKey === "products") navigate(`/archivio/prodotto/${r.id}`);
+  }
+
+  const isClickable = tableKey === "raw_materials" || tableKey === "products";
 
   async function load() {
     setLoading(true);
@@ -311,7 +320,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
             </TableHeader>
             <TableBody>
               {rows.map((r) => (
-                <TableRow key={r.id}>
+                <TableRow key={r.id} className={isClickable ? "cursor-pointer hover:bg-muted/40" : ""} onClick={() => isClickable && onRowClick(r)}>
                   {cfg.columns.map((c) => (
                     <TableCell key={c.key} className="text-sm">
                       {r[c.key] ?? "—"}
