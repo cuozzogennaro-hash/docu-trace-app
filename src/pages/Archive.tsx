@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useState, useMemo } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
@@ -9,8 +9,11 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Trash2, Loader2 } from "lucide-react";
+import { Pencil, Trash2, Loader2, FileDown } from "lucide-react";
 import { toast } from "sonner";
+import { useCompany } from "@/hooks/useCompany";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
 
 type TableKey = "raw_materials" | "products" | "temperatures" | "sanitations";
 
@@ -64,6 +67,7 @@ const CONFIGS: Record<TableKey, { label: string; columns: ColumnDef[]; relation?
 
 export default function Archive() {
   const [tab, setTab] = useState<TableKey>("raw_materials");
+  const { company } = useCompany();
 
   return (
     <>
@@ -76,7 +80,7 @@ export default function Archive() {
         </TabsList>
         {(Object.keys(CONFIGS) as TableKey[]).map((k) => (
           <TabsContent key={k} value={k}>
-            <ArchiveTable tableKey={k} />
+            <ArchiveTable tableKey={k} company={company} />
           </TabsContent>
         ))}
       </Tabs>
@@ -84,7 +88,78 @@ export default function Archive() {
   );
 }
 
-function ArchiveTable({ tableKey }: { tableKey: TableKey }) {
+/* ---- helpers for daily grouping & PDF ---- */
+
+function groupByDate(rows: any[]): Record<string, any[]> {
+  const map: Record<string, any[]> = {};
+  for (const r of rows) {
+    const d = r.event_date ?? "senza-data";
+    (map[d] ??= []).push(r);
+  }
+  return map;
+}
+
+function generateDailyPdf(
+  date: string,
+  rows: any[],
+  type: "temperatures" | "sanitations",
+  company: any
+) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const title = type === "temperatures" ? "Registro Temperature" : "Registro Sanificazioni";
+
+  // Header
+  doc.setFontSize(16);
+  doc.text(title, 14, 20);
+  doc.setFontSize(10);
+  doc.text(`Data: ${date}`, 14, 28);
+  if (company?.business_name) doc.text(company.business_name, 14, 34);
+  if (company?.address) doc.text(company.address, 14, 39);
+
+  const startY = company?.address ? 46 : company?.business_name ? 41 : 35;
+
+  if (type === "temperatures") {
+    autoTable(doc, {
+      startY,
+      head: [["Attrezzatura", "°C", "Operatore", "Ora", "Note"]],
+      body: rows.map((r) => [
+        r.asset_name ?? "—",
+        r.temperature ?? "—",
+        r.operator ?? "—",
+        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+  } else {
+    autoTable(doc, {
+      startY,
+      head: [["Attrezzatura", "Operatore", "Prodotto usato", "Ora", "Note"]],
+      body: rows.map((r) => [
+        r.asset_name ?? "—",
+        r.operator ?? "—",
+        r.product_used ?? "—",
+        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 9 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+  }
+
+  // Footer
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
+  }
+
+  doc.save(`${type === "temperatures" ? "temperature" : "sanificazioni"}_${date}.pdf`);
+}
+
+function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any }) {
   const cfg = CONFIGS[tableKey];
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -109,6 +184,10 @@ function ArchiveTable({ tableKey }: { tableKey: TableKey }) {
 
   useEffect(() => { load(); }, [tableKey]);
 
+  const isDailyGroupable = tableKey === "temperatures" || tableKey === "sanitations";
+  const grouped = useMemo(() => isDailyGroupable ? groupByDate(rows) : {}, [rows, isDailyGroupable]);
+  const sortedDates = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
+
   async function save(updated: any) {
     const payload: any = {};
     cfg.columns.forEach((c) => {
@@ -132,6 +211,91 @@ function ArchiveTable({ tableKey }: { tableKey: TableKey }) {
 
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (rows.length === 0) return <Card className="p-12 text-center text-muted-foreground">Nessun record.</Card>;
+
+  if (isDailyGroupable) {
+    return (
+      <>
+        <div className="space-y-4">
+          {sortedDates.map((date) => (
+            <Card key={date} className="overflow-hidden">
+              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
+                <h3 className="font-display font-bold text-sm">{date}</h3>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => generateDailyPdf(date, grouped[date], tableKey as "temperatures" | "sanitations", company)}
+                >
+                  <FileDown size={14} /> PDF
+                </Button>
+              </div>
+              <div className="overflow-x-auto">
+                <Table>
+                  <TableHeader>
+                    <TableRow>
+                      {cfg.columns.filter(c => c.key !== "event_date").map((c) => (
+                        <TableHead key={c.key}>{c.label}</TableHead>
+                      ))}
+                      <TableHead className="text-right">Azioni</TableHead>
+                    </TableRow>
+                  </TableHeader>
+                  <TableBody>
+                    {grouped[date].map((r: any) => (
+                      <TableRow key={r.id}>
+                        {cfg.columns.filter(c => c.key !== "event_date").map((c) => (
+                          <TableCell key={c.key} className="text-sm">
+                            {r[c.key] ?? "—"}
+                          </TableCell>
+                        ))}
+                        <TableCell className="text-right whitespace-nowrap">
+                          <Button size="icon" variant="ghost" onClick={() => setEditing(r)}>
+                            <Pencil size={14} />
+                          </Button>
+                          <Button size="icon" variant="ghost" onClick={() => remove(r.id)}>
+                            <Trash2 size={14} className="text-destructive" />
+                          </Button>
+                        </TableCell>
+                      </TableRow>
+                    ))}
+                  </TableBody>
+                </Table>
+              </div>
+            </Card>
+          ))}
+        </div>
+
+        <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Modifica record</DialogTitle></DialogHeader>
+            {editing && (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {cfg.columns.map((c) => (
+                  <div key={c.key} className="space-y-1.5">
+                    <Label>{c.label}</Label>
+                    {c.type === "textarea" ? (
+                      <Textarea
+                        value={editing[c.key] ?? ""}
+                        disabled={c.readOnly}
+                        onChange={(e) => setEditing({ ...editing, [c.key]: e.target.value })}
+                      />
+                    ) : (
+                      <Input
+                        type={c.type ?? "text"}
+                        value={editing[c.key] ?? ""}
+                        disabled={c.readOnly}
+                        onChange={(e) => setEditing({ ...editing, [c.key]: e.target.value })}
+                      />
+                    )}
+                  </div>
+                ))}
+                <Button onClick={() => save(editing)} className="w-full bg-gradient-primary">Salva modifiche</Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
 
   return (
     <>
