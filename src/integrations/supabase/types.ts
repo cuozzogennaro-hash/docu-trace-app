@@ -247,6 +247,7 @@ export type Database = {
           internal_lot: string
           is_out_of_stock: boolean
           operator_id: string | null
+          origin: string | null
           product_name: string
           quantity: string | null
           supplier_id: string | null
@@ -264,6 +265,7 @@ export type Database = {
           internal_lot: string
           is_out_of_stock?: boolean
           operator_id?: string | null
+          origin?: string | null
           product_name: string
           quantity?: string | null
           supplier_id?: string | null
@@ -281,6 +283,7 @@ export type Database = {
           internal_lot?: string
           is_out_of_stock?: boolean
           operator_id?: string | null
+          origin?: string | null
           product_name?: string
           quantity?: string | null
           supplier_id?: string | null

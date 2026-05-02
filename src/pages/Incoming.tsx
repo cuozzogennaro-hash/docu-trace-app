@@ -24,6 +24,7 @@ export default function Incoming() {
   const [internalLot, setInternalLot] = useState(generateInternalLot("L"));
   const [quantity, setQuantity] = useState("");
   const [expiry, setExpiry] = useState("");
+  const [origin, setOrigin] = useState("");
   const [rows, setRows] = useState<any[]>([]);
 
   async function load() {
@@ -81,6 +82,7 @@ export default function Incoming() {
       internal_lot: internalLot,
       quantity: quantity || null,
       expiry_date: expiry || null,
+      origin: origin || null,
       document_image_url: imageUrl,
     });
     if (error) return toast.error(error.message);
@@ -89,6 +91,7 @@ export default function Incoming() {
     setSupplierLot("");
     setQuantity("");
     setExpiry("");
+    setOrigin("");
     setInternalLot(generateInternalLot("L"));
     setPreview(null);
     setImageFile(null);
@@ -159,6 +162,10 @@ export default function Incoming() {
               <Label>Scadenza</Label>
               <Input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
             </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Provenienza / Origine</Label>
+              <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Es. Italia, Allevamento XY, Origine carcassa…" />
+            </div>
           </div>
         </div>
         <Button onClick={save} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
@@ -173,6 +180,7 @@ export default function Incoming() {
               <div className="font-semibold truncate">{r.product_name}</div>
               <div className="text-xs text-muted-foreground">
                 {r.supplier_name || "—"} • <span className="font-mono">{r.internal_lot}</span>
+                {r.origin && <> • Origine: {r.origin}</>}
               </div>
             </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
