@@ -14,6 +14,8 @@ import Clients from "./pages/Clients";
 import Shopping from "./pages/Shopping";
 import Settings from "./pages/Settings";
 import Archive from "./pages/Archive";
+import RawMaterialDetail from "./pages/RawMaterialDetail";
+import ProductDetail from "./pages/ProductDetail";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { OperatorSessionProvider, useOperatorSession } from "./hooks/useOperatorSession";
@@ -47,6 +49,8 @@ const App = () => (
               <Route path="/clienti" element={<Clients />} />
               <Route path="/acquisti" element={<Shopping />} />
               <Route path="/archivio" element={<Archive />} />
+              <Route path="/archivio/materia-prima/:id" element={<RawMaterialDetail />} />
+              <Route path="/archivio/prodotto/:id" element={<ProductDetail />} />
               <Route path="/impostazioni" element={<Settings />} />
             </Route>
             <Route path="*" element={<NotFound />} />
