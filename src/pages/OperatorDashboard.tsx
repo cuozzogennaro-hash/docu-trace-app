@@ -2,13 +2,12 @@ import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
 import PageHeader from "@/components/PageHeader";
-import CompanyHeader from "@/components/CompanyHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Sparkles, Thermometer, CheckCircle2, Loader2 } from "lucide-react";
+import { Sparkles, Thermometer, CheckCircle2, Loader2, Building2 } from "lucide-react";
 
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null; target_temp_min: number | null; target_temp_max: number | null };
 type Assignment = {
@@ -19,10 +18,13 @@ type Assignment = {
   asset: Asset;
 };
 
+type CompanyInfo = { business_name: string | null; logo_url: string | null; address: string | null; vat: string | null };
+
 export default function OperatorDashboard() {
   const { operator, signOut } = useOperatorSession();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [company, setCompany] = useState<CompanyInfo | null>(null);
   // Track completion: asset_id-task_type -> done? (in current period)
   const [done, setDone] = useState<Record<string, boolean>>({});
   const [tempInputs, setTempInputs] = useState<Record<string, string>>({});
@@ -31,16 +33,19 @@ export default function OperatorDashboard() {
   async function load() {
     if (!operator) return;
     setLoading(true);
-    const [tasksRes, statusRes] = await Promise.all([
+    const [tasksRes, statusRes, companyRes] = await Promise.all([
       supabase.rpc("operator_tasks", { p_operator_id: operator.id }),
       supabase.rpc("operator_period_status", { p_operator_id: operator.id }),
+      supabase.rpc("operator_company" as any, { p_operator_id: operator.id }),
     ]);
     const tasksPayload = tasksRes.data as { ok: boolean; tasks?: Assignment[] } | null;
     const statusPayload = statusRes.data as { ok: boolean; done?: Array<{ asset_id: string; task_type: string; done: boolean }> } | null;
+    const companyPayload = companyRes.data as { ok: boolean; company?: CompanyInfo | null } | null;
     setAssignments(tasksPayload?.tasks ?? []);
     const map: Record<string, boolean> = {};
     (statusPayload?.done ?? []).forEach((d) => { map[`${d.asset_id}-${d.task_type}`] = !!d.done; });
     setDone(map);
+    setCompany(companyPayload?.company ?? null);
     setLoading(false);
   }
 
@@ -89,7 +94,23 @@ export default function OperatorDashboard() {
 
   return (
     <>
-      <CompanyHeader />
+      {company && (
+        <div className="mb-6 rounded-xl bg-card border border-border p-4 flex items-center gap-4 shadow-soft">
+          {company.logo_url ? (
+            <img src={company.logo_url} alt="Logo" className="h-12 w-12 rounded-lg object-contain bg-muted" />
+          ) : (
+            <div className="h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center">
+              <Building2 className="text-primary-foreground" size={22} />
+            </div>
+          )}
+          <div className="min-w-0 flex-1">
+            <div className="font-display font-bold text-lg leading-tight truncate">{company.business_name ?? "—"}</div>
+            <div className="text-xs text-muted-foreground truncate">
+              {[company.vat && `P.IVA ${company.vat}`, company.address].filter(Boolean).join(" • ") || ""}
+            </div>
+          </div>
+        </div>
+      )}
       <PageHeader
         title={`Ciao, ${operator.name}`}
         subtitle={remaining === 0 ? "Tutti i compiti di oggi completati 🎉" : `${remaining} compiti da completare`}
