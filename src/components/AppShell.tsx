@@ -5,6 +5,7 @@ import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
+import NotificationBanner from "@/components/NotificationBanner";
 
 const adminNav = [
   { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
@@ -126,6 +127,7 @@ export default function AppShell() {
 
       <main className="lg:pl-64 pb-24 lg:pb-8">
         <div className="max-w-6xl mx-auto p-4 lg:p-8">
+          <NotificationBanner />
           <Outlet />
         </div>
       </main>
