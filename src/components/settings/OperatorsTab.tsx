@@ -9,7 +9,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { hashPin } from "@/hooks/useOperators";
 import { toast } from "sonner";
-import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign } from "lucide-react";
+import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell } from "lucide-react";
 
 type Op = { id: string; name: string; role: string | null; is_active: boolean; login_handle: string };
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null };
@@ -19,6 +19,7 @@ type Assignment = {
   asset_id: string;
   task_type: "sanitation" | "temperature";
   frequency: "daily" | "weekly" | "monthly";
+  due_time: string | null;
 };
 
 const FREQ_LABEL = { daily: "Giornaliero", weekly: "Settimanale", monthly: "Mensile" } as const;
@@ -139,6 +140,11 @@ export default function OperatorsTab() {
 
   async function setFrequency(assignmentId: string, frequency: "daily" | "weekly" | "monthly") {
     await supabase.from("task_assignments").update({ frequency }).eq("id", assignmentId);
+    load();
+  }
+
+  async function setDueTime(assignmentId: string, time: string) {
+    await supabase.from("task_assignments").update({ due_time: time || null }).eq("id", assignmentId);
     load();
   }
 
@@ -277,14 +283,26 @@ export default function OperatorsTab() {
                           {a.cleaning_product && <span className="text-muted-foreground ml-2 text-xs">· {a.cleaning_product}</span>}
                         </label>
                         {ass && (
-                          <Select value={ass.frequency} onValueChange={(v: any) => setFrequency(ass.id, v)}>
-                            <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
-                            <SelectContent>
-                              {(Object.keys(FREQ_LABEL) as Array<keyof typeof FREQ_LABEL>).map((k) => (
-                                <SelectItem key={k} value={k}>{FREQ_LABEL[k]}</SelectItem>
-                              ))}
-                            </SelectContent>
-                          </Select>
+                          <div className="flex items-center gap-2">
+                            <Select value={ass.frequency} onValueChange={(v: any) => setFrequency(ass.id, v)}>
+                              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                              <SelectContent>
+                                {(Object.keys(FREQ_LABEL) as Array<keyof typeof FREQ_LABEL>).map((k) => (
+                                  <SelectItem key={k} value={k}>{FREQ_LABEL[k]}</SelectItem>
+                                ))}
+                              </SelectContent>
+                            </Select>
+                            <div className="flex items-center gap-1" title="Ora notifica promemoria">
+                              <Bell size={14} className="text-muted-foreground shrink-0" />
+                              <Input
+                                type="time"
+                                value={ass.due_time?.slice(0, 5) ?? ""}
+                                onChange={(e) => setDueTime(ass.id, e.target.value)}
+                                className="w-24 h-8 text-xs"
+                                placeholder="--:--"
+                              />
+                            </div>
+                          </div>
                         )}
                       </div>
                     );
@@ -313,14 +331,26 @@ export default function OperatorsTab() {
                           />
                           <label htmlFor={`tmp-${a.id}`} className="flex-1 text-sm cursor-pointer">{a.name}</label>
                           {ass && (
-                            <Select value={ass.frequency} onValueChange={(v: any) => setFrequency(ass.id, v)}>
-                              <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
-                              <SelectContent>
-                                {(Object.keys(FREQ_LABEL) as Array<keyof typeof FREQ_LABEL>).map((k) => (
-                                  <SelectItem key={k} value={k}>{FREQ_LABEL[k]}</SelectItem>
-                                ))}
-                              </SelectContent>
-                            </Select>
+                            <div className="flex items-center gap-2">
+                              <Select value={ass.frequency} onValueChange={(v: any) => setFrequency(ass.id, v)}>
+                                <SelectTrigger className="w-32 h-8 text-xs"><SelectValue /></SelectTrigger>
+                                <SelectContent>
+                                  {(Object.keys(FREQ_LABEL) as Array<keyof typeof FREQ_LABEL>).map((k) => (
+                                    <SelectItem key={k} value={k}>{FREQ_LABEL[k]}</SelectItem>
+                                  ))}
+                                </SelectContent>
+                              </Select>
+                              <div className="flex items-center gap-1" title="Ora notifica promemoria">
+                                <Bell size={14} className="text-muted-foreground shrink-0" />
+                                <Input
+                                  type="time"
+                                  value={ass.due_time?.slice(0, 5) ?? ""}
+                                  onChange={(e) => setDueTime(ass.id, e.target.value)}
+                                  className="w-24 h-8 text-xs"
+                                  placeholder="--:--"
+                                />
+                              </div>
+                            </div>
                           )}
                         </div>
                       );
