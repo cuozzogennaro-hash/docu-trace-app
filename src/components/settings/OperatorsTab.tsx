@@ -32,6 +32,7 @@ export default function OperatorsTab() {
   const [list, setList] = useState<Op[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const { company } = useCompany();
 
   // create dialog
   const [open, setOpen] = useState(false);
