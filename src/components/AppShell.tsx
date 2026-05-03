@@ -134,24 +134,24 @@ export default function AppShell() {
 
       {/* Mobile bottom nav */}
       <nav className="lg:hidden fixed bottom-0 left-0 right-0 z-20 bg-card/95 backdrop-blur border-t border-border">
-        <div className={`grid gap-1 px-2 py-2`} style={{ gridTemplateColumns: `repeat(${Math.min(nav.length, 5)}, minmax(0, 1fr))` }}>
-          {nav.slice(0, 5).map((item) => (
+        <div className="flex overflow-x-auto px-1 py-1.5 gap-0.5 no-scrollbar" style={{ WebkitOverflowScrolling: 'touch' as any }}>
+          {nav.map((item) => (
             <NavLink
               key={item.to}
               to={item.to}
               end={item.end}
               className={({ isActive }) =>
-                `flex flex-col items-center gap-1 py-1.5 rounded-lg text-[10px] font-medium transition ${
+                `flex flex-col items-center gap-0.5 py-1 px-2 rounded-lg text-[9px] font-medium transition shrink-0 min-w-[52px] ${
                   isActive ? "text-primary" : "text-muted-foreground"
                 }`
               }
             >
               {({ isActive }) => (
                 <>
-                  <div className={`h-9 w-9 rounded-xl flex items-center justify-center transition ${isActive ? "bg-primary/15" : ""}`}>
-                    <item.icon size={20} />
+                  <div className={`h-7 w-7 rounded-lg flex items-center justify-center transition ${isActive ? "bg-primary/15" : ""}`}>
+                    <item.icon size={17} />
                   </div>
-                  <span className="leading-none">{item.label.split(" ")[0]}</span>
+                  <span className="leading-none whitespace-nowrap">{item.label.length > 10 ? item.label.split(" ")[0] : item.label}</span>
                 </>
               )}
             </NavLink>
