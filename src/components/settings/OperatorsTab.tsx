@@ -9,7 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { hashPin } from "@/hooks/useOperators";
 import { toast } from "sonner";
-import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell } from "lucide-react";
+import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell, FileDown } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { useCompany } from "@/hooks/useCompany";
 
 type Op = { id: string; name: string; role: string | null; is_active: boolean; login_handle: string };
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null };
@@ -28,6 +32,7 @@ export default function OperatorsTab() {
   const [list, setList] = useState<Op[]>([]);
   const [assets, setAssets] = useState<Asset[]>([]);
   const [assignments, setAssignments] = useState<Assignment[]>([]);
+  const { company } = useCompany();
 
   // create dialog
   const [open, setOpen] = useState(false);
@@ -269,7 +274,11 @@ export default function OperatorsTab() {
                   <h4 className="font-semibold">Sanificazione</h4>
                 </div>
                 <div className="space-y-1.5">
-                  {assets.map((a) => {
+                  {assets.filter((a) => {
+                    const taken = assignments.some((x) => x.asset_id === a.id && x.task_type === "sanitation" && x.operator_id !== tasksFor?.id);
+                    const mine = assignments.some((x) => x.asset_id === a.id && x.task_type === "sanitation" && x.operator_id === tasksFor?.id);
+                    return !taken || mine;
+                  }).map((a) => {
                     const ass = tasksFor && getAssignment(tasksFor.id, a.id, "sanitation");
                     return (
                       <div key={a.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted">
@@ -320,7 +329,11 @@ export default function OperatorsTab() {
                   <p className="text-xs text-muted-foreground">Nessun frigo/congelatore in anagrafica.</p>
                 ) : (
                   <div className="space-y-1.5">
-                    {fridgeAssets.map((a) => {
+                    {fridgeAssets.filter((a) => {
+                      const taken = assignments.some((x) => x.asset_id === a.id && x.task_type === "temperature" && x.operator_id !== tasksFor?.id);
+                      const mine = assignments.some((x) => x.asset_id === a.id && x.task_type === "temperature" && x.operator_id === tasksFor?.id);
+                      return !taken || mine;
+                    }).map((a) => {
                       const ass = tasksFor && getAssignment(tasksFor.id, a.id, "temperature");
                       return (
                         <div key={a.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted">
@@ -366,7 +379,10 @@ export default function OperatorsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
+      {/* Summary grid */}
+      {assignments.length > 0 && (
+        <SummaryGrid list={list} assignments={assignments} assets={assets} company={company} />
+      )}
       {/* Edit handle dialog */}
       <Dialog open={!!editingHandle} onOpenChange={(v) => !v && setEditingHandle(null)}>
         <DialogContent>
@@ -394,6 +410,80 @@ export default function OperatorsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+    </div>
+  );
+}
+
+const FREQ_LABEL_PDF = { daily: "Giornaliero", weekly: "Settimanale", monthly: "Mensile" } as const;
+
+function downloadSummaryPdf(list: Op[], assignments: Assignment[], assets: Asset[], company: any) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  doc.setFontSize(16);
+  doc.text("Riepilogo Compiti Assegnati", 14, 20);
+  doc.setFontSize(10);
+  if (company?.business_name) doc.text(company.business_name, 14, 28);
+  const startY = company?.business_name ? 34 : 28;
+  const sorted = [...assignments].sort((a, b) => {
+    const nA = list.find((o) => o.id === a.operator_id)?.name ?? "";
+    const nB = list.find((o) => o.id === b.operator_id)?.name ?? "";
+    return nA.localeCompare(nB);
+  });
+  autoTable(doc, {
+    startY,
+    head: [["Operatore", "Tipo", "Attrezzatura", "Frequenza", "Ora"]],
+    body: sorted.map((a) => [
+      list.find((o) => o.id === a.operator_id)?.name ?? "—",
+      a.task_type === "sanitation" ? "Sanificazione" : "Temperatura",
+      assets.find((x) => x.id === a.asset_id)?.name ?? "—",
+      FREQ_LABEL[a.frequency],
+      a.due_time?.slice(0, 5) ?? "—",
+    ]),
+    styles: { fontSize: 9 },
+    headStyles: { fillColor: [59, 130, 246] },
+  });
+  doc.save("riepilogo_compiti.pdf");
+}
+
+function SummaryGrid({ list, assignments, assets, company }: { list: Op[]; assignments: Assignment[]; assets: Asset[]; company: any }) {
+  const sorted = [...assignments].sort((a, b) => {
+    const nA = list.find((o) => o.id === a.operator_id)?.name ?? "";
+    const nB = list.find((o) => o.id === b.operator_id)?.name ?? "";
+    return nA.localeCompare(nB);
+  });
+  return (
+    <div className="mt-6">
+      <div className="flex items-center justify-between mb-3">
+        <h3 className="font-display text-lg font-semibold">Riepilogo compiti assegnati</h3>
+        <Button size="sm" variant="outline" className="gap-1.5" onClick={() => downloadSummaryPdf(list, assignments, assets, company)}>
+          <FileDown size={14} /> PDF
+        </Button>
+      </div>
+      <Card className="overflow-hidden">
+        <div className="overflow-x-auto">
+          <Table>
+            <TableHeader>
+              <TableRow>
+                <TableHead>Operatore</TableHead>
+                <TableHead>Tipo</TableHead>
+                <TableHead>Attrezzatura</TableHead>
+                <TableHead>Frequenza</TableHead>
+                <TableHead>Ora</TableHead>
+              </TableRow>
+            </TableHeader>
+            <TableBody>
+              {sorted.map((a) => (
+                <TableRow key={a.id}>
+                  <TableCell className="font-medium">{list.find((o) => o.id === a.operator_id)?.name ?? "—"}</TableCell>
+                  <TableCell>{a.task_type === "sanitation" ? "Sanificazione" : "Temperatura"}</TableCell>
+                  <TableCell>{assets.find((x) => x.id === a.asset_id)?.name ?? "—"}</TableCell>
+                  <TableCell>{FREQ_LABEL[a.frequency]}</TableCell>
+                  <TableCell>{a.due_time?.slice(0, 5) ?? "—"}</TableCell>
+                </TableRow>
+              ))}
+            </TableBody>
+          </Table>
+        </div>
+      </Card>
     </div>
   );
 }

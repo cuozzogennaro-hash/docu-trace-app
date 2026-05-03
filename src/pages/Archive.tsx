@@ -89,15 +89,22 @@ export default function Archive() {
   );
 }
 
-/* ---- helpers for daily grouping & PDF ---- */
+/* ---- helpers for monthly grouping & PDF ---- */
 
-function groupByDate(rows: any[]): Record<string, any[]> {
+function groupByMonth(rows: any[]): Record<string, any[]> {
   const map: Record<string, any[]> = {};
   for (const r of rows) {
-    const d = r.event_date ?? "senza-data";
+    const d = r.event_date ? r.event_date.slice(0, 7) : "senza-data";
     (map[d] ??= []).push(r);
   }
   return map;
+}
+
+function monthLabel(ym: string): string {
+  if (ym === "senza-data") return "Senza data";
+  const [y, m] = ym.split("-");
+  const months = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
+  return `${months[parseInt(m, 10) - 1]} ${y}`;
 }
 
 function generateDailyPdf(
@@ -160,6 +167,50 @@ function generateDailyPdf(
   doc.save(`${type === "temperatures" ? "temperature" : "sanificazioni"}_${date}.pdf`);
 }
 
+function generateMonthlyPdf(
+  month: string, rows: any[], type: "temperatures" | "sanitations", company: any
+) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  const title = type === "temperatures" ? "Registro Temperature" : "Registro Sanificazioni";
+  const sorted = [...rows].sort((a, b) => (a.event_date ?? "").localeCompare(b.event_date ?? ""));
+  doc.setFontSize(16);
+  doc.text(`${title} — ${monthLabel(month)}`, 14, 20);
+  doc.setFontSize(10);
+  if (company?.business_name) doc.text(company.business_name, 14, 28);
+  if (company?.address) doc.text(company.address, 14, 33);
+  const startY = company?.address ? 40 : company?.business_name ? 35 : 28;
+  if (type === "temperatures") {
+    autoTable(doc, {
+      startY,
+      head: [["Data", "Attrezzatura", "°C", "Operatore", "Ora", "Note"]],
+      body: sorted.map((r) => [
+        r.event_date ?? "—", r.asset_name ?? "—", r.temperature ?? "—", r.operator ?? "—",
+        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 9 }, headStyles: { fillColor: [59, 130, 246] },
+    });
+  } else {
+    autoTable(doc, {
+      startY,
+      head: [["Data", "Attrezzatura", "Operatore", "Prodotto usato", "Ora", "Note"]],
+      body: sorted.map((r) => [
+        r.event_date ?? "—", r.asset_name ?? "—", r.operator ?? "—", r.product_used ?? "—",
+        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 9 }, headStyles: { fillColor: [59, 130, 246] },
+    });
+  }
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
+  }
+  doc.save(`${type === "temperatures" ? "temperature" : "sanificazioni"}_${month}.pdf`);
+}
+
 function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any }) {
   const cfg = CONFIGS[tableKey];
   const [rows, setRows] = useState<any[]>([]);
@@ -194,9 +245,9 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   useEffect(() => { load(); }, [tableKey]);
 
-  const isDailyGroupable = tableKey === "temperatures" || tableKey === "sanitations";
-  const grouped = useMemo(() => isDailyGroupable ? groupByDate(rows) : {}, [rows, isDailyGroupable]);
-  const sortedDates = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
+  const isGroupable = tableKey === "temperatures" || tableKey === "sanitations";
+  const grouped = useMemo(() => isGroupable ? groupByMonth(rows) : {}, [rows, isGroupable]);
+  const sortedMonths = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
 
   async function save(updated: any) {
     const payload: any = {};
@@ -222,19 +273,19 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (rows.length === 0) return <Card className="p-12 text-center text-muted-foreground">Nessun record.</Card>;
 
-  if (isDailyGroupable) {
+  if (isGroupable) {
     return (
       <>
         <div className="space-y-4">
-          {sortedDates.map((date) => (
-            <Card key={date} className="overflow-hidden">
+          {sortedMonths.map((month) => (
+            <Card key={month} className="overflow-hidden">
               <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-                <h3 className="font-display font-bold text-sm">{date}</h3>
+                <h3 className="font-display font-bold text-sm">{monthLabel(month)}</h3>
                 <Button
                   size="sm"
                   variant="outline"
                   className="gap-1.5"
-                  onClick={() => generateDailyPdf(date, grouped[date], tableKey as "temperatures" | "sanitations", company)}
+                  onClick={() => generateMonthlyPdf(month, grouped[month], tableKey as "temperatures" | "sanitations", company)}
                 >
                   <FileDown size={14} /> PDF
                 </Button>
@@ -243,16 +294,16 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
                 <Table>
                   <TableHeader>
                     <TableRow>
-                      {cfg.columns.filter(c => c.key !== "event_date").map((c) => (
+                      {cfg.columns.map((c) => (
                         <TableHead key={c.key}>{c.label}</TableHead>
                       ))}
                       <TableHead className="text-right">Azioni</TableHead>
                     </TableRow>
                   </TableHeader>
                   <TableBody>
-                    {grouped[date].map((r: any) => (
+                    {grouped[month].sort((a: any, b: any) => (a.event_date ?? "").localeCompare(b.event_date ?? "")).map((r: any) => (
                       <TableRow key={r.id}>
-                        {cfg.columns.filter(c => c.key !== "event_date").map((c) => (
+                        {cfg.columns.map((c) => (
                           <TableCell key={c.key} className="text-sm">
                             {r[c.key] ?? "—"}
                           </TableCell>

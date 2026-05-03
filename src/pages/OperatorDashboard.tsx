@@ -185,7 +185,6 @@ export default function OperatorDashboard() {
                           <Input
                             type="number"
                             step="0.1"
-                            inputMode="decimal"
                             placeholder="°C"
                             value={tempInputs[a.id] ?? ""}
                             onChange={(e) => setTempInputs((t) => ({ ...t, [a.id]: e.target.value }))}
