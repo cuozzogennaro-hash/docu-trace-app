@@ -221,18 +221,21 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          push_token: Json | null
         }
         Insert: {
           business_name?: string | null
           created_at?: string
           email?: string | null
           id: string
+          push_token?: Json | null
         }
         Update: {
           business_name?: string | null
           created_at?: string
           email?: string | null
           id?: string
+          push_token?: Json | null
         }
         Relationships: []
       }
@@ -424,27 +427,33 @@ export type Database = {
         Row: {
           asset_id: string
           created_at: string
+          due_time: string | null
           frequency: string
           id: string
           operator_id: string
+          status: string
           task_type: string
           user_id: string
         }
         Insert: {
           asset_id: string
           created_at?: string
+          due_time?: string | null
           frequency?: string
           id?: string
           operator_id: string
+          status?: string
           task_type: string
           user_id: string
         }
         Update: {
           asset_id?: string
           created_at?: string
+          due_time?: string | null
           frequency?: string
           id?: string
           operator_id?: string
+          status?: string
           task_type?: string
           user_id?: string
         }
