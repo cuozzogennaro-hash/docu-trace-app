@@ -536,6 +536,10 @@ export type Database = {
         Returns: Json
       }
       operator_tasks: { Args: { p_operator_id: string }; Returns: Json }
+      save_operator_push_token: {
+        Args: { p_operator_id: string; p_pin: string; p_push_token: Json }
+        Returns: Json
+      }
       slugify: { Args: { input: string }; Returns: string }
       unaccent_safe: { Args: { input: string }; Returns: string }
     }
