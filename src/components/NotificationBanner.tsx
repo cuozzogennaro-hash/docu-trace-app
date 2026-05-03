@@ -3,6 +3,7 @@ import { Bell } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { toast } from "sonner";
 
 const VAPID_PUBLIC_KEY = "BGmT6oQ93QrYnd-5CImnf19dXjid2-HobSAI1SxUaFEC1wfJY4ZAd3kEO6YnTbCzyBT5ZaVR4eYAIvor_s7d4GQ";
@@ -20,6 +21,7 @@ function urlBase64ToUint8Array(base64String: string) {
 
 export default function NotificationBanner() {
   const { user } = useAuth();
+  const { operator } = useOperatorSession();
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
@@ -48,7 +50,21 @@ export default function NotificationBanner() {
 
       const subJson = subscription.toJSON();
 
-      if (user) {
+      if (operator) {
+        // Save push token to operator via RPC (bypasses RLS)
+        const { data: result } = await supabase.rpc("save_operator_push_token", {
+          p_operator_id: operator.id,
+          p_pin: operator.pin || "",
+          p_push_token: subJson as any,
+        });
+        if (result && !(result as any).ok) {
+          console.error("Failed to save operator push token:", result);
+          toast.error("Errore nel salvataggio del token notifiche");
+          setVisible(false);
+          return;
+        }
+      } else if (user) {
+        // Fallback: save to admin profile
         await supabase
           .from("profiles")
           .update({ push_token: subJson as any })

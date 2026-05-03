@@ -49,7 +49,7 @@ Deno.serve(async (req) => {
     // Find overdue task assignments: due_time <= now AND status = 'pending'
     const { data: overdueTasks, error: taskError } = await supabase
       .from("task_assignments")
-      .select("id, operator_id, asset_id, task_type, due_time, user_id")
+      .select("id, operator_id, asset_id, task_type, due_time")
       .eq("status", "pending")
       .not("due_time", "is", null)
       .lte("due_time", currentTime);
@@ -68,26 +68,26 @@ Deno.serve(async (req) => {
       });
     }
 
-    // Get unique user_ids from overdue tasks
-    const userIds = [...new Set(overdueTasks.map((t: any) => t.user_id))];
+    // Get unique operator_ids from overdue tasks
+    const operatorIds = [...new Set(overdueTasks.map((t: any) => t.operator_id))];
 
-    // Get push tokens for those users
-    const { data: profiles, error: profileError } = await supabase
-      .from("profiles")
+    // Get push tokens for those operators
+    const { data: operators, error: opError } = await supabase
+      .from("operators")
       .select("id, push_token")
-      .in("id", userIds)
+      .in("id", operatorIds)
       .not("push_token", "is", null);
 
-    if (profileError) {
-      console.error("Error fetching profiles:", profileError);
-      return new Response(JSON.stringify({ error: profileError.message }), {
+    if (opError) {
+      console.error("Error fetching operators:", opError);
+      return new Response(JSON.stringify({ error: opError.message }), {
         status: 500,
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     const tokenMap = new Map<string, any>();
-    for (const p of profiles || []) {
+    for (const p of operators || []) {
       if (p.push_token) tokenMap.set(p.id, p.push_token);
     }
 
@@ -105,7 +105,7 @@ Deno.serve(async (req) => {
 
     let sent = 0;
     for (const task of overdueTasks) {
-      const sub = tokenMap.get(task.user_id);
+      const sub = tokenMap.get(task.operator_id);
       if (!sub) continue;
 
       const assetName = assetMap.get(task.asset_id) || "Attrezzatura";
