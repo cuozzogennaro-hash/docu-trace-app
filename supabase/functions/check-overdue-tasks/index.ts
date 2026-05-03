@@ -1,5 +1,14 @@
 import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
+type TaskAssignment = {
+  id: string;
+  operator_id: string;
+  asset_id: string;
+  task_type: string;
+  due_time: string;
+  frequency: string;
+};
+
 const corsHeaders = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "authorization, x-client-info, apikey, content-type",
@@ -46,11 +55,10 @@ Deno.serve(async (req) => {
     const now = new Date();
     const currentTime = now.toTimeString().slice(0, 5);
 
-    // Find overdue task assignments: due_time <= now AND status = 'pending'
-    const { data: overdueTasks, error: taskError } = await supabase
+    // Find task assignments with a due_time set
+    const { data: allTasks, error: taskError } = await supabase
       .from("task_assignments")
-      .select("id, operator_id, asset_id, task_type, due_time")
-      .eq("status", "pending")
+      .select("id, operator_id, asset_id, task_type, due_time, frequency")
       .not("due_time", "is", null)
       .lte("due_time", currentTime);
 
@@ -62,14 +70,57 @@ Deno.serve(async (req) => {
       });
     }
 
-    if (!overdueTasks || overdueTasks.length === 0) {
-      return new Response(JSON.stringify({ sent: 0, message: "No overdue tasks" }), {
+    if (taskError) {
+      console.error("Error fetching tasks:", taskError);
+      return new Response(JSON.stringify({ error: taskError.message }), {
+        status: 500,
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    if (!allTasks || allTasks.length === 0) {
+      return new Response(JSON.stringify({ sent: 0, message: "No tasks with due_time" }), {
+        headers: { ...corsHeaders, "Content-Type": "application/json" },
+      });
+    }
+
+    // For each task, check if it was already completed in the current period
+    const overdueTasks: TaskAssignment[] = [];
+    for (const task of allTasks as TaskAssignment[]) {
+      const periodStart = getPeriodStart(task.frequency);
+
+      let completed = false;
+      if (task.task_type === "sanitation") {
+        const { count } = await supabase
+          .from("sanitations")
+          .select("id", { count: "exact", head: true })
+          .eq("operator_id", task.operator_id)
+          .eq("asset_id", task.asset_id)
+          .gte("event_date", periodStart);
+        completed = (count ?? 0) > 0;
+      } else {
+        const { count } = await supabase
+          .from("temperatures")
+          .select("id", { count: "exact", head: true })
+          .eq("operator_id", task.operator_id)
+          .eq("asset_id", task.asset_id)
+          .gte("event_date", periodStart);
+        completed = (count ?? 0) > 0;
+      }
+
+      if (!completed) {
+        overdueTasks.push(task);
+      }
+    }
+
+    if (overdueTasks.length === 0) {
+      return new Response(JSON.stringify({ sent: 0, message: "All tasks completed" }), {
         headers: { ...corsHeaders, "Content-Type": "application/json" },
       });
     }
 
     // Get unique operator_ids from overdue tasks
-    const operatorIds = [...new Set(overdueTasks.map((t: any) => t.operator_id))];
+    const operatorIds = [...new Set(overdueTasks.map((t) => t.operator_id))];
 
     // Get push tokens for those operators
     const { data: operators, error: opError } = await supabase
@@ -92,7 +143,7 @@ Deno.serve(async (req) => {
     }
 
     // Get asset names for the notifications
-    const assetIds = [...new Set(overdueTasks.map((t: any) => t.asset_id))];
+    const assetIds = [...new Set(overdueTasks.map((t) => t.asset_id))];
     const { data: assets } = await supabase
       .from("assets")
       .select("id, name")
@@ -136,3 +187,18 @@ Deno.serve(async (req) => {
     });
   }
 });
+
+function getPeriodStart(frequency: string): string {
+  const now = new Date();
+  if (frequency === "weekly") {
+    const day = now.getDay();
+    const diff = day === 0 ? 6 : day - 1; // Monday start
+    const monday = new Date(now);
+    monday.setDate(now.getDate() - diff);
+    return monday.toISOString().slice(0, 10);
+  }
+  if (frequency === "monthly") {
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, "0")}-01`;
+  }
+  return now.toISOString().slice(0, 10); // daily
+}
