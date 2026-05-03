@@ -9,7 +9,11 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { hashPin } from "@/hooks/useOperators";
 import { toast } from "sonner";
-import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell } from "lucide-react";
+import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell, FileDown } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { useCompany } from "@/hooks/useCompany";
 
 type Op = { id: string; name: string; role: string | null; is_active: boolean; login_handle: string };
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null };
