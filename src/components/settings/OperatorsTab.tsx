@@ -274,7 +274,11 @@ export default function OperatorsTab() {
                   <h4 className="font-semibold">Sanificazione</h4>
                 </div>
                 <div className="space-y-1.5">
-                  {assets.map((a) => {
+                  {assets.filter((a) => {
+                    const taken = assignments.some((x) => x.asset_id === a.id && x.task_type === "sanitation" && x.operator_id !== tasksFor?.id);
+                    const mine = assignments.some((x) => x.asset_id === a.id && x.task_type === "sanitation" && x.operator_id === tasksFor?.id);
+                    return !taken || mine;
+                  }).map((a) => {
                     const ass = tasksFor && getAssignment(tasksFor.id, a.id, "sanitation");
                     return (
                       <div key={a.id} className="flex items-center gap-3 p-2 rounded-lg hover:bg-muted">
