@@ -51,11 +51,18 @@ export default function NotificationBanner() {
       const subJson = subscription.toJSON();
 
       if (operator) {
-        // Save push token to the operator record
-        await supabase
-          .from("operators")
-          .update({ push_token: subJson as any })
-          .eq("id", operator.id);
+        // Save push token to operator via RPC (bypasses RLS)
+        const { data: result } = await supabase.rpc("save_operator_push_token", {
+          p_operator_id: operator.id,
+          p_pin: operator.pin || "",
+          p_push_token: subJson as any,
+        });
+        if (result && !(result as any).ok) {
+          console.error("Failed to save operator push token:", result);
+          toast.error("Errore nel salvataggio del token notifiche");
+          setVisible(false);
+          return;
+        }
       } else if (user) {
         // Fallback: save to admin profile
         await supabase
