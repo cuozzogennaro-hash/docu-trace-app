@@ -121,6 +121,7 @@ export type Database = {
           login_handle: string
           name: string
           pin_hash: string
+          push_token: Json | null
           role: string | null
           user_id: string
         }
@@ -131,6 +132,7 @@ export type Database = {
           login_handle: string
           name: string
           pin_hash: string
+          push_token?: Json | null
           role?: string | null
           user_id: string
         }
@@ -141,6 +143,7 @@ export type Database = {
           login_handle?: string
           name?: string
           pin_hash?: string
+          push_token?: Json | null
           role?: string | null
           user_id?: string
         }

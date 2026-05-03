@@ -1,0 +1,1 @@
+ALTER TABLE public.operators ADD COLUMN push_token jsonb DEFAULT NULL;
