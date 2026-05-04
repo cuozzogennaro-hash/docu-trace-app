@@ -61,10 +61,13 @@ export default function ProductDetail() {
   const PX_PER_MM = 3.78;
 
   function getValueMap() {
-    const normalIngr = ingredients.filter((m: any) => (m.category || "materia_prima") !== "additivo_allergene");
-    const allergens = ingredients.filter((m: any) => (m.category || "materia_prima") === "additivo_allergene");
-    const ingredientsList = normalIngr.map((m: any) => m.product_name).join(", ");
-    const allergensList = allergens.map((m: any) => m.product_name).join(", ");
+    const allergenSet = new Set(
+      ingredients.filter((m: any) => (m.category || "materia_prima") === "additivo_allergene").map((m: any) => m.id)
+    );
+    // Build combined list: all ingredient names, allergens will be handled separately for bold
+    const allNames = ingredients.map((m: any) => m.product_name);
+    const ingredientsList = allNames.join(", ");
+    const allergenNames = ingredients.filter((m: any) => allergenSet.has(m.id)).map((m: any) => m.product_name);
     return {
       valueMap: {
         company_name: company?.business_name ?? "",
@@ -75,7 +78,7 @@ export default function ProductDetail() {
         ingredients: `Ingr.: ${ingredientsList || "—"}`,
         company_address: company?.address ?? "",
       } as Record<string, string>,
-      allergensList,
+      allergenNames,
     };
   }
 
@@ -89,7 +92,7 @@ export default function ProductDetail() {
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
 
-    const { valueMap, allergensList } = getValueMap();
+    const { valueMap, allergenNames } = getValueMap();
 
     // Pre-load logo as base64 if available
     let logoDataUrl: string | null = null;
@@ -132,18 +135,39 @@ export default function ProductDetail() {
         doc.setFont("helvetica", f.bold ? "bold" : "normal");
 
         const maxWidth = pageW - f.x - 2;
-        const lines = doc.splitTextToSize(text, maxWidth);
-        doc.text(lines, f.x, f.y + (f.fontSize ?? 10) * 0.35);
 
-        // Print allergens in bold right after ingredients
-        if (f.key === "ingredients" && allergensList) {
-          const lineH = (f.fontSize ?? 10) * 0.4;
-          const lastLineY = f.y + (f.fontSize ?? 10) * 0.35 + (lines.length - 1) * lineH;
-          const allergenY = lastLineY + lineH * 1.2;
-          doc.setFont("helvetica", "bold");
-          const aLines = doc.splitTextToSize(`Allergeni: ${allergensList}`, maxWidth);
-          doc.text(aLines, f.x, allergenY);
+        if (f.key === "ingredients" && allergenNames.length > 0) {
+          // Print ingredients with allergens inline in bold
+          const prefix = "Ingr.: ";
+          let curX = f.x;
+          let curY = f.y + (f.fontSize ?? 10) * 0.35;
+          const fontSize = f.fontSize ?? 10;
+          const lineH = fontSize * 0.4;
+
+          // Print prefix
           doc.setFont("helvetica", f.bold ? "bold" : "normal");
+          doc.text(prefix, curX, curY);
+          curX += doc.getTextWidth(prefix);
+
+          ingredients.forEach((m: any, idx: number) => {
+            const isAllergen = allergenNames.includes(m.product_name);
+            const separator = idx < ingredients.length - 1 ? ", " : "";
+            const chunk = m.product_name + separator;
+
+            doc.setFont("helvetica", isAllergen ? "bold" : "normal");
+            const chunkW = doc.getTextWidth(chunk);
+
+            if (curX + chunkW > f.x + maxWidth && curX > f.x) {
+              curX = f.x;
+              curY += lineH;
+            }
+
+            doc.text(chunk, curX, curY);
+            curX += chunkW;
+          });
+        } else {
+          const lines = doc.splitTextToSize(text, maxWidth);
+          doc.text(lines, f.x, f.y + (f.fontSize ?? 10) * 0.35);
         }
       }
     }
@@ -282,7 +306,7 @@ export default function ProductDetail() {
               const fields: any[] = config.fields ?? [];
               const wMm = Number(tpl.width_mm);
               const hMm = Number(tpl.height_mm);
-              const { valueMap, allergensList } = getValueMap();
+              const { valueMap, allergenNames } = getValueMap();
               const logoUrl = company?.logo_url;
               return (
                 <div>
@@ -326,28 +350,33 @@ export default function ProductDetail() {
                         const isIngredients = f.key === "ingredients";
                         return (
                           <div key={f.key} className="absolute" style={{ left: f.x * PX_PER_MM, top: f.y * PX_PER_MM, maxWidth: (wMm - f.x - 2) * PX_PER_MM }}>
-                            <span
-                              className="text-black block"
-                              style={{
-                                fontSize: f.fontSize * (PX_PER_MM / 2.835),
-                                fontWeight: f.bold ? 700 : 400,
-                                lineHeight: 1.3,
-                                wordBreak: "break-word",
-                              }}
-                            >
-                              {text}
-                            </span>
-                            {isIngredients && allergensList && (
+                            {isIngredients && allergenNames.length > 0 ? (
                               <span
                                 className="text-black block"
                                 style={{
                                   fontSize: f.fontSize * (PX_PER_MM / 2.835),
-                                  fontWeight: 700,
                                   lineHeight: 1.3,
                                   wordBreak: "break-word",
                                 }}
                               >
-                                Allergeni: {allergensList}
+                                Ingr.:{" "}
+                                {ingredients.map((m: any, idx: number) => (
+                                  <span key={m.id} style={{ fontWeight: allergenNames.includes(m.product_name) ? 700 : 400 }}>
+                                    {m.product_name}{idx < ingredients.length - 1 ? ", " : ""}
+                                  </span>
+                                ))}
+                              </span>
+                            ) : (
+                              <span
+                                className="text-black block"
+                                style={{
+                                  fontSize: f.fontSize * (PX_PER_MM / 2.835),
+                                  fontWeight: f.bold ? 700 : 400,
+                                  lineHeight: 1.3,
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                {text}
                               </span>
                             )}
                           </div>
