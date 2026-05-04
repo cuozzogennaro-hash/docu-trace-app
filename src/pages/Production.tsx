@@ -87,6 +87,7 @@ export default function Production() {
           <div className="space-y-2">
             <Label>Data produzione</Label>
             <Input type="date" value={prodDate} onChange={(e) => setProdDate(e.target.value)} />
+              onChange={(e) => {
             
           </div>
           <div className="space-y-2">
