@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Trash2, Loader2, FileDown } from "lucide-react";
+import { Pencil, Trash2, Loader2, FileDown, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { useNavigate } from "react-router-dom";
@@ -273,6 +273,43 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (rows.length === 0) return <Card className="p-12 text-center text-muted-foreground">Nessun record.</Card>;
 
+  /* ---- Mobile card renderer ---- */
+  function MobileCard({ r }: { r: any }) {
+    const primaryCol = cfg.columns[0];
+    const secondaryCol = cfg.columns[1];
+    return (
+      <Card
+        className={`p-4 ${isClickable ? "cursor-pointer active:bg-muted/40" : ""}`}
+        onClick={() => isClickable && onRowClick(r)}
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="min-w-0 flex-1">
+            <div className="font-semibold text-sm truncate">{r[primaryCol.key] ?? "—"}</div>
+            {secondaryCol && (
+              <div className="text-xs text-muted-foreground truncate">{secondaryCol.label}: {r[secondaryCol.key] ?? "—"}</div>
+            )}
+            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
+              {cfg.columns.slice(2).map((c) => (
+                <span key={c.key} className="text-xs text-muted-foreground">
+                  <span className="font-medium">{c.label}:</span> {r[c.key] ?? "—"}
+                </span>
+              ))}
+            </div>
+          </div>
+          <div className="flex items-center gap-0.5 shrink-0">
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
+              <Pencil size={14} />
+            </Button>
+            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
+              <Trash2 size={14} className="text-destructive" />
+            </Button>
+            {isClickable && <ChevronRight size={16} className="text-muted-foreground" />}
+          </div>
+        </div>
+      </Card>
+    );
+  }
+
   if (isGroupable) {
     return (
       <>
@@ -290,7 +327,8 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
                   <FileDown size={14} /> PDF
                 </Button>
               </div>
-              <div className="overflow-x-auto">
+              {/* Desktop table */}
+              <div className="overflow-x-auto hidden md:block">
                 <Table>
                   <TableHeader>
                     <TableRow>
@@ -320,6 +358,14 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
                     ))}
                   </TableBody>
                 </Table>
+              </div>
+              {/* Mobile cards */}
+              <div className="md:hidden divide-y">
+                {grouped[month].sort((a: any, b: any) => (a.event_date ?? "").localeCompare(b.event_date ?? "")).map((r: any) => (
+                  <div key={r.id} className="p-3">
+                    <MobileCard r={r} />
+                  </div>
+                ))}
               </div>
             </Card>
           ))}
@@ -360,7 +406,8 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   return (
     <>
-      <Card className="overflow-hidden">
+      {/* Desktop table */}
+      <Card className="overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
           <Table>
             <TableHeader>
@@ -391,6 +438,13 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
           </Table>
         </div>
       </Card>
+
+      {/* Mobile cards */}
+      <div className="md:hidden space-y-2">
+        {rows.map((r) => (
+          <MobileCard key={r.id} r={r} />
+        ))}
+      </div>
 
       <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
         <DialogContent className="max-w-lg">
