@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Trash2, Loader2, FileDown, ChevronRight } from "lucide-react";
+import { Pencil, Trash2, Loader2, FileDown, ChevronRight, Search } from "lucide-react";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { useNavigate } from "react-router-dom";
@@ -217,6 +217,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const [loading, setLoading] = useState(true);
   const [editing, setEditing] = useState<any | null>(null);
   const navigate = useNavigate();
+  const [search, setSearch] = useState("");
 
   function onRowClick(r: any) {
     if (tableKey === "raw_materials") navigate(`/archivio/materia-prima/${r.id}`);
@@ -245,8 +246,19 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   useEffect(() => { load(); }, [tableKey]);
 
+  const filteredRows = useMemo(() => {
+    if (!search.trim()) return rows;
+    const q = search.trim().toLowerCase();
+    return rows.filter((r) => {
+      const lot = (r.internal_lot ?? "").toLowerCase();
+      const supplierLot = (r.supplier_lot ?? "").toLowerCase();
+      const name = (r.product_name ?? r.name ?? "").toLowerCase();
+      return lot.includes(q) || supplierLot.includes(q) || name.includes(q);
+    });
+  }, [rows, search]);
+
   const isGroupable = tableKey === "temperatures" || tableKey === "sanitations";
-  const grouped = useMemo(() => isGroupable ? groupByMonth(rows) : {}, [rows, isGroupable]);
+  const grouped = useMemo(() => isGroupable ? groupByMonth(filteredRows) : {}, [filteredRows, isGroupable]);
   const sortedMonths = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
 
   async function save(updated: any) {
@@ -272,6 +284,20 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (rows.length === 0) return <Card className="p-12 text-center text-muted-foreground">Nessun record.</Card>;
+
+  const showSearch = tableKey === "raw_materials" || tableKey === "products";
+
+  const SearchBar = showSearch ? (
+    <div className="relative mb-4">
+      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+      <Input
+        placeholder="Cerca per lotto interno, lotto fornitore o nome…"
+        value={search}
+        onChange={(e) => setSearch(e.target.value)}
+        className="pl-9"
+      />
+    </div>
+  ) : null;
 
   /* ---- Mobile card renderer ---- */
   function MobileCard({ r }: { r: any }) {
@@ -406,6 +432,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   return (
     <>
+      {SearchBar}
       {/* Desktop table */}
       <Card className="overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
@@ -417,7 +444,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <TableRow key={r.id} className={isClickable ? "cursor-pointer hover:bg-muted/40" : ""} onClick={() => isClickable && onRowClick(r)}>
                   {cfg.columns.map((c) => (
                     <TableCell key={c.key} className="text-sm">
@@ -441,7 +468,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
-        {rows.map((r) => (
+        {filteredRows.map((r) => (
           <MobileCard key={r.id} r={r} />
         ))}
       </div>
