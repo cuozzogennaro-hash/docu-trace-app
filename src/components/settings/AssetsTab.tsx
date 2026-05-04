@@ -199,7 +199,7 @@ export default function AssetsTab() {
                     </div>
                   )}
                   <div className="text-xs mt-1 flex items-center gap-1 text-foreground/70">
-                    <Users size={12} className="shrink-0" />
+                    <span className={`inline-block h-2.5 w-2.5 rounded-full shrink-0 ${assignments[a.id]?.length ? "bg-green-500" : "bg-red-500"}`} />
                     {assignments[a.id]?.length
                       ? assignments[a.id].join(", ")
                       : <span className="italic text-muted-foreground">Non assegnato</span>
