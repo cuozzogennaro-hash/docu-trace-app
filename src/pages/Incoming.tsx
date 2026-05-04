@@ -189,7 +189,10 @@ export default function Incoming() {
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Data documento</Label>
               <Input type="date" value={documentDate} onChange={(e) => {
                 setDocumentDate(e.target.value);
-                if (e.target.value) setInternalLot(generateInternalLot("L", new Date(e.target.value + "T00:00:00")));
+                if (e.target.value) {
+                  const newDate = new Date(e.target.value + "T00:00:00");
+                  setLines((prev) => prev.map((l) => ({ ...l, internalLot: generateInternalLot("L", newDate) })));
+                }
               }} />
             </div>
             <div className="space-y-1.5 md:col-span-2">
