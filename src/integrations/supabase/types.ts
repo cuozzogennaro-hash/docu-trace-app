@@ -244,6 +244,7 @@ export type Database = {
       }
       raw_materials: {
         Row: {
+          category: string
           created_at: string
           document_date: string | null
           document_image_url: string | null
@@ -262,6 +263,7 @@ export type Database = {
           user_id: string
         }
         Insert: {
+          category?: string
           created_at?: string
           document_date?: string | null
           document_image_url?: string | null
@@ -280,6 +282,7 @@ export type Database = {
           user_id: string
         }
         Update: {
+          category?: string
           created_at?: string
           document_date?: string | null
           document_image_url?: string | null

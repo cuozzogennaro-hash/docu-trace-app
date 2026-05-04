@@ -9,6 +9,13 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Camera, Loader2, Package, Sparkles } from "lucide-react";
 import { generateInternalLot } from "@/lib/lot";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+
+const CATEGORIES = [
+  { value: "materia_prima", label: "Materia Prima" },
+  { value: "aroma", label: "Aroma" },
+  { value: "additivo_allergene", label: "Additivo / Allergene" },
+];
 
 export default function Incoming() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -25,6 +32,7 @@ export default function Incoming() {
   const [quantity, setQuantity] = useState("");
   const [expiry, setExpiry] = useState("");
   const [origin, setOrigin] = useState("");
+  const [category, setCategory] = useState("materia_prima");
   const [rows, setRows] = useState<any[]>([]);
 
   async function load() {
@@ -84,6 +92,7 @@ export default function Incoming() {
       expiry_date: expiry || null,
       origin: origin || null,
       document_image_url: imageUrl,
+      category,
     });
     if (error) return toast.error(error.message);
     toast.success(`Registrato • Lotto ${internalLot}`);
@@ -92,6 +101,7 @@ export default function Incoming() {
     setQuantity("");
     setExpiry("");
     setOrigin("");
+    setCategory("materia_prima");
     setInternalLot(generateInternalLot("L"));
     setPreview(null);
     setImageFile(null);
@@ -146,6 +156,17 @@ export default function Incoming() {
               <Label>Nome prodotto *</Label>
               <Input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Mozzarella fior di latte" />
             </div>
+            <div className="space-y-1.5 md:col-span-2">
+              <Label>Categoria</Label>
+              <Select value={category} onValueChange={setCategory}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  {CATEGORIES.map((c) => (
+                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <div className="space-y-1.5">
               <Label>Lotto fornitore</Label>
               <Input value={supplierLot} onChange={(e) => setSupplierLot(e.target.value)} />
@@ -181,6 +202,9 @@ export default function Incoming() {
               <div className="text-xs text-muted-foreground">
                 {r.supplier_name || "—"} • <span className="font-mono">{r.internal_lot}</span>
                 {r.origin && <> • Origine: {r.origin}</>}
+                {r.category && r.category !== "materia_prima" && (
+                  <> • <span className="font-semibold">{CATEGORIES.find(c => c.value === r.category)?.label ?? r.category}</span></>
+                )}
               </div>
             </div>
             <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
