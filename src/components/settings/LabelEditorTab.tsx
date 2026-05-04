@@ -52,8 +52,6 @@ const SAMPLE_DATA: Record<string, string> = {
 };
 
 const PX_PER_MM = 3.78;
-const REF_WIDTH = 100; // reference label dimensions for default fields
-const REF_HEIGHT = 70;
 
 export default function LabelEditorTab() {
   const [templates, setTemplates] = useState<(Template & { id: string })[]>([]);
@@ -61,6 +59,9 @@ export default function LabelEditorTab() {
   const [selectedField, setSelectedField] = useState<number | null>(null);
   const [loading, setLoading] = useState(true);
   const canvasRef = useRef<HTMLDivElement>(null);
+  const baseRef = useRef<{ w: number; h: number; fields: FieldConfig[] } | null>(null);
+  const [editWidth, setEditWidth] = useState("");
+  const [editHeight, setEditHeight] = useState("");
 
   useEffect(() => { load(); }, []);
 
@@ -78,8 +79,34 @@ export default function LabelEditorTab() {
       is_default: d.is_default,
     }));
     setTemplates(list);
-    if (list.length > 0 && !current) setCurrent(list[0]);
+    if (list.length > 0 && !current) {
+      setCurrent(list[0]);
+      snapshotBase(list[0]);
+    }
     setLoading(false);
+  }
+
+  function snapshotBase(t: Template) {
+    baseRef.current = { w: t.width_mm, h: t.height_mm, fields: JSON.parse(JSON.stringify(t.layout_config.fields)) };
+    setEditWidth(String(t.width_mm));
+    setEditHeight(String(t.height_mm));
+  }
+
+  function applyDimensionChange(newW: number, newH: number) {
+    if (!current || !baseRef.current || newW <= 0 || newH <= 0) return;
+    const base = baseRef.current;
+    const scaleX = newW / base.w;
+    const scaleY = newH / base.h;
+    const scaleAvg = Math.sqrt(scaleX * scaleY);
+    const fields = base.fields.map(f => ({
+      ...f,
+      x: Math.round(f.x * scaleX * 10) / 10,
+      y: Math.round(f.y * scaleY * 10) / 10,
+      fontSize: Math.max(5, Math.round(f.fontSize * scaleAvg * 10) / 10),
+      ...(f.width != null ? { width: Math.round(f.width * scaleX * 10) / 10 } : {}),
+      ...(f.height != null ? { height: Math.round(f.height * scaleY * 10) / 10 } : {}),
+    }));
+    setCurrent({ ...current, width_mm: newW, height_mm: newH, layout_config: { fields } });
   }
 
   async function createNew() {
@@ -109,6 +136,8 @@ export default function LabelEditorTab() {
     }).eq("id", current.id);
     if (error) { toast.error("Errore salvataggio"); return; }
     toast.success("Salvato");
+    // Reset base snapshot to saved state
+    snapshotBase(current);
     await load();
   }
 
@@ -125,6 +154,12 @@ export default function LabelEditorTab() {
     const fields = [...current.layout_config.fields];
     fields[idx] = { ...fields[idx], ...patch };
     setCurrent({ ...current, layout_config: { fields } });
+    // Sync base so manual field edits are preserved when resizing
+    if (baseRef.current) {
+      const bf = [...baseRef.current.fields];
+      bf[idx] = { ...bf[idx], ...patch };
+      baseRef.current = { ...baseRef.current, fields: bf };
+    }
   }
 
   if (loading) return <div className="py-8 text-center text-muted-foreground">Caricamento…</div>;
@@ -138,7 +173,7 @@ export default function LabelEditorTab() {
             key={t.id}
             variant={current?.id === t.id ? "default" : "outline"}
             size="sm"
-            onClick={() => { setCurrent(t); setSelectedField(null); }}
+            onClick={() => { setCurrent(t); setSelectedField(null); snapshotBase(t); }}
           >
             {t.name}
           </Button>
@@ -164,35 +199,23 @@ export default function LabelEditorTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Larghezza (mm)</Label>
-                  <Input type="number" value={current.width_mm} onChange={(e) => {
-                    const newW = +e.target.value;
-                    if (newW <= 0) return;
-                    const scaleX = newW / current.width_mm;
-                    const scaleAvg = Math.sqrt((newW * current.height_mm) / (current.width_mm * current.height_mm));
-                    const fields = current.layout_config.fields.map(f => ({
-                      ...f,
-                      x: Math.round(f.x * scaleX * 10) / 10,
-                      fontSize: Math.max(5, Math.round(f.fontSize * scaleAvg * 10) / 10),
-                      ...(f.width ? { width: Math.round((f.width ?? 25) * scaleX * 10) / 10 } : {}),
-                    }));
-                    setCurrent({ ...current, width_mm: newW, layout_config: { fields } });
-                  }} />
+                  <Input
+                    type="number"
+                    value={editWidth}
+                    onChange={(e) => setEditWidth(e.target.value)}
+                    onBlur={() => applyDimensionChange(+editWidth, +editHeight)}
+                    onKeyDown={(e) => { if (e.key === "Enter") applyDimensionChange(+editWidth, +editHeight); }}
+                  />
                 </div>
                 <div>
                   <Label>Altezza (mm)</Label>
-                  <Input type="number" value={current.height_mm} onChange={(e) => {
-                    const newH = +e.target.value;
-                    if (newH <= 0) return;
-                    const scaleY = newH / current.height_mm;
-                    const scaleAvg = Math.sqrt((current.width_mm * newH) / (current.width_mm * current.height_mm));
-                    const fields = current.layout_config.fields.map(f => ({
-                      ...f,
-                      y: Math.round(f.y * scaleY * 10) / 10,
-                      fontSize: Math.max(5, Math.round(f.fontSize * scaleAvg * 10) / 10),
-                      ...(f.height ? { height: Math.round((f.height ?? 15) * scaleY * 10) / 10 } : {}),
-                    }));
-                    setCurrent({ ...current, height_mm: newH, layout_config: { fields } });
-                  }} />
+                  <Input
+                    type="number"
+                    value={editHeight}
+                    onChange={(e) => setEditHeight(e.target.value)}
+                    onBlur={() => applyDimensionChange(+editWidth, +editHeight)}
+                    onKeyDown={(e) => { if (e.key === "Enter") applyDimensionChange(+editWidth, +editHeight); }}
+                  />
                 </div>
               </div>
             </Card>
