@@ -101,12 +101,10 @@ export default function Incoming() {
             supplierLot: p.supplier_lot || "",
             category: "materia_prima",
             expiry: "",
-            origin: "",
+            origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
-          })).map((p: any) => ({
-            ...p,
           }))
-        .map((p: any, _i: number, _arr: any[]) => p));
+        );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
       } else {
         toast.success("Documento analizzato! Controlla e completa i dati.");
