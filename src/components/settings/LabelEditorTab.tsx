@@ -51,7 +51,9 @@ const SAMPLE_DATA: Record<string, string> = {
   company_address: "Via Roma 1, 00100 Roma",
 };
 
-const PX_PER_MM = 3.78; // approximate screen px per mm
+const PX_PER_MM = 3.78;
+const REF_WIDTH = 100; // reference label dimensions for default fields
+const REF_HEIGHT = 70;
 
 export default function LabelEditorTab() {
   const [templates, setTemplates] = useState<(Template & { id: string })[]>([]);
@@ -162,11 +164,35 @@ export default function LabelEditorTab() {
               <div className="grid grid-cols-2 gap-3">
                 <div>
                   <Label>Larghezza (mm)</Label>
-                  <Input type="number" value={current.width_mm} onChange={(e) => setCurrent({ ...current, width_mm: +e.target.value })} />
+                  <Input type="number" value={current.width_mm} onChange={(e) => {
+                    const newW = +e.target.value;
+                    if (newW <= 0) return;
+                    const scaleX = newW / current.width_mm;
+                    const scaleAvg = Math.sqrt((newW * current.height_mm) / (current.width_mm * current.height_mm));
+                    const fields = current.layout_config.fields.map(f => ({
+                      ...f,
+                      x: Math.round(f.x * scaleX * 10) / 10,
+                      fontSize: Math.max(5, Math.round(f.fontSize * scaleAvg * 10) / 10),
+                      ...(f.width ? { width: Math.round((f.width ?? 25) * scaleX * 10) / 10 } : {}),
+                    }));
+                    setCurrent({ ...current, width_mm: newW, layout_config: { fields } });
+                  }} />
                 </div>
                 <div>
                   <Label>Altezza (mm)</Label>
-                  <Input type="number" value={current.height_mm} onChange={(e) => setCurrent({ ...current, height_mm: +e.target.value })} />
+                  <Input type="number" value={current.height_mm} onChange={(e) => {
+                    const newH = +e.target.value;
+                    if (newH <= 0) return;
+                    const scaleY = newH / current.height_mm;
+                    const scaleAvg = Math.sqrt((current.width_mm * newH) / (current.width_mm * current.height_mm));
+                    const fields = current.layout_config.fields.map(f => ({
+                      ...f,
+                      y: Math.round(f.y * scaleY * 10) / 10,
+                      fontSize: Math.max(5, Math.round(f.fontSize * scaleAvg * 10) / 10),
+                      ...(f.height ? { height: Math.round((f.height ?? 15) * scaleY * 10) / 10 } : {}),
+                    }));
+                    setCurrent({ ...current, height_mm: newH, layout_config: { fields } });
+                  }} />
                 </div>
               </div>
             </Card>
