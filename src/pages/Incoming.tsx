@@ -24,11 +24,11 @@ export default function Incoming() {
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [supplierName, setSupplierName] = useState("");
-  const [documentDate, setDocumentDate] = useState("");
+  const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
   const [documentNumber, setDocumentNumber] = useState("");
   const [productName, setProductName] = useState("");
   const [supplierLot, setSupplierLot] = useState("");
-  const [internalLot, setInternalLot] = useState(generateInternalLot("L"));
+  const [internalLot, setInternalLot] = useState(generateInternalLot("L", new Date()));
   const [quantity, setQuantity] = useState("");
   const [expiry, setExpiry] = useState("");
   const [origin, setOrigin] = useState("");
@@ -102,7 +102,7 @@ export default function Incoming() {
     setExpiry("");
     setOrigin("");
     setCategory("materia_prima");
-    setInternalLot(generateInternalLot("L"));
+    setInternalLot(generateInternalLot("L", documentDate ? new Date(documentDate + "T00:00:00") : new Date()));
     setPreview(null);
     setImageFile(null);
     load();
