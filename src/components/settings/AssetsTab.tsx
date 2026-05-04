@@ -45,13 +45,18 @@ export default function AssetsTab() {
       .order("name");
     setList((data as Asset[]) ?? []);
 
-    // Load task assignments with operator names
+    // Load task assignments and operators separately (no FK)
     const { data: tasks } = await supabase
       .from("task_assignments")
-      .select("asset_id, operators(name)");
+      .select("asset_id, operator_id");
+    const { data: ops } = await supabase
+      .from("operators")
+      .select("id, name");
+    const opMap: Record<string, string> = {};
+    for (const o of (ops ?? [])) opMap[o.id] = o.name;
     const map: Record<string, Set<string>> = {};
     for (const t of (tasks ?? []) as any[]) {
-      const name = (t.operators as any)?.name;
+      const name = opMap[t.operator_id];
       if (!name || !t.asset_id) continue;
       (map[t.asset_id] ??= new Set()).add(name);
     }
