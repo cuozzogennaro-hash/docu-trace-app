@@ -143,9 +143,13 @@ export default function Incoming() {
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
     toast.success(`${validLines.length} prodott${validLines.length === 1 ? "o registrato" : "i registrati"}`);
-    setLines([newProductLine(documentDate)]);
+    setLines([newProductLine()]);
+    setSupplierName("");
+    setDocumentDate(new Date().toISOString().slice(0, 10));
+    setDocumentNumber("");
     setPreview(null);
     setImageFile(null);
+    if (fileRef.current) fileRef.current.value = "";
     load();
   }
 
@@ -167,7 +171,17 @@ export default function Incoming() {
             className="aspect-square rounded-2xl bg-gradient-accent text-accent-foreground flex flex-col items-center justify-center gap-2 shadow-elevated hover:opacity-95 transition overflow-hidden relative"
           >
             {preview ? (
-              <img src={preview} alt="Doc" className="absolute inset-0 w-full h-full object-cover" />
+              <>
+                <img src={preview} alt="Doc" className="absolute inset-0 w-full h-full object-cover" />
+                <div className="absolute bottom-1 left-1 right-1 flex gap-1 z-10">
+                  <span
+                    onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
+                    className="flex-1 text-[10px] font-semibold bg-background/80 backdrop-blur rounded-md py-1 text-center cursor-pointer hover:bg-background/95 transition"
+                  >
+                    📷 Riscatta
+                  </span>
+                </div>
+              </>
             ) : ocrLoading ? (
               <>
                 <Loader2 className="animate-spin" size={32} />
