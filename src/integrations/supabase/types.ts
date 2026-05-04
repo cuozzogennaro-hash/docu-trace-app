@@ -113,6 +113,42 @@ export type Database = {
         }
         Relationships: []
       }
+      label_templates: {
+        Row: {
+          created_at: string
+          height_mm: number
+          id: string
+          is_default: boolean
+          layout_config: Json
+          name: string
+          updated_at: string
+          user_id: string
+          width_mm: number
+        }
+        Insert: {
+          created_at?: string
+          height_mm?: number
+          id?: string
+          is_default?: boolean
+          layout_config?: Json
+          name?: string
+          updated_at?: string
+          user_id: string
+          width_mm?: number
+        }
+        Update: {
+          created_at?: string
+          height_mm?: number
+          id?: string
+          is_default?: boolean
+          layout_config?: Json
+          name?: string
+          updated_at?: string
+          user_id?: string
+          width_mm?: number
+        }
+        Relationships: []
+      }
       operators: {
         Row: {
           created_at: string
