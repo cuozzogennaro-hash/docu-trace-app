@@ -31,7 +31,8 @@ export default function AppShell() {
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
-  const nav = operator ? operatorNav : adminNav;
+  const isAdminOperator = operator?.is_admin === true;
+  const nav = (!operator || isAdminOperator) ? adminNav : operatorNav;
 
   async function handleLogout() {
     signOutOperator();
@@ -79,7 +80,7 @@ export default function AppShell() {
               </div>
               <div className="flex-1 min-w-0">
                 <div className="text-xs font-semibold truncate">{operator.name}</div>
-                <div className="text-[10px] text-muted-foreground">Operatore</div>
+                <div className="text-[10px] text-muted-foreground">{operator.is_admin ? "Amministratore" : "Operatore"}</div>
               </div>
               <Button size="icon" variant="ghost" onClick={() => { signOutOperator(); if (!session) navigate("/auth"); }} title="Esci operatore">
                 <LogOut size={14} />
@@ -149,7 +150,7 @@ export default function AppShell() {
                     </div>
                     <div className="flex-1 min-w-0">
                       <div className="text-xs font-semibold truncate">{operator.name}</div>
-                      <div className="text-[10px] text-muted-foreground">Operatore</div>
+                      <div className="text-[10px] text-muted-foreground">{operator.is_admin ? "Amministratore" : "Operatore"}</div>
                     </div>
                     <Button size="icon" variant="ghost" onClick={() => { signOutOperator(); setMobileMenuOpen(false); if (!session) navigate("/auth"); }} title="Esci operatore">
                       <LogOut size={14} />

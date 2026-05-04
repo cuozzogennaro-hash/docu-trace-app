@@ -154,6 +154,7 @@ export type Database = {
           created_at: string
           id: string
           is_active: boolean
+          is_admin: boolean
           login_handle: string
           name: string
           pin_hash: string
@@ -165,6 +166,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_admin?: boolean
           login_handle: string
           name: string
           pin_hash: string
@@ -176,6 +178,7 @@ export type Database = {
           created_at?: string
           id?: string
           is_active?: boolean
+          is_admin?: boolean
           login_handle?: string
           name?: string
           pin_hash?: string

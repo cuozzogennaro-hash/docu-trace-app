@@ -39,7 +39,7 @@ export default function OperatorSwitcherDialog({
       const expected = await hashPin(pin, user.id);
       const { data } = await supabase
         .from("operators")
-        .select("id, name, role, pin_hash")
+        .select("id, name, role, pin_hash, is_admin")
         .eq("id", selected.id)
         .single();
       if (data?.pin_hash !== expected) {
@@ -47,7 +47,7 @@ export default function OperatorSwitcherDialog({
         setPin("");
         return;
       }
-      signIn({ id: data.id, name: data.name, role: data.role, pin });
+      signIn({ id: data.id, name: data.name, role: data.role, pin, is_admin: data.is_admin ?? false });
       toast.success(`Benvenuto ${data.name}`);
       onOpenChange(false);
     } finally {

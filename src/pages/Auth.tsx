@@ -65,14 +65,14 @@ export default function AuthPage() {
         p_pin: opPin,
       });
       if (error) throw error;
-      const res = data as { ok: boolean; error?: string; operator_id?: string; name?: string; role?: string | null };
+      const res = data as { ok: boolean; error?: string; operator_id?: string; name?: string; role?: string | null; is_admin?: boolean };
       if (!res.ok) {
         if (res.error === "not_found") toast.error("Nome utente non trovato");
         else toast.error("PIN errato");
         setOpPin("");
         return;
       }
-      signInOperator({ id: res.operator_id!, name: res.name!, role: res.role ?? null, pin: opPin });
+      signInOperator({ id: res.operator_id!, name: res.name!, role: res.role ?? null, pin: opPin, is_admin: res.is_admin ?? false });
       toast.success(`Benvenuto ${res.name}`);
     } catch (err: any) {
       toast.error(err.message ?? "Errore");

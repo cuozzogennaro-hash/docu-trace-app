@@ -9,13 +9,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { hashPin } from "@/hooks/useOperators";
 import { toast } from "sonner";
-import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell, FileDown } from "lucide-react";
+import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell, FileDown, ShieldCheck } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useCompany } from "@/hooks/useCompany";
 
-type Op = { id: string; name: string; role: string | null; is_active: boolean; login_handle: string };
+type Op = { id: string; name: string; role: string | null; is_active: boolean; login_handle: string; is_admin: boolean };
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null };
 type Assignment = {
   id: string;
@@ -51,7 +51,7 @@ export default function OperatorsTab() {
 
   async function load() {
     const [ops, ass, ta] = await Promise.all([
-      supabase.from("operators").select("id, name, role, is_active, login_handle").order("name"),
+      supabase.from("operators").select("id, name, role, is_active, login_handle, is_admin").order("name"),
       supabase.from("assets").select("id, name, asset_type, cleaning_product").order("name"),
       supabase.from("task_assignments").select("*"),
     ]);
@@ -219,6 +219,11 @@ export default function OperatorsTab() {
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="font-semibold truncate">{op.name}</div>
+                    {op.is_admin && (
+                      <div className="text-[10px] font-semibold text-primary flex items-center gap-1">
+                        <ShieldCheck size={10} /> Amministratore
+                      </div>
+                    )}
                     {op.role && <div className="text-xs text-muted-foreground truncate">{op.role}</div>}
                     <div className="text-xs text-muted-foreground mt-0.5">
                       {opAssigns.length} {opAssigns.length === 1 ? "compito" : "compiti"} assegnati
@@ -237,6 +242,17 @@ export default function OperatorsTab() {
                   </div>
                 </div>
                 <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
+                  <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer mr-2">
+                    <Checkbox
+                      checked={op.is_admin}
+                      onCheckedChange={async (v) => {
+                        await supabase.from("operators").update({ is_admin: !!v }).eq("id", op.id);
+                        load();
+                        toast.success(v ? `${op.name} è ora amministratore` : `Rimossi privilegi admin a ${op.name}`);
+                      }}
+                    />
+                    Admin
+                  </label>
                   <AtSign size={14} className="text-muted-foreground shrink-0" />
                   <code className="flex-1 text-xs font-mono bg-muted/60 rounded px-2 py-1 truncate">{op.login_handle}</code>
                   <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => copyHandle(op.login_handle)} title="Copia">

@@ -5,6 +5,7 @@ export type OperatorSession = {
   name: string;
   role: string | null;
   pin?: string; // kept in localStorage to authorize server-side writes via RPC
+  is_admin?: boolean;
 };
 
 type Ctx = {
