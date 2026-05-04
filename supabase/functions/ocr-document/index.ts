@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
           {
             role: "user",
             content: [
-              { type: "text", text: "Estrai fornitore, data documento, numero documento e TUTTI i prodotti con quantità da questa fattura/DDT. Per ogni riga prodotto indica nome, quantità con unità di misura e lotto fornitore se presente." },
+              { type: "text", text: "Estrai fornitore, data documento, numero documento e TUTTI i prodotti da questa fattura/DDT. Per ogni riga prodotto indica: nome, quantità con unità di misura, SOLO il codice lotto del fornitore (senza altri dati), e l'origine/provenienza del prodotto se indicata (es. Italia, UE, paese di origine della carne, ecc.)." },
               { type: "image_url", image_url: { url: dataUrl } },
             ],
           },
@@ -63,9 +63,10 @@ Deno.serve(async (req) => {
                       properties: {
                         product_name: { type: "string", description: "Nome/descrizione del prodotto" },
                         quantity: { type: "string", description: "Quantità con unità di misura (es. '5 kg', '10 pz', '2 lt')" },
-                        supplier_lot: { type: "string", description: "Lotto fornitore se indicato, altrimenti stringa vuota" },
+                        supplier_lot: { type: "string", description: "Solo il codice/numero di lotto del fornitore, senza altre informazioni. Stringa vuota se non presente." },
+                        origin: { type: "string", description: "Origine/provenienza del prodotto (es. Italia, UE, Allevato in Italia, ecc.). Stringa vuota se non indicata." },
                       },
-                      required: ["product_name", "quantity"],
+                      required: ["product_name", "quantity", "supplier_lot", "origin"],
                     },
                   },
                 },

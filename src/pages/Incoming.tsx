@@ -101,7 +101,7 @@ export default function Incoming() {
             supplierLot: p.supplier_lot || "",
             category: "materia_prima",
             expiry: "",
-            origin: "",
+            origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
           }))
         );
