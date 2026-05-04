@@ -9,7 +9,7 @@ import { toast } from "sonner";
 export default function Shopping() {
   const [rows, setRows] = useState<any[]>([]);
   async function load() {
-    const { data } = await supabase.from("raw_materials").select("*").eq("is_out_of_stock", true).order("product_name");
+    const { data } = await supabase.from("raw_materials").select("*").eq("is_out_of_stock", true).order("category").order("product_name");
     setRows(data ?? []);
   }
   useEffect(() => { load(); }, []);
@@ -22,13 +22,18 @@ export default function Shopping() {
 
   return (
     <>
-      <PageHeader title="Lista Acquisti" subtitle="Materie prime esaurite da riordinare" />
+      <PageHeader title="Lista Acquisti" subtitle="Materie prime, aromi e additivi esauriti da riordinare" />
       <div className="space-y-2">
         {rows.map((r) => (
           <Card key={r.id} className="p-4 flex items-center justify-between gap-3">
             <div className="min-w-0">
               <div className="font-semibold truncate">{r.product_name}</div>
-              <div className="text-xs text-muted-foreground">{r.supplier_name || "—"}</div>
+              <div className="text-xs text-muted-foreground">
+                {r.supplier_name || "—"}
+                {r.category && r.category !== "materia_prima" && (
+                  <> • {r.category === "aroma" ? "Aroma" : "Additivo/Allergene"}</>
+                )}
+              </div>
             </div>
             <Button size="sm" variant="outline" onClick={() => done(r.id)} className="gap-1">
               <Check size={14} /> Riordinato
