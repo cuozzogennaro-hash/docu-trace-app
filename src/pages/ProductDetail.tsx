@@ -79,7 +79,7 @@ export default function ProductDetail() {
     };
   }
 
-  function printLabel() {
+  async function printLabel() {
     if (!product) return;
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) { toast.error("Seleziona un template"); return; }
@@ -91,6 +91,21 @@ export default function ProductDetail() {
 
     const { valueMap, allergensList } = getValueMap();
 
+    // Pre-load logo as base64 if available
+    let logoDataUrl: string | null = null;
+    const logoField = fields.find((f: any) => f.key === "logo" && f.visible);
+    if (logoField && company?.logo_url) {
+      try {
+        const resp = await fetch(company.logo_url);
+        const blob = await resp.blob();
+        logoDataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch { /* skip logo on error */ }
+    }
+
     const pageW = wMm;
     const pageH = hMm;
     const orient = pageW > pageH ? "landscape" : "portrait";
@@ -101,7 +116,14 @@ export default function ProductDetail() {
 
       for (const f of fields) {
         if (!f.visible) continue;
-        if (f.key === "logo") continue;
+        if (f.key === "logo") {
+          if (logoDataUrl) {
+            try {
+              doc.addImage(logoDataUrl, "PNG", f.x, f.y, f.width ?? 25, f.height ?? 15);
+            } catch { /* skip */ }
+          }
+          continue;
+        }
 
         const text = valueMap[f.key] ?? "";
         if (!text) continue;
