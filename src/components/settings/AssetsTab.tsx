@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
-import { Plus, Pencil, Trash2, Refrigerator, Snowflake, Wrench, Layers } from "lucide-react";
+import { Plus, Pencil, Trash2, Refrigerator, Snowflake, Wrench, Layers, Users } from "lucide-react";
 import { toast } from "sonner";
 
 type Asset = {
@@ -27,6 +27,7 @@ const TYPE_META: Record<string, { label: string; icon: any }> = {
 
 export default function AssetsTab() {
   const [list, setList] = useState<Asset[]>([]);
+  const [assignments, setAssignments] = useState<Record<string, string[]>>({});
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Asset | null>(null);
   const [form, setForm] = useState({
@@ -43,6 +44,25 @@ export default function AssetsTab() {
       .select("id, name, asset_type, cleaning_product, target_temp_min, target_temp_max")
       .order("name");
     setList((data as Asset[]) ?? []);
+
+    // Load task assignments and operators separately (no FK)
+    const { data: tasks } = await supabase
+      .from("task_assignments")
+      .select("asset_id, operator_id");
+    const { data: ops } = await supabase
+      .from("operators")
+      .select("id, name");
+    const opMap: Record<string, string> = {};
+    for (const o of (ops ?? [])) opMap[o.id] = o.name;
+    const map: Record<string, Set<string>> = {};
+    for (const t of (tasks ?? []) as any[]) {
+      const name = opMap[t.operator_id];
+      if (!name || !t.asset_id) continue;
+      (map[t.asset_id] ??= new Set()).add(name);
+    }
+    const result: Record<string, string[]> = {};
+    for (const [k, v] of Object.entries(map)) result[k] = [...v];
+    setAssignments(result);
   }
   useEffect(() => { load(); }, []);
 
@@ -178,6 +198,13 @@ export default function AssetsTab() {
                       🌡 {a.target_temp_min ?? "—"}° / {a.target_temp_max ?? "—"}°
                     </div>
                   )}
+                  <div className="text-xs mt-1 flex items-center gap-1 text-foreground/70">
+                    <Users size={12} className="shrink-0" />
+                    {assignments[a.id]?.length
+                      ? assignments[a.id].join(", ")
+                      : <span className="italic text-muted-foreground">Non assegnato</span>
+                    }
+                  </div>
                 </div>
                 <div className="flex gap-1">
                   <Button size="icon" variant="ghost" onClick={() => startEdit(a)}><Pencil size={16} /></Button>
