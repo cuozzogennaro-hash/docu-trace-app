@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ArrowLeft, FileDown, Loader2, Printer } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { Label } from "@/components/ui/label";
