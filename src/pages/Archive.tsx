@@ -432,6 +432,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   return (
     <>
+      {SearchBar}
       {/* Desktop table */}
       <Card className="overflow-hidden hidden md:block">
         <div className="overflow-x-auto">
@@ -443,7 +444,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
               </TableRow>
             </TableHeader>
             <TableBody>
-              {rows.map((r) => (
+              {filteredRows.map((r) => (
                 <TableRow key={r.id} className={isClickable ? "cursor-pointer hover:bg-muted/40" : ""} onClick={() => isClickable && onRowClick(r)}>
                   {cfg.columns.map((c) => (
                     <TableCell key={c.key} className="text-sm">
@@ -467,7 +468,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
       {/* Mobile cards */}
       <div className="md:hidden space-y-2">
-        {rows.map((r) => (
+        {filteredRows.map((r) => (
           <MobileCard key={r.id} r={r} />
         ))}
       </div>
