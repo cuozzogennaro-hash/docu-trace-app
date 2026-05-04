@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Camera, Loader2, Package, Sparkles } from "lucide-react";
+import { Camera, Loader2, Package, Sparkles, Trash2, Plus } from "lucide-react";
 import { generateInternalLot } from "@/lib/lot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
@@ -16,6 +16,29 @@ const CATEGORIES = [
   { value: "aroma", label: "Aroma" },
   { value: "additivo_allergene", label: "Additivo / Allergene" },
 ];
+
+type ProductLine = {
+  productName: string;
+  quantity: string;
+  supplierLot: string;
+  category: string;
+  expiry: string;
+  origin: string;
+  internalLot: string;
+};
+
+function newProductLine(date?: string): ProductLine {
+  const d = date ? new Date(date + "T00:00:00") : new Date();
+  return {
+    productName: "",
+    quantity: "",
+    supplierLot: "",
+    category: "materia_prima",
+    expiry: "",
+    origin: "",
+    internalLot: generateInternalLot("L", d),
+  };
+}
 
 export default function Incoming() {
   const fileRef = useRef<HTMLInputElement>(null);
@@ -26,13 +49,7 @@ export default function Incoming() {
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
   const [documentNumber, setDocumentNumber] = useState("");
-  const [productName, setProductName] = useState("");
-  const [supplierLot, setSupplierLot] = useState("");
-  const [internalLot, setInternalLot] = useState(generateInternalLot("L", new Date()));
-  const [quantity, setQuantity] = useState("");
-  const [expiry, setExpiry] = useState("");
-  const [origin, setOrigin] = useState("");
-  const [category, setCategory] = useState("materia_prima");
+  const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
 
   async function load() {
@@ -46,6 +63,18 @@ export default function Incoming() {
   useEffect(() => {
     load();
   }, []);
+
+  function updateLine(idx: number, patch: Partial<ProductLine>) {
+    setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
+  }
+
+  function removeLine(idx: number) {
+    setLines((prev) => (prev.length <= 1 ? prev : prev.filter((_, i) => i !== idx)));
+  }
+
+  function addLine() {
+    setLines((prev) => [...prev, newProductLine(documentDate)]);
+  }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -63,7 +92,23 @@ export default function Incoming() {
       if (d.supplier_name) setSupplierName(d.supplier_name);
       if (d.document_date) setDocumentDate(d.document_date);
       if (d.document_number) setDocumentNumber(d.document_number);
-      toast.success("Documento analizzato! Controlla e completa i dati.");
+      if (Array.isArray(d.products) && d.products.length > 0) {
+        const dateForLot = d.document_date || documentDate;
+        setLines(
+          d.products.map((p: any) => ({
+            productName: p.product_name || "",
+            quantity: p.quantity || "",
+            supplierLot: p.supplier_lot || "",
+            category: "materia_prima",
+            expiry: "",
+            origin: "",
+            internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
+          }))
+        );
+        toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
+      } else {
+        toast.success("Documento analizzato! Controlla e completa i dati.");
+      }
     } catch (err: any) {
       toast.error(err.message ?? "Errore OCR");
     } finally {
@@ -72,7 +117,8 @@ export default function Incoming() {
   }
 
   async function save() {
-    if (!productName) return toast.error("Nome prodotto obbligatorio");
+    const validLines = lines.filter((l) => l.productName.trim());
+    if (validLines.length === 0) return toast.error("Almeno un prodotto obbligatorio");
     const { data: { user } } = await supabase.auth.getUser();
     let imageUrl: string | null = null;
     if (imageFile) {
@@ -80,29 +126,24 @@ export default function Incoming() {
       const { error: upErr } = await supabase.storage.from("documents").upload(path, imageFile);
       if (!upErr) imageUrl = path;
     }
-    const { error } = await supabase.from("raw_materials").insert({
+    const inserts = validLines.map((l) => ({
       user_id: user!.id,
       supplier_name: supplierName || null,
       document_date: documentDate || null,
       document_number: documentNumber || null,
-      product_name: productName,
-      supplier_lot: supplierLot || null,
-      internal_lot: internalLot,
-      quantity: quantity || null,
-      expiry_date: expiry || null,
-      origin: origin || null,
+      product_name: l.productName,
+      supplier_lot: l.supplierLot || null,
+      internal_lot: l.internalLot,
+      quantity: l.quantity || null,
+      expiry_date: l.expiry || null,
+      origin: l.origin || null,
       document_image_url: imageUrl,
-      category,
-    });
+      category: l.category,
+    }));
+    const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
-    toast.success(`Registrato • Lotto ${internalLot}`);
-    setProductName("");
-    setSupplierLot("");
-    setQuantity("");
-    setExpiry("");
-    setOrigin("");
-    setCategory("materia_prima");
-    setInternalLot(generateInternalLot("L", documentDate ? new Date(documentDate + "T00:00:00") : new Date()));
+    toast.success(`${validLines.length} prodott${validLines.length === 1 ? "o registrato" : "i registrati"}`);
+    setLines([newProductLine(documentDate)]);
     setPreview(null);
     setImageFile(null);
     load();
@@ -155,45 +196,67 @@ export default function Incoming() {
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Numero documento</Label>
               <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
             </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <Label>Nome prodotto *</Label>
-              <Input value={productName} onChange={(e) => setProductName(e.target.value)} placeholder="Mozzarella fior di latte" />
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <Label>Categoria</Label>
-              <Select value={category} onValueChange={setCategory}>
-                <SelectTrigger><SelectValue /></SelectTrigger>
-                <SelectContent>
-                  {CATEGORIES.map((c) => (
-                    <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-            <div className="space-y-1.5">
-              <Label>Lotto fornitore</Label>
-              <Input value={supplierLot} onChange={(e) => setSupplierLot(e.target.value)} />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Lotto interno</Label>
-              <Input value={internalLot} readOnly className="font-mono bg-muted" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Quantità</Label>
-              <Input value={quantity} onChange={(e) => setQuantity(e.target.value)} placeholder="5 kg" />
-            </div>
-            <div className="space-y-1.5">
-              <Label>Scadenza</Label>
-              <Input type="date" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
-            </div>
-            <div className="space-y-1.5 md:col-span-2">
-              <Label>Provenienza / Origine</Label>
-              <Input value={origin} onChange={(e) => setOrigin(e.target.value)} placeholder="Es. Italia, Allevamento XY, Origine carcassa…" />
-            </div>
           </div>
         </div>
+
+        {/* Product lines */}
+        <div className="mt-4 space-y-3">
+          <div className="flex items-center justify-between">
+            <Label className="text-sm font-semibold">Prodotti ({lines.length})</Label>
+            <Button type="button" variant="outline" size="sm" onClick={addLine} className="gap-1">
+              <Plus size={14} /> Aggiungi riga
+            </Button>
+          </div>
+          {lines.map((line, idx) => (
+            <Card key={idx} className="p-3 bg-muted/30 border-dashed">
+              <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                <div className="space-y-1 md:col-span-2">
+                  <Label className="text-xs">Prodotto *</Label>
+                  <Input value={line.productName} onChange={(e) => updateLine(idx, { productName: e.target.value })} placeholder="Mozzarella fior di latte" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Quantità</Label>
+                  <Input value={line.quantity} onChange={(e) => updateLine(idx, { quantity: e.target.value })} placeholder="5 kg" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Categoria</Label>
+                  <Select value={line.category} onValueChange={(v) => updateLine(idx, { category: v })}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      {CATEGORIES.map((c) => (
+                        <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Lotto fornitore</Label>
+                  <Input value={line.supplierLot} onChange={(e) => updateLine(idx, { supplierLot: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Lotto interno</Label>
+                  <Input value={line.internalLot} readOnly className="font-mono bg-muted text-xs" />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Scadenza</Label>
+                  <Input type="date" value={line.expiry} onChange={(e) => updateLine(idx, { expiry: e.target.value })} />
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Origine</Label>
+                  <Input value={line.origin} onChange={(e) => updateLine(idx, { origin: e.target.value })} placeholder="Italia…" />
+                </div>
+              </div>
+              {lines.length > 1 && (
+                <Button type="button" variant="ghost" size="sm" className="mt-2 text-destructive gap-1" onClick={() => removeLine(idx)}>
+                  <Trash2 size={14} /> Rimuovi
+                </Button>
+              )}
+            </Card>
+          ))}
+        </div>
+
         <Button onClick={save} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
-          <Package size={16} /> Registra ingresso
+          <Package size={16} /> Registra {lines.length > 1 ? `${lines.length} prodotti` : "ingresso"}
         </Button>
       </Card>
 
