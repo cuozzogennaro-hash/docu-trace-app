@@ -4,6 +4,7 @@ import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
 import { ArrowLeft, FileDown, Loader2, Printer } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { Label } from "@/components/ui/label";
@@ -23,6 +24,7 @@ export default function ProductDetail() {
   const [labelTemplates, setLabelTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [showLabelDialog, setShowLabelDialog] = useState(false);
+  const [labelQty, setLabelQty] = useState(1);
 
   useEffect(() => {
     if (!id) return;
@@ -37,7 +39,7 @@ export default function ProductDetail() {
 
       const { data: links } = await supabase
         .from("product_ingredients")
-        .select("raw_materials(id, product_name, internal_lot, supplier_name, supplier_lot, origin, quantity, expiry_date)")
+        .select("raw_materials(id, product_name, internal_lot, supplier_name, supplier_lot, origin, quantity, expiry_date, category)")
         .eq("product_id", id);
 
       setIngredients((links ?? []).map((l: any) => l.raw_materials).filter(Boolean));
@@ -66,7 +68,11 @@ export default function ProductDetail() {
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
 
-    const ingredientsList = ingredients.map((m: any) => m.product_name).join(", ");
+    // Separate allergens (additivo_allergene) to bold them
+    const normalIngr = ingredients.filter((m: any) => (m.category || "materia_prima") !== "additivo_allergene");
+    const allergens = ingredients.filter((m: any) => (m.category || "materia_prima") === "additivo_allergene");
+    const ingredientsList = normalIngr.map((m: any) => m.product_name).join(", ");
+    const allergensList = allergens.map((m: any) => m.product_name).join(", ");
 
     const valueMap: Record<string, string> = {
       company_name: company?.business_name ?? "",
@@ -78,29 +84,42 @@ export default function ProductDetail() {
       company_address: company?.address ?? "",
     };
 
-    const doc = new jsPDF({ orientation: wMm > hMm ? "landscape" : "portrait", unit: "mm", format: [wMm, hMm] });
+    const pageW = wMm;
+    const pageH = hMm;
+    const orient = pageW > pageH ? "landscape" : "portrait";
+    const doc = new jsPDF({ orientation: orient as any, unit: "mm", format: [pageW, pageH] });
 
-    for (const f of fields) {
-      if (!f.visible) continue;
-      if (f.key === "logo" && company?.logo_url) {
-        // skip logo in PDF for simplicity — thermal printers often don't support images well
-        continue;
-      }
-      if (f.key === "logo") continue;
+    for (let copy = 0; copy < labelQty; copy++) {
+      if (copy > 0) doc.addPage([pageW, pageH], orient as any);
 
-      const text = valueMap[f.key] ?? "";
-      if (!text) continue;
+      for (const f of fields) {
+        if (!f.visible) continue;
+        if (f.key === "logo") continue;
 
-      doc.setFontSize(f.fontSize ?? 10);
-      doc.setFont("helvetica", f.bold ? "bold" : "normal");
+        const text = valueMap[f.key] ?? "";
+        if (!text) continue;
 
-      // Wrap text for ingredients
-      if (f.key === "ingredients") {
-        const maxWidth = wMm - f.x - 3;
-        const lines = doc.splitTextToSize(text, maxWidth);
-        doc.text(lines, f.x, f.y + (f.fontSize ?? 10) * 0.35);
-      } else {
-        doc.text(text, f.x, f.y + (f.fontSize ?? 10) * 0.35);
+        doc.setFontSize(f.fontSize ?? 10);
+        doc.setFont("helvetica", f.bold ? "bold" : "normal");
+
+        if (f.key === "ingredients") {
+          const maxWidth = pageW - f.x - 3;
+          const lines = doc.splitTextToSize(text, maxWidth);
+          doc.text(lines, f.x, f.y + (f.fontSize ?? 10) * 0.35);
+
+          // Print allergens in bold right after ingredients
+          if (allergensList) {
+            const lastLineY = f.y + (f.fontSize ?? 10) * 0.35 + (lines.length - 1) * (f.fontSize ?? 10) * 0.4;
+            const allergenY = lastLineY + (f.fontSize ?? 10) * 0.5;
+            doc.setFont("helvetica", "bold");
+            const allergenText = `Allergeni: ${allergensList}`;
+            const aLines = doc.splitTextToSize(allergenText, maxWidth);
+            doc.text(aLines, f.x, allergenY);
+            doc.setFont("helvetica", f.bold ? "bold" : "normal");
+          }
+        } else {
+          doc.text(text, f.x, f.y + (f.fontSize ?? 10) * 0.35);
+        }
       }
     }
 
@@ -223,6 +242,10 @@ export default function ProductDetail() {
                   ))}
                 </SelectContent>
               </Select>
+            </div>
+            <div>
+              <Label className="text-sm font-medium">Quantità etichette</Label>
+              <Input type="number" min={1} max={100} value={labelQty} onChange={(e) => setLabelQty(Math.max(1, +e.target.value))} />
             </div>
             <Button onClick={printLabel} className="w-full gap-2">
               <Printer size={16} /> Stampa
