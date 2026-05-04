@@ -136,6 +136,8 @@ export default function LabelEditorTab() {
     }).eq("id", current.id);
     if (error) { toast.error("Errore salvataggio"); return; }
     toast.success("Salvato");
+    // Reset base snapshot to saved state
+    snapshotBase(current);
     await load();
   }
 
@@ -152,6 +154,12 @@ export default function LabelEditorTab() {
     const fields = [...current.layout_config.fields];
     fields[idx] = { ...fields[idx], ...patch };
     setCurrent({ ...current, layout_config: { fields } });
+    // Sync base so manual field edits are preserved when resizing
+    if (baseRef.current) {
+      const bf = [...baseRef.current.fields];
+      bf[idx] = { ...bf[idx], ...patch };
+      baseRef.current = { ...baseRef.current, fields: bf };
+    }
   }
 
   if (loading) return <div className="py-8 text-center text-muted-foreground">Caricamento…</div>;
