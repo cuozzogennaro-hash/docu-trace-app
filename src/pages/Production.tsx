@@ -18,7 +18,7 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function Production() {
   const [name, setName] = useState("");
   const [prodDate, setProdDate] = useState(new Date().toISOString().slice(0, 10));
-  const [lot, setLot] = useState(generateInternalLot("P"));
+  const [lot, setLot] = useState(generateInternalLot("P", new Date()));
   const [notes, setNotes] = useState("");
   const [materials, setMaterials] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
@@ -70,7 +70,7 @@ export default function Production() {
     setName("");
     setNotes("");
     setSelected(new Set());
-    setLot(generateInternalLot("P"));
+    setLot(generateInternalLot("P", new Date()));
     load();
   }
 
@@ -86,7 +86,10 @@ export default function Production() {
           </div>
           <div className="space-y-2">
             <Label>Data produzione</Label>
-            <Input type="date" value={prodDate} onChange={(e) => setProdDate(e.target.value)} />
+            <Input type="date" value={prodDate} onChange={(e) => {
+              setProdDate(e.target.value);
+              if (e.target.value) setLot(generateInternalLot("P", new Date(e.target.value + "T00:00:00")));
+            }} />
           </div>
           <div className="space-y-2">
             <Label>Lotto interno</Label>

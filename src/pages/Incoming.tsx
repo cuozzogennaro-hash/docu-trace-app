@@ -24,11 +24,11 @@ export default function Incoming() {
   const [imageFile, setImageFile] = useState<File | null>(null);
 
   const [supplierName, setSupplierName] = useState("");
-  const [documentDate, setDocumentDate] = useState("");
+  const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
   const [documentNumber, setDocumentNumber] = useState("");
   const [productName, setProductName] = useState("");
   const [supplierLot, setSupplierLot] = useState("");
-  const [internalLot, setInternalLot] = useState(generateInternalLot("L"));
+  const [internalLot, setInternalLot] = useState(generateInternalLot("L", new Date()));
   const [quantity, setQuantity] = useState("");
   const [expiry, setExpiry] = useState("");
   const [origin, setOrigin] = useState("");
@@ -102,7 +102,7 @@ export default function Incoming() {
     setExpiry("");
     setOrigin("");
     setCategory("materia_prima");
-    setInternalLot(generateInternalLot("L"));
+    setInternalLot(generateInternalLot("L", documentDate ? new Date(documentDate + "T00:00:00") : new Date()));
     setPreview(null);
     setImageFile(null);
     load();
@@ -146,7 +146,10 @@ export default function Incoming() {
             </div>
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Data documento</Label>
-              <Input type="date" value={documentDate} onChange={(e) => setDocumentDate(e.target.value)} />
+              <Input type="date" value={documentDate} onChange={(e) => {
+                setDocumentDate(e.target.value);
+                if (e.target.value) setInternalLot(generateInternalLot("L", new Date(e.target.value + "T00:00:00")));
+              }} />
             </div>
             <div className="space-y-1.5 md:col-span-2">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Numero documento</Label>
