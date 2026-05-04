@@ -86,9 +86,10 @@ export default function Production() {
           </div>
           <div className="space-y-2">
             <Label>Data produzione</Label>
-            <Input type="date" value={prodDate} onChange={(e) => setProdDate(e.target.value)} />
-              onChange={(e) => {
-            
+            <Input type="date" value={prodDate} onChange={(e) => {
+              setProdDate(e.target.value);
+              if (e.target.value) setLot(generateInternalLot("P", new Date(e.target.value + "T00:00:00")));
+            }} />
           </div>
           <div className="space-y-2">
             <Label>Lotto interno</Label>
