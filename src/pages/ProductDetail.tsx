@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 
 export default function ProductDetail() {
@@ -58,7 +58,28 @@ export default function ProductDetail() {
     })();
   }, [id]);
 
-  function printLabel() {
+  const PX_PER_MM = 3.78;
+
+  function getValueMap() {
+    const normalIngr = ingredients.filter((m: any) => (m.category || "materia_prima") !== "additivo_allergene");
+    const allergens = ingredients.filter((m: any) => (m.category || "materia_prima") === "additivo_allergene");
+    const ingredientsList = normalIngr.map((m: any) => m.product_name).join(", ");
+    const allergensList = allergens.map((m: any) => m.product_name).join(", ");
+    return {
+      valueMap: {
+        company_name: company?.business_name ?? "",
+        product_name: product?.name ?? "",
+        internal_lot: `Lotto: ${product?.internal_lot ?? ""}`,
+        production_date: `Data prod.: ${product?.production_date ?? "—"}`,
+        expiry_date: `Scadenza: ${ingredients[0]?.expiry_date ?? "—"}`,
+        ingredients: `Ingr.: ${ingredientsList || "—"}`,
+        company_address: company?.address ?? "",
+      } as Record<string, string>,
+      allergensList,
+    };
+  }
+
+  async function printLabel() {
     if (!product) return;
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) { toast.error("Seleziona un template"); return; }
@@ -68,21 +89,22 @@ export default function ProductDetail() {
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
 
-    // Separate allergens (additivo_allergene) to bold them
-    const normalIngr = ingredients.filter((m: any) => (m.category || "materia_prima") !== "additivo_allergene");
-    const allergens = ingredients.filter((m: any) => (m.category || "materia_prima") === "additivo_allergene");
-    const ingredientsList = normalIngr.map((m: any) => m.product_name).join(", ");
-    const allergensList = allergens.map((m: any) => m.product_name).join(", ");
+    const { valueMap, allergensList } = getValueMap();
 
-    const valueMap: Record<string, string> = {
-      company_name: company?.business_name ?? "",
-      product_name: product.name ?? "",
-      internal_lot: `Lotto: ${product.internal_lot ?? ""}`,
-      production_date: `Data prod.: ${product.production_date ?? "—"}`,
-      expiry_date: `Scadenza: ${ingredients[0]?.expiry_date ?? "—"}`,
-      ingredients: `Ingr.: ${ingredientsList || "—"}`,
-      company_address: company?.address ?? "",
-    };
+    // Pre-load logo as base64 if available
+    let logoDataUrl: string | null = null;
+    const logoField = fields.find((f: any) => f.key === "logo" && f.visible);
+    if (logoField && company?.logo_url) {
+      try {
+        const resp = await fetch(company.logo_url);
+        const blob = await resp.blob();
+        logoDataUrl = await new Promise<string>((resolve) => {
+          const reader = new FileReader();
+          reader.onloadend = () => resolve(reader.result as string);
+          reader.readAsDataURL(blob);
+        });
+      } catch { /* skip logo on error */ }
+    }
 
     const pageW = wMm;
     const pageH = hMm;
@@ -94,7 +116,14 @@ export default function ProductDetail() {
 
       for (const f of fields) {
         if (!f.visible) continue;
-        if (f.key === "logo") continue;
+        if (f.key === "logo") {
+          if (logoDataUrl) {
+            try {
+              doc.addImage(logoDataUrl, "PNG", f.x, f.y, f.width ?? 25, f.height ?? 15);
+            } catch { /* skip */ }
+          }
+          continue;
+        }
 
         const text = valueMap[f.key] ?? "";
         if (!text) continue;
@@ -221,9 +250,10 @@ export default function ProductDetail() {
       </Card>
 
       <Dialog open={showLabelDialog} onOpenChange={setShowLabelDialog}>
-        <DialogContent>
+        <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Stampa Etichetta</DialogTitle>
+            <DialogDescription>Seleziona template e quantità, verifica l'anteprima e stampa.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
             <div>
@@ -243,6 +273,95 @@ export default function ProductDetail() {
               <Label className="text-sm font-medium">Quantità etichette</Label>
               <Input type="number" min={1} max={100} value={labelQty} onChange={(e) => setLabelQty(Math.max(1, +e.target.value))} />
             </div>
+
+            {/* Live preview */}
+            {selectedTemplate && (() => {
+              const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
+              if (!tpl) return null;
+              const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
+              const fields: any[] = config.fields ?? [];
+              const wMm = Number(tpl.width_mm);
+              const hMm = Number(tpl.height_mm);
+              const { valueMap, allergensList } = getValueMap();
+              const logoUrl = company?.logo_url;
+              return (
+                <div>
+                  <Label className="text-sm font-medium mb-2 block">Anteprima</Label>
+                  <div className="border rounded-lg p-3 bg-muted/30 overflow-auto">
+                    <div
+                      className="relative bg-white border border-dashed border-border mx-auto"
+                      style={{ width: wMm * PX_PER_MM, height: hMm * PX_PER_MM }}
+                    >
+                      {fields.filter((f: any) => f.visible).map((f: any) => {
+                        if (f.key === "logo") {
+                          return logoUrl ? (
+                            <img
+                              key={f.key}
+                              src={logoUrl}
+                              alt="Logo"
+                              className="absolute object-contain"
+                              style={{
+                                left: f.x * PX_PER_MM,
+                                top: f.y * PX_PER_MM,
+                                width: (f.width ?? 25) * PX_PER_MM,
+                                height: (f.height ?? 15) * PX_PER_MM,
+                              }}
+                            />
+                          ) : (
+                            <div
+                              key={f.key}
+                              className="absolute bg-muted/50 border border-dashed border-muted-foreground/30 flex items-center justify-center text-[8px] text-muted-foreground"
+                              style={{
+                                left: f.x * PX_PER_MM,
+                                top: f.y * PX_PER_MM,
+                                width: (f.width ?? 25) * PX_PER_MM,
+                                height: (f.height ?? 15) * PX_PER_MM,
+                              }}
+                            >
+                              LOGO
+                            </div>
+                          );
+                        }
+                        const text = valueMap[f.key] ?? "";
+                        const isIngredients = f.key === "ingredients";
+                        return (
+                          <div key={f.key} className="absolute" style={{ left: f.x * PX_PER_MM, top: f.y * PX_PER_MM, maxWidth: (wMm - f.x - 2) * PX_PER_MM }}>
+                            <span
+                              className="text-black block"
+                              style={{
+                                fontSize: f.fontSize * (PX_PER_MM / 2.835),
+                                fontWeight: f.bold ? 700 : 400,
+                                lineHeight: 1.3,
+                                wordBreak: "break-word",
+                              }}
+                            >
+                              {text}
+                            </span>
+                            {isIngredients && allergensList && (
+                              <span
+                                className="text-black block"
+                                style={{
+                                  fontSize: f.fontSize * (PX_PER_MM / 2.835),
+                                  fontWeight: 700,
+                                  lineHeight: 1.3,
+                                  wordBreak: "break-word",
+                                }}
+                              >
+                                Allergeni: {allergensList}
+                              </span>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </div>
+                  <p className="text-xs text-muted-foreground mt-1 text-center">
+                    {wMm} × {hMm} mm
+                  </p>
+                </div>
+              );
+            })()}
+
             <Button onClick={printLabel} className="w-full gap-2">
               <Printer size={16} /> Stampa
             </Button>
