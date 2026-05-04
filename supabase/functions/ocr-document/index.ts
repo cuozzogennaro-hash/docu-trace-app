@@ -28,17 +28,17 @@ Deno.serve(async (req) => {
         "Content-Type": "application/json",
       },
       body: JSON.stringify({
-        model: "google/gemini-3-flash-preview",
+        model: "google/gemini-2.5-flash",
         messages: [
           {
             role: "system",
             content:
-              "Sei un assistente OCR per documenti italiani (fatture, DDT, scontrini). Estrai i dati richiesti dall'immagine. Rispondi SOLO chiamando il tool extract_document_data.",
+              "Sei un assistente OCR per documenti italiani (fatture, DDT, scontrini). Estrai TUTTI i prodotti/articoli presenti nel documento con le relative quantità. Rispondi SOLO chiamando il tool extract_document_data.",
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Estrai fornitore, data e numero documento da questa immagine." },
+              { type: "text", text: "Estrai fornitore, data documento, numero documento e TUTTI i prodotti con quantità da questa fattura/DDT. Per ogni riga prodotto indica nome, quantità con unità di misura e lotto fornitore se presente." },
               { type: "image_url", image_url: { url: dataUrl } },
             ],
           },
@@ -48,16 +48,28 @@ Deno.serve(async (req) => {
             type: "function",
             function: {
               name: "extract_document_data",
-              description: "Extract structured data from an Italian invoice/DDT/receipt image.",
+              description: "Extract structured data including ALL line items from an Italian invoice/DDT/receipt image.",
               parameters: {
                 type: "object",
                 properties: {
                   supplier_name: { type: "string", description: "Ragione sociale del fornitore/emittente" },
                   document_date: { type: "string", description: "Data del documento in formato YYYY-MM-DD" },
                   document_number: { type: "string", description: "Numero del documento/fattura/DDT" },
+                  products: {
+                    type: "array",
+                    description: "Elenco di TUTTI i prodotti/articoli presenti nel documento",
+                    items: {
+                      type: "object",
+                      properties: {
+                        product_name: { type: "string", description: "Nome/descrizione del prodotto" },
+                        quantity: { type: "string", description: "Quantità con unità di misura (es. '5 kg', '10 pz', '2 lt')" },
+                        supplier_lot: { type: "string", description: "Lotto fornitore se indicato, altrimenti stringa vuota" },
+                      },
+                      required: ["product_name", "quantity"],
+                    },
+                  },
                 },
-                required: ["supplier_name", "document_date", "document_number"],
-                additionalProperties: false,
+                required: ["supplier_name", "document_date", "document_number", "products"],
               },
             },
           },
