@@ -102,23 +102,19 @@ export default function ProductDetail() {
         doc.setFontSize(f.fontSize ?? 10);
         doc.setFont("helvetica", f.bold ? "bold" : "normal");
 
-        if (f.key === "ingredients") {
-          const maxWidth = pageW - f.x - 3;
-          const lines = doc.splitTextToSize(text, maxWidth);
-          doc.text(lines, f.x, f.y + (f.fontSize ?? 10) * 0.35);
+        const maxWidth = pageW - f.x - 2;
+        const lines = doc.splitTextToSize(text, maxWidth);
+        doc.text(lines, f.x, f.y + (f.fontSize ?? 10) * 0.35);
 
-          // Print allergens in bold right after ingredients
-          if (allergensList) {
-            const lastLineY = f.y + (f.fontSize ?? 10) * 0.35 + (lines.length - 1) * (f.fontSize ?? 10) * 0.4;
-            const allergenY = lastLineY + (f.fontSize ?? 10) * 0.5;
-            doc.setFont("helvetica", "bold");
-            const allergenText = `Allergeni: ${allergensList}`;
-            const aLines = doc.splitTextToSize(allergenText, maxWidth);
-            doc.text(aLines, f.x, allergenY);
-            doc.setFont("helvetica", f.bold ? "bold" : "normal");
-          }
-        } else {
-          doc.text(text, f.x, f.y + (f.fontSize ?? 10) * 0.35);
+        // Print allergens in bold right after ingredients
+        if (f.key === "ingredients" && allergensList) {
+          const lineH = (f.fontSize ?? 10) * 0.4;
+          const lastLineY = f.y + (f.fontSize ?? 10) * 0.35 + (lines.length - 1) * lineH;
+          const allergenY = lastLineY + lineH * 1.2;
+          doc.setFont("helvetica", "bold");
+          const aLines = doc.splitTextToSize(`Allergeni: ${allergensList}`, maxWidth);
+          doc.text(aLines, f.x, allergenY);
+          doc.setFont("helvetica", f.bold ? "bold" : "normal");
         }
       }
     }
