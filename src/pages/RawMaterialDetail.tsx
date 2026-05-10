@@ -15,6 +15,7 @@ export default function RawMaterialDetail() {
   const { company } = useCompany();
   const [material, setMaterial] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
+  const [departmentName, setDepartmentName] = useState<string>("");
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -27,6 +28,15 @@ export default function RawMaterialDetail() {
         .eq("id", id)
         .single();
       setMaterial(mat);
+
+      if (mat?.department_id) {
+        const { data: dep } = await supabase
+          .from("departments")
+          .select("name")
+          .eq("id", mat.department_id)
+          .single();
+        setDepartmentName(dep?.name ?? "");
+      }
 
       // Find products made with this raw material
       const { data: links } = await supabase
@@ -49,6 +59,7 @@ export default function RawMaterialDetail() {
 
   function downloadPdf() {
     if (!material) return;
+    const isMacelleria = departmentName.toLowerCase().trim() === "macelleria";
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
     doc.setFontSize(16);
@@ -61,6 +72,7 @@ export default function RawMaterialDetail() {
 
     const info = [
       ["Prodotto", material.product_name],
+      ["Reparto", departmentName || "—"],
       ["Fornitore", material.supplier_name || "—"],
       ["Lotto interno", material.internal_lot],
       ["Lotto fornitore", material.supplier_lot || "—"],
@@ -69,6 +81,15 @@ export default function RawMaterialDetail() {
       ["Scadenza", material.expiry_date || "—"],
       ["Provenienza", material.origin || "—"],
     ];
+
+    if (isMacelleria) {
+      info.push(
+        ["Nato in", material.born_in || "—"],
+        ["Allevato in", material.raised_in || "—"],
+        ["Macellato in", material.slaughtered_in || "—"],
+        ["Bollo CE", material.slaughter_mark || "—"],
+      );
+    }
 
     autoTable(doc, {
       startY: y,
@@ -113,6 +134,8 @@ export default function RawMaterialDetail() {
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (!material) return <div className="py-12 text-center text-muted-foreground">Materia prima non trovata.</div>;
 
+  const isMacelleria = departmentName.toLowerCase().trim() === "macelleria";
+
   return (
     <>
       <div className="flex items-center gap-2 mb-4">
@@ -124,6 +147,7 @@ export default function RawMaterialDetail() {
 
       <Card className="p-5 mb-6">
         <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+          {departmentName && <Info label="Reparto" value={departmentName} />}
           <Info label="Fornitore" value={material.supplier_name} />
           <Info label="Lotto fornitore" value={material.supplier_lot} />
           <Info label="Quantità" value={material.quantity} />
@@ -131,6 +155,17 @@ export default function RawMaterialDetail() {
           <Info label="Scadenza" value={material.expiry_date} />
           <Info label="Provenienza / Origine" value={material.origin} />
         </div>
+        {isMacelleria && (
+          <div className="mt-4 p-3 rounded-md bg-orange-50 border border-orange-200">
+            <div className="text-xs font-semibold text-orange-900 mb-2">Tracciabilità carne</div>
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4 text-sm">
+              <Info label="Nato in" value={material.born_in} />
+              <Info label="Allevato in" value={material.raised_in} />
+              <Info label="Macellato in" value={material.slaughtered_in} />
+              <Info label="Bollo CE" value={material.slaughter_mark} />
+            </div>
+          </div>
+        )}
         <Button onClick={downloadPdf} className="mt-5 gap-2 bg-gradient-primary">
           <FileDown size={16} /> Scarica PDF
         </Button>
