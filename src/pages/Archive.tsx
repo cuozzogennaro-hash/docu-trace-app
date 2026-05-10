@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { useNavigate } from "react-router-dom";
+import { useDepartments } from "@/hooks/useDepartments";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -308,6 +309,10 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const [editing, setEditing] = useState<any | null>(null);
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const { departments } = useDepartments();
+  const [deptFilter, setDeptFilter] = useState<string>("all"); // "all" | "none" | dept id
+
+  const supportsDept = tableKey === "raw_materials" || tableKey === "products";
 
   function onRowClick(r: any) {
     if (tableKey === "raw_materials") navigate(`/archivio/materia-prima/${r.id}`);
@@ -337,15 +342,20 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   useEffect(() => { load(); }, [tableKey]);
 
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows;
+    let base = rows;
+    if (supportsDept && deptFilter !== "all") {
+      if (deptFilter === "none") base = base.filter((r) => !r.department_id);
+      else base = base.filter((r) => r.department_id === deptFilter);
+    }
+    if (!search.trim()) return base;
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    return base.filter((r) => {
       const lot = (r.internal_lot ?? "").toLowerCase();
       const supplierLot = (r.supplier_lot ?? "").toLowerCase();
       const name = (r.product_name ?? r.name ?? "").toLowerCase();
       return lot.includes(q) || supplierLot.includes(q) || name.includes(q);
     });
-  }, [rows, search]);
+  }, [rows, search, deptFilter, supportsDept]);
 
   const isGroupable = tableKey === "temperatures" || tableKey === "sanitations";
   const grouped = useMemo(() => isGroupable ? groupByMonth(filteredRows) : {}, [filteredRows, isGroupable]);
@@ -453,16 +463,50 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   const showSearch = tableKey === "raw_materials" || tableKey === "products";
 
-  const SearchBar = showSearch ? (
-    <div className="relative mb-4">
-      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        placeholder="Cerca per lotto interno, lotto fornitore o nome…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="pl-9"
-      />
+  const DeptTabs = supportsDept ? (
+    <div className="mb-3 -mx-1 overflow-x-auto">
+      <div className="flex gap-1.5 px-1 min-w-max">
+        <button
+          type="button"
+          onClick={() => setDeptFilter("all")}
+          className={`text-xs sm:text-sm px-3 py-1.5 rounded-full border whitespace-nowrap transition ${deptFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"}`}
+        >
+          Tutti
+        </button>
+        {departments.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            onClick={() => setDeptFilter(d.id)}
+            className={`text-xs sm:text-sm px-3 py-1.5 rounded-full border whitespace-nowrap transition ${deptFilter === d.id ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"}`}
+          >
+            {d.name}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setDeptFilter("none")}
+          className={`text-xs sm:text-sm px-3 py-1.5 rounded-full border whitespace-nowrap transition ${deptFilter === "none" ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border text-muted-foreground"}`}
+        >
+          Senza reparto
+        </button>
+      </div>
     </div>
+  ) : null;
+
+  const SearchBar = showSearch ? (
+    <>
+      {DeptTabs}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Cerca per lotto interno, lotto fornitore o nome…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+    </>
   ) : null;
 
   /* ---- Mobile card renderer ---- */

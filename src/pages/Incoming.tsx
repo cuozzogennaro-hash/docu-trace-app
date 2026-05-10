@@ -11,6 +11,7 @@ import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIco
 import { generateInternalLot } from "@/lib/lot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
+import { useDepartments } from "@/hooks/useDepartments";
 
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
@@ -26,6 +27,7 @@ type ProductLine = {
   expiry: string;
   origin: string;
   internalLot: string;
+  departmentId: string;
 };
 
 function newProductLine(date?: string): ProductLine {
@@ -38,6 +40,7 @@ function newProductLine(date?: string): ProductLine {
     expiry: "",
     origin: "",
     internalLot: generateInternalLot("L", d),
+    departmentId: "",
   };
 }
 
@@ -46,6 +49,7 @@ export default function Incoming() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
+  const { departments } = useDepartments();
 
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -107,6 +111,7 @@ export default function Incoming() {
             expiry: "",
             origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
+            departmentId: "",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
@@ -123,6 +128,8 @@ export default function Incoming() {
   async function save() {
     const validLines = lines.filter((l) => l.productName.trim());
     if (validLines.length === 0) return toast.error("Almeno un prodotto obbligatorio");
+    if (validLines.some((l) => !l.departmentId)) return toast.error("Seleziona un reparto per ogni prodotto");
+    if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
     const { data: { user } } = await supabase.auth.getUser();
     let imageUrl: string | null = null;
     if (imageFile) {
@@ -143,6 +150,7 @@ export default function Incoming() {
       origin: l.origin || null,
       document_image_url: imageUrl,
       category: l.category,
+      department_id: l.departmentId,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
@@ -252,6 +260,17 @@ export default function Incoming() {
                     <SelectContent>
                       {CATEGORIES.map((c) => (
                         <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Reparto *</Label>
+                  <Select value={line.departmentId} onValueChange={(v) => updateLine(idx, { departmentId: v })}>
+                    <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>

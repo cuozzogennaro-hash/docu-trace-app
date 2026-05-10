@@ -5,7 +5,8 @@ import OperatorsTab from "@/components/settings/OperatorsTab";
 import AssetsTab from "@/components/settings/AssetsTab";
 import IngredientsTab from "@/components/settings/IngredientsTab";
 import LabelEditorTab from "@/components/settings/LabelEditorTab";
-import { Building2, Users, Wrench, Leaf, FlaskConical, Tag } from "lucide-react";
+import DepartmentsTab from "@/components/settings/DepartmentsTab";
+import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building } from "lucide-react";
 
 export default function Settings() {
   return (
@@ -14,6 +15,7 @@ export default function Settings() {
       <Tabs defaultValue="company" className="w-full">
         <TabsList className="flex flex-wrap h-auto gap-1 w-full max-w-4xl mb-6">
           <TabsTrigger value="company" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Building2 size={14} className="hidden sm:inline" /> Azienda</TabsTrigger>
+          <TabsTrigger value="departments" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Building size={14} className="hidden sm:inline" /> Reparti</TabsTrigger>
           <TabsTrigger value="operators" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Users size={14} className="hidden sm:inline" /> Operatori</TabsTrigger>
           <TabsTrigger value="assets" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Wrench size={14} className="hidden sm:inline" /> Attrezz.</TabsTrigger>
           <TabsTrigger value="aromi" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Leaf size={14} className="hidden sm:inline" /> Aromi</TabsTrigger>
@@ -21,6 +23,7 @@ export default function Settings() {
           <TabsTrigger value="etichette" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Tag size={14} className="hidden sm:inline" /> Etichette</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanyTab /></TabsContent>
+        <TabsContent value="departments"><DepartmentsTab /></TabsContent>
         <TabsContent value="operators"><OperatorsTab /></TabsContent>
         <TabsContent value="assets"><AssetsTab /></TabsContent>
         <TabsContent value="aromi"><IngredientsTab category="aroma" title="Aromi" subtitle="Gestisci gli aromi utilizzati nelle produzioni" /></TabsContent>
