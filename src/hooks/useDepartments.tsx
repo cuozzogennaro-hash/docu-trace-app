@@ -7,9 +7,21 @@ export type Department = {
   sort_order: number;
 };
 
+const HIDDEN_KEY = "hiddenDepartmentIds";
+
+function readHidden(): string[] {
+  try {
+    const raw = localStorage.getItem(HIDDEN_KEY);
+    return raw ? (JSON.parse(raw) as string[]) : [];
+  } catch {
+    return [];
+  }
+}
+
 export function useDepartments() {
   const [departments, setDepartments] = useState<Department[]>([]);
   const [loading, setLoading] = useState(true);
+  const [hiddenIds, setHiddenIds] = useState<string[]>(() => readHidden());
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -24,5 +36,25 @@ export function useDepartments() {
 
   useEffect(() => { load(); }, [load]);
 
-  return { departments, loading, reload: load };
+  useEffect(() => {
+    const onStorage = (e: StorageEvent) => {
+      if (e.key === HIDDEN_KEY) setHiddenIds(readHidden());
+    };
+    window.addEventListener("storage", onStorage);
+    return () => window.removeEventListener("storage", onStorage);
+  }, []);
+
+  const setHidden = useCallback((id: string, hidden: boolean) => {
+    setHiddenIds((prev) => {
+      const set = new Set(prev);
+      if (hidden) set.add(id); else set.delete(id);
+      const next = Array.from(set);
+      localStorage.setItem(HIDDEN_KEY, JSON.stringify(next));
+      return next;
+    });
+  }, []);
+
+  const visibleDepartments = departments.filter((d) => !hiddenIds.includes(d.id));
+
+  return { departments, visibleDepartments, hiddenIds, setHidden, loading, reload: load };
 }

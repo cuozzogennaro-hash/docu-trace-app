@@ -57,7 +57,7 @@ export default function Incoming() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const { departments } = useDepartments();
+  const { departments, visibleDepartments } = useDepartments();
   const isMacelleria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
   const isOrtofrutta = (depId: string) =>
@@ -216,9 +216,9 @@ export default function Incoming() {
         <Card className="mb-4 p-3 bg-accent/10 border-dashed">
           <Label className="text-xs font-semibold mb-1.5 block">Reparto *</Label>
           <Select value={departmentId} onValueChange={setDepartmentId}>
-            <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
+            <SelectTrigger><SelectValue placeholder={visibleDepartments.length === 0 ? "Abilita un reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
             <SelectContent>
-              {departments.map((d) => (
+              {visibleDepartments.map((d) => (
                 <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
               ))}
             </SelectContent>
