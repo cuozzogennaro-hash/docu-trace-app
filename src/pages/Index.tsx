@@ -4,6 +4,6 @@ import OperatorDashboard from "./OperatorDashboard";
 
 export default function Index() {
   const { operator } = useOperatorSession();
-  if (operator && !operator.is_admin) return <OperatorDashboard />;
+  if (operator) return <OperatorDashboard />;
   return <Dashboard />;
 }
