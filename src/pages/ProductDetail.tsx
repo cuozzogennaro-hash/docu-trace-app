@@ -321,6 +321,24 @@ export default function ProductDetail() {
     }
 
     // Data produzione (in basso a sinistra)
+    // Avvisi macelleria (sopra la riga data/lotto), font più piccolo
+    if (productMeatType) {
+      const noticePt = Math.max(5, Math.round(footerPt * 0.85));
+      const noticeH = ptMm(noticePt) * lh;
+      const noticeY2 = footerY - noticeH - 0.2;
+      const noticeY1 = noticeY2 - noticeH - 0.1;
+      items.push({
+        x: p, y: noticeY1, w: wMm - 2 * p - safetyR,
+        fontPt: noticePt, align: "left", lineHeight: lh,
+        segments: [{ text: "Conservare da 0° e +4°", bold: false }],
+      });
+      items.push({
+        x: p, y: noticeY2, w: wMm - 2 * p - safetyR,
+        fontPt: noticePt, align: "left", lineHeight: lh,
+        segments: [{ text: "Consumare previa cottura", bold: false }],
+      });
+    }
+
     items.push({
       x: p, y: footerY, w: footerLeftW,
       fontPt: footerPt, align: "left", lineHeight: lh,
