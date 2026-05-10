@@ -24,13 +24,14 @@ export default function Sanitations() {
     const { data } = await supabase
       .from("sanitations")
       .select("*, assets(name)")
+      .eq("event_date", eventDate)
       .order("event_date", { ascending: false })
       .limit(30);
     setRows(data ?? []);
   }
   useEffect(() => {
     load();
-  }, []);
+  }, [eventDate]);
 
   function handleSave() {
     if (!assetId) return toast.error("Seleziona un asset");
