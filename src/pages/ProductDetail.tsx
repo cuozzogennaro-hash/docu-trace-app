@@ -40,7 +40,7 @@ export default function ProductDetail() {
 
       const { data: links } = await supabase
         .from("product_ingredients")
-        .select("raw_materials(id, product_name, internal_lot, supplier_name, supplier_lot, origin, quantity, expiry_date, category, born_in, raised_in, slaughtered_in)")
+        .select("raw_materials(id, product_name, internal_lot, supplier_name, supplier_lot, origin, quantity, expiry_date, category, born_in, raised_in, slaughtered_in, meat_type, slaughter_mark)")
         .eq("product_id", id);
 
       setIngredients((links ?? []).map((l: any) => l.raw_materials).filter(Boolean));
@@ -165,24 +165,42 @@ export default function ProductDetail() {
 
   function computeLabelLayout(wMm: number, hMm: number) {
     const { ingredientParts } = getValueMap();
-    // Traceability: aggregate Nato/Allevato/Macellato from Macelleria materials
-    const traceMap = new Map<string, { born: Set<string>; raised: Set<string>; slaughter: Set<string> }>();
+    // Traceability for Macelleria materials, differentiated by meat_type:
+    // - fresh: Nato / Allevato / Macellato + Bollo CE
+    // - preparato: simple "<nome> origine: <origin>"
+    const freshMap = new Map<string, { born: Set<string>; raised: Set<string>; slaughter: Set<string>; marks: Set<string> }>();
+    const prepMap = new Map<string, Set<string>>();
     for (const m of ingredients as any[]) {
-      if (!m.born_in && !m.raised_in && !m.slaughtered_in) continue;
-      const key = m.product_name || "carne";
-      if (!traceMap.has(key)) traceMap.set(key, { born: new Set(), raised: new Set(), slaughter: new Set() });
-      const t = traceMap.get(key)!;
+      const name = m.product_name || "carne";
+      if (m.meat_type === "preparato") {
+        const o = (m.origin || "").trim();
+        if (!prepMap.has(name)) prepMap.set(name, new Set());
+        if (o) prepMap.get(name)!.add(o);
+        continue;
+      }
+      if (!m.born_in && !m.raised_in && !m.slaughtered_in && !m.slaughter_mark) continue;
+      if (!freshMap.has(name)) freshMap.set(name, { born: new Set(), raised: new Set(), slaughter: new Set(), marks: new Set() });
+      const t = freshMap.get(name)!;
       if (m.born_in) t.born.add(m.born_in);
       if (m.raised_in) t.raised.add(m.raised_in);
       if (m.slaughtered_in) t.slaughter.add(m.slaughtered_in);
+      if (m.slaughter_mark) t.marks.add(m.slaughter_mark);
     }
     const traceLines: string[] = [];
-    traceMap.forEach((t, name) => {
+    freshMap.forEach((t, name) => {
       const parts: string[] = [];
-      if (t.born.size) parts.push(`Nato: ${[...t.born].join("/")}`);
-      if (t.raised.size) parts.push(`Allevato: ${[...t.raised].join("/")}`);
-      if (t.slaughter.size) parts.push(`Macellato: ${[...t.slaughter].join("/")}`);
+      if (t.born.size) parts.push(`Nato in: ${[...t.born].join("/")}`);
+      if (t.raised.size) parts.push(`Allevato in: ${[...t.raised].join("/")}`);
+      if (t.slaughter.size) {
+        const slaughter = `Macellato in: ${[...t.slaughter].join("/")}`;
+        const mark = t.marks.size ? ` (Bollo CE: ${[...t.marks].join("/")})` : "";
+        parts.push(slaughter + mark);
+      }
       if (parts.length) traceLines.push(`${name} — ${parts.join(" • ")}`);
+    });
+    prepMap.forEach((origins, name) => {
+      const o = origins.size ? [...origins].join("/") : "—";
+      traceLines.push(`${name} origine: ${o}`);
     });
     const data = {
       companyName: company?.business_name ?? "",
