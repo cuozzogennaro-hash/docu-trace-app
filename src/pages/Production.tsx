@@ -10,6 +10,8 @@ import { Factory, Check, PackageMinus, Archive as ArchiveIcon, ChevronDown } fro
 import { generateInternalLot } from "@/lib/lot";
 import { Link } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDepartments } from "@/hooks/useDepartments";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
@@ -22,17 +24,20 @@ export default function Production() {
   const [prodDate, setProdDate] = useState(new Date().toISOString().slice(0, 10));
   const [lot, setLot] = useState(generateInternalLot("P", new Date()));
   const [notes, setNotes] = useState("");
+  const [productDeptId, setProductDeptId] = useState<string>("");
+  const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rows, setRows] = useState<any[]>([]);
   const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({ "Questa settimana": true, "Settimana scorsa": false });
+  const { departments } = useDepartments();
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
     const [{ data: m }, { data: p }] = await Promise.all([
-      supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
+      supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at, department_id").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
       supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").eq("production_date", today).order("created_at", { ascending: false }),
     ]);
     // Hide raw materials older than 2 weeks (only for category materia_prima)
@@ -63,11 +68,12 @@ export default function Production() {
 
   async function save() {
     if (!name) return toast.error("Nome prodotto richiesto");
+    if (!productDeptId) return toast.error("Seleziona un reparto per il prodotto");
     if (selected.size === 0) return toast.error("Seleziona almeno un ingrediente");
     const { data: { user } } = await supabase.auth.getUser();
     const { data: prod, error } = await supabase
       .from("products")
-      .insert({ user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes })
+      .insert({ user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes, department_id: productDeptId })
       .select()
       .single();
     if (error) return toast.error(error.message);
@@ -84,6 +90,11 @@ export default function Production() {
     setLot(generateInternalLot("P", new Date()));
     load();
   }
+
+  // Filter materials by selected department (when set)
+  const visibleMaterials = filterDeptId
+    ? materials.filter((m: any) => m.department_id === filterDeptId)
+    : materials;
 
   return (
     <>
@@ -102,6 +113,17 @@ export default function Production() {
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ragù della casa" />
           </div>
           <div className="space-y-2">
+            <Label>Reparto *</Label>
+            <Select value={productDeptId} onValueChange={setProductDeptId}>
+              <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
+              <SelectContent>
+                {departments.map((d) => (
+                  <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
             <Label>Data produzione</Label>
             <Input type="date" value={prodDate} onChange={(e) => {
               setProdDate(e.target.value);
@@ -112,18 +134,39 @@ export default function Production() {
             <Label>Lotto interno</Label>
             <Input value={lot} readOnly className="font-mono bg-muted" />
           </div>
-          <div className="space-y-2">
+          <div className="space-y-2 lg:col-span-2">
             <Label>Note</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
 
         <div className="mt-5">
-          <Label className="mb-2 block">Ingredienti</Label>
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
+            <Label>Ingredienti</Label>
+            <div className="flex flex-wrap gap-1.5">
+              <button
+                type="button"
+                onClick={() => setFilterDeptId("")}
+                className={`text-xs px-3 py-1 rounded-full border transition ${filterDeptId === "" ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"}`}
+              >
+                Tutti
+              </button>
+              {departments.map((d) => (
+                <button
+                  key={d.id}
+                  type="button"
+                  onClick={() => setFilterDeptId(d.id)}
+                  className={`text-xs px-3 py-1 rounded-full border transition ${filterDeptId === d.id ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"}`}
+                >
+                  {d.name}
+                </button>
+              ))}
+            </div>
+          </div>
           <div className="max-h-80 overflow-auto rounded-lg border border-border p-2 space-y-3 bg-muted/30">
-            {materials.length === 0 && <p className="text-sm text-muted-foreground p-3">Nessun ingrediente disponibile. Aggiungi dal registro merci o dalle impostazioni.</p>}
+            {visibleMaterials.length === 0 && <p className="text-sm text-muted-foreground p-3">Nessun ingrediente disponibile{filterDeptId ? " per questo reparto" : ""}. Aggiungi dal registro merci o dalle impostazioni.</p>}
             {(["materia_prima", "aroma", "additivo_allergene"] as const).map((cat) => {
-              const items = materials.filter((m: any) => (m.category || "materia_prima") === cat);
+              const items = visibleMaterials.filter((m: any) => (m.category || "materia_prima") === cat);
               if (items.length === 0) return null;
               if (cat === "materia_prima") {
                 // Group by ISO week
