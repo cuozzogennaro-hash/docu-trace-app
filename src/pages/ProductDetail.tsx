@@ -165,14 +165,15 @@ export default function ProductDetail() {
 
   function computeLabelLayout(wMm: number, hMm: number) {
     const { ingredientParts } = getValueMap();
-    // Traceability for Macelleria materials, differentiated by meat_type:
-    // - fresh: Nato / Allevato / Macellato + Bollo CE
-    // - preparato: simple "<nome> origine: <origin>"
+    // Traceability for Macelleria, driven by the PRODUCT's meat_type:
+    // - "preparato": simplified "<nome> origine: <origin>"
+    // - otherwise (fresh / default): Nato / Allevato / Macellato + Bollo CE
+    const productMeatType: string | null = (product as any)?.meat_type ?? null;
     const freshMap = new Map<string, { born: Set<string>; raised: Set<string>; slaughter: Set<string>; marks: Set<string> }>();
     const prepMap = new Map<string, Set<string>>();
     for (const m of ingredients as any[]) {
       const name = m.product_name || "carne";
-      if (m.meat_type === "preparato") {
+      if (productMeatType === "preparato") {
         const o = (m.origin || "").trim();
         if (!prepMap.has(name)) prepMap.set(name, new Set());
         if (o) prepMap.get(name)!.add(o);
