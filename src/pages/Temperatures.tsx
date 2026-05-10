@@ -23,13 +23,14 @@ export default function Temperatures() {
     const { data } = await supabase
       .from("temperatures")
       .select("*, assets(name, target_temp_min, target_temp_max)")
+      .eq("event_date", eventDate)
       .order("event_date", { ascending: false })
       .limit(30);
     setRows(data ?? []);
   }
   useEffect(() => {
     load();
-  }, []);
+  }, [eventDate]);
 
   function handleSave() {
     if (!assetId || !temperature) return toast.error("Asset e temperatura obbligatori");
