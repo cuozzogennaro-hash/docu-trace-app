@@ -14,6 +14,7 @@ import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/component
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { useNavigate } from "react-router-dom";
+import { useDepartments } from "@/hooks/useDepartments";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -308,6 +309,10 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const [editing, setEditing] = useState<any | null>(null);
   const navigate = useNavigate();
   const [search, setSearch] = useState("");
+  const { departments } = useDepartments();
+  const [deptFilter, setDeptFilter] = useState<string>("all"); // "all" | "none" | dept id
+
+  const supportsDept = tableKey === "raw_materials" || tableKey === "products";
 
   function onRowClick(r: any) {
     if (tableKey === "raw_materials") navigate(`/archivio/materia-prima/${r.id}`);
@@ -337,15 +342,20 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   useEffect(() => { load(); }, [tableKey]);
 
   const filteredRows = useMemo(() => {
-    if (!search.trim()) return rows;
+    let base = rows;
+    if (supportsDept && deptFilter !== "all") {
+      if (deptFilter === "none") base = base.filter((r) => !r.department_id);
+      else base = base.filter((r) => r.department_id === deptFilter);
+    }
+    if (!search.trim()) return base;
     const q = search.trim().toLowerCase();
-    return rows.filter((r) => {
+    return base.filter((r) => {
       const lot = (r.internal_lot ?? "").toLowerCase();
       const supplierLot = (r.supplier_lot ?? "").toLowerCase();
       const name = (r.product_name ?? r.name ?? "").toLowerCase();
       return lot.includes(q) || supplierLot.includes(q) || name.includes(q);
     });
-  }, [rows, search]);
+  }, [rows, search, deptFilter, supportsDept]);
 
   const isGroupable = tableKey === "temperatures" || tableKey === "sanitations";
   const grouped = useMemo(() => isGroupable ? groupByMonth(filteredRows) : {}, [filteredRows, isGroupable]);
