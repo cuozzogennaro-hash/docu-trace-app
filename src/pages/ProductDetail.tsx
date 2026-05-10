@@ -325,16 +325,16 @@ export default function ProductDetail() {
     if (productMeatType) {
       const noticePt = Math.max(5, Math.round(footerPt * 0.85));
       const noticeH = ptMm(noticePt) * lh;
-      const noticeY2 = footerY - noticeH - 0.2;
-      const noticeY1 = noticeY2 - noticeH - 0.1;
+      const noticeY = footerY - noticeH - 0.3;
+      const halfW = (wMm - 2 * p - safetyR) / 2 - 0.5;
       items.push({
-        x: p, y: noticeY1, w: wMm - 2 * p - safetyR,
+        x: p, y: noticeY, w: halfW,
         fontPt: noticePt, align: "left", lineHeight: lh,
         segments: [{ text: "Conservare da 0° e +4°", bold: false }],
       });
       items.push({
-        x: p, y: noticeY2, w: wMm - 2 * p - safetyR,
-        fontPt: noticePt, align: "left", lineHeight: lh,
+        x: wMm - p - safetyR - halfW, y: noticeY, w: halfW,
+        fontPt: noticePt, align: "right", lineHeight: lh,
         segments: [{ text: "Consumare previa cottura", bold: false }],
       });
     }
