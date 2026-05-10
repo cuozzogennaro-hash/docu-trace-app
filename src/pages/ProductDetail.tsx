@@ -61,14 +61,69 @@ export default function ProductDetail() {
 
   const PX_PER_MM = 3.78;
 
+  // Mappa parole chiave -> nome carne usato in etichetta
+  const MEAT_KEYWORDS: Record<string, string> = {
+    tacchino: "tacchino",
+    pollo: "pollo",
+    gallina: "gallina",
+    cappone: "cappone",
+    manzo: "manzo",
+    bovino: "bovino",
+    bovina: "bovino",
+    vitello: "vitello",
+    vitellone: "vitellone",
+    suino: "suino",
+    maiale: "suino",
+    agnello: "agnello",
+    pecora: "pecora",
+    capra: "capra",
+    capretto: "capretto",
+    coniglio: "coniglio",
+    cavallo: "cavallo",
+    anatra: "anatra",
+    oca: "oca",
+    faraona: "faraona",
+    cinghiale: "cinghiale",
+    struzzo: "struzzo",
+    quaglia: "quaglia",
+  };
+
+  function detectMeat(name: string): string | null {
+    const n = (name || "").toLowerCase();
+    for (const k of Object.keys(MEAT_KEYWORDS)) {
+      if (n.includes(k)) return MEAT_KEYWORDS[k];
+    }
+    return null;
+  }
+
+  type IngPart = { text: string; bold: boolean };
+
   function getValueMap() {
-    const allergenSet = new Set(
-      ingredients.filter((m: any) => (m.category || "materia_prima") === "additivo_allergene").map((m: any) => m.id)
-    );
-    // Build combined list: all ingredient names, allergens will be handled separately for bold
-    const allNames = ingredients.map((m: any) => m.product_name);
-    const ingredientsList = allNames.join(", ");
-    const allergenNames = ingredients.filter((m: any) => allergenSet.has(m.id)).map((m: any) => m.product_name);
+    const meats: IngPart[] = [];
+    const aromas: IngPart[] = [];
+    const additives: IngPart[] = [];
+    const others: IngPart[] = [];
+
+    for (const m of ingredients as any[]) {
+      const cat = m.category || "materia_prima";
+      if (cat === "aroma") {
+        aromas.push({ text: m.product_name, bold: false });
+      } else if (cat === "additivo_allergene") {
+        // additivi e allergeni: in grassetto come da norma
+        additives.push({ text: m.product_name, bold: true });
+      } else {
+        const meat = detectMeat(m.product_name);
+        const origin = (m.origin && String(m.origin).trim()) || "UE";
+        if (meat) {
+          meats.push({ text: `carne di ${meat} (${origin})`, bold: false });
+        } else {
+          others.push({ text: `${m.product_name} (${origin})`, bold: false });
+        }
+      }
+    }
+
+    const parts: IngPart[] = [...meats, ...others, ...aromas, ...additives];
+    const ingredientsList = parts.map((p) => p.text).join(", ");
     return {
       valueMap: {
         company_name: company?.business_name ?? "",
@@ -79,7 +134,7 @@ export default function ProductDetail() {
         ingredients: `Ingr.: ${ingredientsList || "—"}`,
         company_address: company?.address ?? "",
       } as Record<string, string>,
-      allergenNames,
+      ingredientParts: parts,
     };
   }
 
@@ -93,7 +148,7 @@ export default function ProductDetail() {
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
 
-    const { valueMap, allergenNames } = getValueMap();
+    const { valueMap, ingredientParts } = getValueMap();
 
     // Build HTML for one label
     const escapeHtml = (s: string) =>
@@ -113,12 +168,12 @@ export default function ProductDetail() {
       const fontSize = f.fontSize ?? 10;
       const maxW = wMm - f.x - 2;
       const style = `${baseStyle}max-width:${maxW}mm;font-size:${fontSize}pt;line-height:1.2;font-weight:${f.bold ? 700 : 400};word-break:break-word;`;
-      if (f.key === "ingredients" && allergenNames.length > 0) {
-        const parts = ingredients
-          .map((m: any, idx: number) => {
-            const sep = idx < ingredients.length - 1 ? ", " : "";
-            const w = allergenNames.includes(m.product_name) ? 700 : 400;
-            return `<span style="font-weight:${w}">${escapeHtml(m.product_name)}${sep}</span>`;
+      if (f.key === "ingredients" && ingredientParts.length > 0) {
+        const parts = ingredientParts
+          .map((p, idx) => {
+            const sep = idx < ingredientParts.length - 1 ? ", " : "";
+            const w = p.bold ? 700 : 400;
+            return `<span style="font-weight:${w}">${escapeHtml(p.text)}${sep}</span>`;
           })
           .join("");
         return `<div style="${style}">Ingr.: ${parts}</div>`;
