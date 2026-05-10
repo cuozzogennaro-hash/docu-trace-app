@@ -26,24 +26,6 @@ export default function ProductDetail() {
   const [showLabelDialog, setShowLabelDialog] = useState(false);
   const [labelQty, setLabelQty] = useState(1);
   const [btPrinting, setBtPrinting] = useState(false);
-  const [printOffsetX, setPrintOffsetX] = useState<number>(() => {
-    const v = typeof window !== "undefined" ? window.localStorage.getItem("label_print_offset_x") : null;
-    return v ? Number(v) : 0;
-  });
-  const [printOffsetY, setPrintOffsetY] = useState<number>(() => {
-    const v = typeof window !== "undefined" ? window.localStorage.getItem("label_print_offset_y") : null;
-    return v ? Number(v) : 0;
-  });
-
-  useEffect(() => {
-    const onMsg = (e: MessageEvent) => {
-      if (e.data && e.data.__labelOverflow) {
-        toast.warning("Alcune informazioni eccedono i bordi dell'etichetta. Riduci il font o ingrandisci l'etichetta.");
-      }
-    };
-    window.addEventListener("message", onMsg);
-    return () => window.removeEventListener("message", onMsg);
-  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -184,10 +166,8 @@ export default function ProductDetail() {
       const text = valueMap[f.key] ?? "";
       if (!text) return "";
       const fontSize = f.fontSize ?? 10;
-      const maxW = Math.max(5, wMm - f.x - 1);
-      const maxH = Math.max(3, hMm - f.y - 1);
-      const style = `${baseStyle}max-width:${maxW}mm;max-height:${maxH}mm;font-size:${fontSize}pt;line-height:1.15;font-weight:${f.bold ? 700 : 400};word-break:break-word;overflow:hidden;`;
-      const dataAttrs = `data-autofit="1" data-min="5" data-max="${fontSize}"`;
+      const maxW = wMm - f.x - 2;
+      const style = `${baseStyle}max-width:${maxW}mm;font-size:${fontSize}pt;line-height:1.2;font-weight:${f.bold ? 700 : 400};word-break:break-word;`;
       if (f.key === "ingredients" && ingredientParts.length > 0) {
         const parts = ingredientParts
           .map((p, idx) => {
@@ -196,18 +176,16 @@ export default function ProductDetail() {
             return `<span style="font-weight:${w}">${escapeHtml(p.text)}${sep}</span>`;
           })
           .join("");
-        return `<div ${dataAttrs} style="${style}">Ingr.: ${parts}</div>`;
+        return `<div style="${style}">Ingr.: ${parts}</div>`;
       }
-      return `<div ${dataAttrs} style="${style}">${escapeHtml(text)}</div>`;
+      return `<div style="${style}">${escapeHtml(text)}</div>`;
     };
 
     const labelHtml = fields.map(renderField).join("");
-    const offX = printOffsetX || 0;
-    const offY = printOffsetY || 0;
     const labelsHtml = Array.from({ length: labelQty })
       .map(
         () =>
-          `<div class="label" style="position:relative;width:${wMm}mm;height:${hMm}mm;overflow:hidden;page-break-after:always;"><div class="label-inner" style="position:absolute;inset:0;transform:translate(${offX}mm, ${offY}mm);">${labelHtml}</div></div>`,
+          `<div class="label" style="position:relative;width:${wMm}mm;height:${hMm}mm;overflow:hidden;page-break-after:always;">${labelHtml}</div>`,
       )
       .join("");
 
@@ -231,36 +209,7 @@ export default function ProductDetail() {
 <body>
 <div class="actions"><button onclick="window.print()">Stampa</button></div>
 ${labelsHtml}
-<script>
-(function(){
-  function autofit(){
-    var overflow = false;
-    var nodes = document.querySelectorAll('[data-autofit="1"]');
-    nodes.forEach(function(el){
-      var min = parseFloat(el.getAttribute('data-min')) || 5;
-      var max = parseFloat(el.getAttribute('data-max')) || 12;
-      var size = max;
-      el.style.fontSize = size + 'pt';
-      var guard = 30;
-      while (guard-- > 0 && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) && size > min) {
-        size = Math.max(min, size - 0.5);
-        el.style.fontSize = size + 'pt';
-      }
-      if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) {
-        overflow = true;
-        el.style.outline = '1px dashed red';
-      }
-    });
-    if (overflow && window.opener) {
-      try { window.opener.postMessage({ __labelOverflow: true }, '*'); } catch(e){}
-    }
-  }
-  window.addEventListener('load', function(){
-    autofit();
-    setTimeout(function(){ window.print(); }, 350);
-  });
-})();
-</script>
+<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 300); });</script>
 </body></html>`;
 
     // Open in a new tab — works on both desktop and mobile, lets the system print menu open.
@@ -306,89 +255,54 @@ ${labelsHtml}
     return out;
   }
 
-  /**
-   * Build a lightweight ESC/POS *text* payload for the CLABEL 221D.
-   *
-   * Approach: keep it small and printer-friendly. We don't send raster
-   * images (the bitmap was too heavy and the printer stayed silent).
-   * Instead we emit plain text + a few control commands:
-   *   - 1B 40        ESC @     reset/init printer
-   *   - 1B 61 00     ESC a 0   align left (avoids text exiting margins)
-   *   - 1D 21 00     GS ! 00   font normal (secondary info)
-   *   - 1D 21 01     GS ! 01   font slightly taller (only product name)
-   *   - 0A           LF        new line
-   * Each line is truncated to MAX_COLS chars to avoid the printer doing
-   * its own (often broken) word-wrap.
-   */
-  function buildEscPosText(): Uint8Array {
-    const { valueMap, ingredientParts } = getValueMap();
-    const MAX_COLS = 32;
+  function buildTSPL(): Uint8Array {
+    const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
+    if (!tpl) throw new Error("Template non selezionato");
+    const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
+    const fields: any[] = config.fields ?? [];
+    const wMm = Number(tpl.width_mm);
+    const hMm = Number(tpl.height_mm);
+    const { valueMap } = getValueMap();
 
-    const truncate = (s: string) => (s.length > MAX_COLS ? s.slice(0, MAX_COLS) : s);
-    function wrap(text: string): string[] {
-      const words = text.split(/\s+/).filter(Boolean);
-      const lines: string[] = [];
-      let cur = "";
-      for (const w of words) {
-        const candidate = cur ? cur + " " + w : w;
-        if (candidate.length > MAX_COLS) {
-          if (cur) lines.push(cur);
-          // hard-truncate single oversized words
-          cur = w.length > MAX_COLS ? w.slice(0, MAX_COLS) : w;
-        } else {
-          cur = candidate;
-        }
-      }
-      if (cur) lines.push(cur);
-      return lines.length ? lines : [""];
-    }
+    const DPMM = 8; // 203 dpi printers ~ 8 dots/mm
+    const mmToDots = (mm: number) => Math.round(mm * DPMM);
 
-    const ESC_INIT = [0x1b, 0x40];
-    const ALIGN_LEFT = [0x1b, 0x61, 0x00];
-    const FONT_NORMAL = [0x1d, 0x21, 0x00];
-    const FONT_TALL = [0x1d, 0x21, 0x01];
-    const LF = 0x0a;
+    const lines: string[] = [];
+    lines.push(`SIZE ${wMm} mm,${hMm} mm`);
+    lines.push(`GAP 2 mm,0 mm`);
+    lines.push(`DIRECTION 1`);
+    lines.push(`CLS`);
 
-    const out: number[] = [];
-    const pushBytes = (arr: number[]) => { for (const b of arr) out.push(b); };
-    const pushLine = (s: string) => {
-      const bytes = strToBytes(truncate(s));
-      for (const b of bytes) out.push(b);
-      out.push(LF);
-    };
+    for (const f of fields) {
+      if (!f.visible) continue;
+      if (f.key === "logo") continue; // skip logo on BT printer
+      const x = mmToDots(f.x);
+      const y = mmToDots(f.y);
 
-    // Build the textual content once
-    const ingrLine = `Ingr.: ${ingredientParts.map((p) => p.text).join(", ") || "—"}`;
-
-    for (let copy = 0; copy < Math.max(1, labelQty); copy++) {
-      pushBytes(ESC_INIT);
-      pushBytes(ALIGN_LEFT);
-
-      // Header (company + product) — product name uses slightly taller font
-      pushBytes(FONT_NORMAL);
-      if (valueMap.company_name) pushLine(valueMap.company_name);
-
-      pushBytes(FONT_TALL);
-      if (valueMap.product_name) pushLine(valueMap.product_name);
-
-      // Secondary info — normal font
-      pushBytes(FONT_NORMAL);
-      if (valueMap.internal_lot) pushLine(valueMap.internal_lot);
-      if (valueMap.production_date) pushLine(valueMap.production_date);
-      if (valueMap.expiry_date) pushLine(valueMap.expiry_date);
-
-      // Ingredients can wrap
-      for (const line of wrap(ingrLine)) pushLine(line);
-
-      if (valueMap.company_address) {
-        for (const line of wrap(valueMap.company_address)) pushLine(line);
+      if (f.key === "qr") {
+        const data = valueMap.qr ?? `${product?.name ?? ""} ${product?.internal_lot ?? ""}`.trim();
+        const cell = Math.max(2, Math.round((f.fontSize ?? 6) / 2));
+        lines.push(`QRCODE ${x},${y},H,${cell},A,0,"${data.replace(/"/g, '\\"')}"`);
+        continue;
       }
 
-      // Final paper feed so the label is pushed past the tear bar
-      pushBytes([LF, LF, LF]);
+      const text = (valueMap[f.key] ?? "").toString();
+      if (!text) continue;
+      // Map pt → TSPL built-in font (1..5). Bigger pt → bigger font.
+      const pt = f.fontSize ?? 10;
+      let font = "2"; let mul = 1;
+      if (pt <= 8) { font = "1"; mul = 1; }
+      else if (pt <= 11) { font = "2"; mul = 1; }
+      else if (pt <= 14) { font = "3"; mul = 1; }
+      else if (pt <= 18) { font = "4"; mul = 1; }
+      else { font = "4"; mul = 2; }
+      const safe = text.replace(/"/g, "''");
+      lines.push(`TEXT ${x},${y},"${font}",0,${mul},${mul},"${safe}"`);
     }
 
-    return new Uint8Array(out);
+    lines.push(`PRINT ${labelQty},1`);
+    lines.push("");
+    return strToBytes(lines.join("\r\n"));
   }
 
   async function findWritableCharacteristic(server: any) {
@@ -431,34 +345,18 @@ ${labelsHtml}
       const server = await device.gatt.connect();
       const ch = await findWritableCharacteristic(server);
 
-      const data = buildEscPosText();
-      console.log(`[BT print] payload ${data.length} bytes (testo) — invio in chunk da 64`);
-      toast.message("Invio dati in corso…");
-      // BLE MTU sicuro per la maggior parte delle stampanti CLABEL/Xprinter:
-      // chunk piccoli (64 byte) con micro-pausa tra uno e l'altro per evitare
-      // overflow del buffer e timeout.
-      const CHUNK = 64;
-      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
-      const useNoResp = !!ch.properties.writeWithoutResponse;
-      const total = data.length;
-      let lastPct = -1;
-      for (let i = 0; i < total; i += CHUNK) {
+      const data = buildTSPL();
+      // Write in chunks (BLE MTU ~ 180-200 bytes)
+      const CHUNK = 180;
+      for (let i = 0; i < data.length; i += CHUNK) {
         const slice = data.slice(i, i + CHUNK);
-        if (useNoResp) {
+        if (ch.properties.writeWithoutResponse) {
           await ch.writeValueWithoutResponse(slice);
         } else {
           await ch.writeValue(slice);
         }
-        // micro-pausa per dare tempo al firmware di processare il chunk
-        await sleep(useNoResp ? 12 : 6);
-        const pct = Math.floor(((i + slice.length) / total) * 100);
-        if (pct >= lastPct + 10) {
-          lastPct = pct;
-          console.log(`[BT print] ${pct}% (${i + slice.length}/${total})`);
-        }
       }
-      console.log("[BT print] trasferimento completato");
-      toast.success("Stampa completata");
+      toast.success("Etichetta inviata alla stampante");
       try { device.gatt.disconnect(); } catch { /* ignore */ }
       setShowLabelDialog(false);
     } catch (e: any) {
@@ -581,37 +479,6 @@ ${labelsHtml}
             <div>
               <Label className="text-sm font-medium">Quantità etichette</Label>
               <Input type="number" min={1} max={100} value={labelQty} onChange={(e) => setLabelQty(Math.max(1, +e.target.value))} />
-            </div>
-
-            <div className="grid grid-cols-2 gap-2">
-              <div>
-                <Label className="text-sm font-medium">Offset X stampa (mm)</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={printOffsetX}
-                  onChange={(e) => {
-                    const v = Number(e.target.value) || 0;
-                    setPrintOffsetX(v);
-                    window.localStorage.setItem("label_print_offset_x", String(v));
-                  }}
-                />
-                <p className="text-[10px] text-muted-foreground mt-1">Negativo = sposta a sinistra</p>
-              </div>
-              <div>
-                <Label className="text-sm font-medium">Offset Y stampa (mm)</Label>
-                <Input
-                  type="number"
-                  step="0.5"
-                  value={printOffsetY}
-                  onChange={(e) => {
-                    const v = Number(e.target.value) || 0;
-                    setPrintOffsetY(v);
-                    window.localStorage.setItem("label_print_offset_y", String(v));
-                  }}
-                />
-                <p className="text-[10px] text-muted-foreground mt-1">Negativo = sposta in alto</p>
-              </div>
             </div>
 
             {/* Live preview */}
