@@ -301,17 +301,21 @@ export default function ProductDetail() {
     }
 
     // Ingredienti (riempiono lo spazio fra titolo e footer)
-    const ingrSegs: LabelSeg[] = [{ text: "Ingr.: ", bold: false }];
-    data.ingredients.forEach((ing, i) => {
-      const sep = i < data.ingredients.length - 1 ? ", " : "";
-      ingrSegs.push({ text: ing.text + sep, bold: ing.bold });
-    });
-    if (data.ingredients.length === 0) ingrSegs.push({ text: "—", bold: false });
-    items.push({
-      x: p, y, w: wMm - 2 * p - safetyR,
-      fontPt: ingrPt, align: "left", lineHeight: lh,
-      segments: ingrSegs,
-    });
+    // Per Carne Fresca (monocomponente) NON stampiamo gli ingredienti:
+    // l'etichetta riporta solo la tracciabilità (Nato/Allevato/Macellato).
+    if (productMeatType !== "fresh") {
+      const ingrSegs: LabelSeg[] = [{ text: "Ingr.: ", bold: false }];
+      data.ingredients.forEach((ing, i) => {
+        const sep = i < data.ingredients.length - 1 ? ", " : "";
+        ingrSegs.push({ text: ing.text + sep, bold: ing.bold });
+      });
+      if (data.ingredients.length === 0) ingrSegs.push({ text: "—", bold: false });
+      items.push({
+        x: p, y, w: wMm - 2 * p - safetyR,
+        fontPt: ingrPt, align: "left", lineHeight: lh,
+        segments: ingrSegs,
+      });
+    }
 
     // Data produzione (in basso a sinistra)
     items.push({
