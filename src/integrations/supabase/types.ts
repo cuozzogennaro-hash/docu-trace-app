@@ -113,6 +113,33 @@ export type Database = {
         }
         Relationships: []
       }
+      departments: {
+        Row: {
+          created_at: string
+          id: string
+          name: string
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          name: string
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          name?: string
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       label_templates: {
         Row: {
           created_at: string
@@ -227,6 +254,7 @@ export type Database = {
       products: {
         Row: {
           created_at: string
+          department_id: string | null
           id: string
           internal_lot: string
           name: string
@@ -237,6 +265,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          department_id?: string | null
           id?: string
           internal_lot: string
           name: string
@@ -247,6 +276,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          department_id?: string | null
           id?: string
           internal_lot?: string
           name?: string
@@ -285,6 +315,7 @@ export type Database = {
         Row: {
           category: string
           created_at: string
+          department_id: string | null
           document_date: string | null
           document_image_url: string | null
           document_number: string | null
@@ -304,6 +335,7 @@ export type Database = {
         Insert: {
           category?: string
           created_at?: string
+          department_id?: string | null
           document_date?: string | null
           document_image_url?: string | null
           document_number?: string | null
@@ -323,6 +355,7 @@ export type Database = {
         Update: {
           category?: string
           created_at?: string
+          department_id?: string | null
           document_date?: string | null
           document_image_url?: string | null
           document_number?: string | null
