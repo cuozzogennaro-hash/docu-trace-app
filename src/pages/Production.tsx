@@ -301,21 +301,23 @@ export default function Production() {
 
       <div className="space-y-2">
         {rows.map((p) => (
-          <Card key={p.id} className="p-4 hover:shadow-md transition cursor-pointer" onClick={() => navigate(`/archivio/prodotto/${p.id}`)}>
-            <div className="flex items-center justify-between mb-2">
-              <div>
-                <div className="font-semibold">{p.name}</div>
-                <div className="text-xs text-muted-foreground">{p.production_date} • <span className="font-mono">{p.internal_lot}</span></div>
+          <Link key={p.id} to={`/archivio/prodotto/${p.id}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg">
+            <Card className="p-4 hover:shadow-md transition cursor-pointer">
+              <div className="flex items-center justify-between mb-2">
+                <div>
+                  <div className="font-semibold">{p.name}</div>
+                  <div className="text-xs text-muted-foreground">{p.production_date} • <span className="font-mono">{p.internal_lot}</span></div>
+                </div>
               </div>
-            </div>
-            <div className="flex flex-wrap gap-1.5">
-              {p.product_ingredients?.map((pi: any, i: number) => (
-                <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
-                  {pi.raw_materials?.product_name} <span className="font-mono opacity-60">• {pi.raw_materials?.internal_lot}</span>
-                </span>
-              ))}
-            </div>
-          </Card>
+              <div className="flex flex-wrap gap-1.5">
+                {p.product_ingredients?.map((pi: any, i: number) => (
+                  <span key={i} className="text-[11px] px-2 py-0.5 rounded-full bg-secondary text-secondary-foreground">
+                    {pi.raw_materials?.product_name} <span className="font-mono opacity-60">• {pi.raw_materials?.internal_lot}</span>
+                  </span>
+                ))}
+              </div>
+            </Card>
+          </Link>
         ))}
         {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessun prodotto creato oggi.</p>}
       </div>
