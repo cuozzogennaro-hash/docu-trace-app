@@ -337,9 +337,10 @@ ${labelsHtml}
     const HEAD_MM = 58;
     const PX_PER_MM = HEAD_DOTS / HEAD_MM;
 
-    const rawWidthPx = Math.min(HEAD_DOTS, Math.round(wMm * PX_PER_MM));
-    const widthBytes = Math.ceil(rawWidthPx / 8);
-    const widthPx = widthBytes * 8; // round up to byte boundary
+    // Force exact head width (384 dots) regardless of label width — required
+    // by the CLABEL 221D / 58mm thermal head. Bytes per row = 48.
+    const widthPx = HEAD_DOTS;
+    const widthBytes = widthPx / 8;
     const heightPx = Math.max(1, Math.round(hMm * PX_PER_MM));
 
     const canvas = document.createElement("canvas");
@@ -473,7 +474,9 @@ ${labelsHtml}
     const yL = heightPx & 0xff;
     const yH = (heightPx >> 8) & 0xff;
     const header = new Uint8Array([0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
-    const feed = new Uint8Array([0x1b, 0x64, 0x03]); // feed 3 lines between copies
+    // Print + paper feed (LF LF) — mandatory at the end of each copy so the
+    // printer actually flushes the buffer to the head.
+    const feed = new Uint8Array([0x0a, 0x0a]);
     const oneCopy = concatBytes([header, bitmap, feed]);
     const chunks: Uint8Array[] = [init];
     for (let i = 0; i < Math.max(1, labelQty); i++) chunks.push(oneCopy);
@@ -521,17 +524,33 @@ ${labelsHtml}
       const ch = await findWritableCharacteristic(server);
 
       const data = await buildRaster();
-      // Write in chunks (BLE MTU ~ 180-200 bytes)
-      const CHUNK = 180;
-      for (let i = 0; i < data.length; i += CHUNK) {
+      console.log(`[BT print] payload ${data.length} bytes — invio in chunk da 64`);
+      toast.message("Invio dati in corso…");
+      // BLE MTU sicuro per la maggior parte delle stampanti CLABEL/Xprinter:
+      // chunk piccoli (64 byte) con micro-pausa tra uno e l'altro per evitare
+      // overflow del buffer e timeout.
+      const CHUNK = 64;
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      const useNoResp = !!ch.properties.writeWithoutResponse;
+      const total = data.length;
+      let lastPct = -1;
+      for (let i = 0; i < total; i += CHUNK) {
         const slice = data.slice(i, i + CHUNK);
-        if (ch.properties.writeWithoutResponse) {
+        if (useNoResp) {
           await ch.writeValueWithoutResponse(slice);
         } else {
           await ch.writeValue(slice);
         }
+        // micro-pausa per dare tempo al firmware di processare il chunk
+        await sleep(useNoResp ? 12 : 6);
+        const pct = Math.floor(((i + slice.length) / total) * 100);
+        if (pct >= lastPct + 10) {
+          lastPct = pct;
+          console.log(`[BT print] ${pct}% (${i + slice.length}/${total})`);
+        }
       }
-      toast.success("Etichetta inviata alla stampante");
+      console.log("[BT print] trasferimento completato");
+      toast.success("Stampa completata");
       try { device.gatt.disconnect(); } catch { /* ignore */ }
       setShowLabelDialog(false);
     } catch (e: any) {
