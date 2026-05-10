@@ -176,12 +176,44 @@ export default function ProductDetail() {
     // Padding proporzionale (min 1.2mm)
     const p = Math.max(1.2, Math.min(wMm, hMm) * 0.04);
     // Dimensioni font in pt — scalano con altezza etichetta
-    // Massima leggibilità mantenendo proporzione.
-    const titlePt = Math.max(10, Math.round(hMm * 0.40)); // company + product
-    const ingrPt = Math.max(7, Math.round(hMm * 0.26));
-    const footerPt = Math.max(7, Math.round(hMm * 0.26));
-    const lh = 1.15;
+    const titlePtBase = Math.max(10, Math.round(hMm * 0.34));
+    const ingrPt = Math.max(7, Math.round(hMm * 0.22));
+    const footerPtBase = Math.max(7, Math.round(hMm * 0.22));
+    const lh = 1.2;
     const ptMm = (pt: number) => pt * 0.3528;
+
+    // Misuratore canvas off-screen per auto-fit del font su singola riga
+    const measureCanvas = document.createElement("canvas");
+    const measureCtx = measureCanvas.getContext("2d")!;
+    const measureWidthMm = (text: string, pt: number, bold: boolean) => {
+      // 1pt = 0.3528mm, ma per misurare uso px coerenti tra loro
+      const px = pt * 4; // scala arbitraria, conta solo il rapporto
+      measureCtx.font = `${bold ? "bold " : ""}${px}px Helvetica, Arial, sans-serif`;
+      const wPx = measureCtx.measureText(text).width;
+      // wPx corrisponde a (pt*4)px → in mm: (wPx / (pt*4)) * pt * 0.3528
+      return (wPx / (pt * 4)) * pt * 0.3528;
+    };
+    const fitPt = (text: string, maxMm: number, startPt: number, minPt: number, bold: boolean) => {
+      let pt = startPt;
+      while (pt > minPt && measureWidthMm(text, pt, bold) > maxMm) pt -= 0.5;
+      return Math.max(minPt, pt);
+    };
+
+    // Auto-fit titoli per stare su una riga sola; usa la stessa dimensione
+    // (la più piccola fra i due) così che mantengano lo stesso formato.
+    const titleMaxMm = wMm - 2 * p;
+    const titleCompanyPt = fitPt(data.companyName || " ", titleMaxMm, titlePtBase, 8, true);
+    const titleProductPt = fitPt(data.productName || " ", titleMaxMm, titlePtBase, 8, true);
+    const titlePt = Math.min(titleCompanyPt, titleProductPt);
+
+    // Footer: la metà di larghezza ciascuno; auto-fit per evitare overflow
+    const footerColW = (wMm - 2 * p) / 2 - 0.5;
+    const dataText = `Data Pro.: ${data.productionDate}`;
+    const lotText = `Lotto: ${data.internalLot}`;
+    const footerPt = Math.min(
+      fitPt(dataText, footerColW, footerPtBase, 6, false),
+      fitPt(lotText, footerColW, footerPtBase, 6, true),
+    );
 
     const items: LabelItem[] = [];
     let y = p;
@@ -192,7 +224,7 @@ export default function ProductDetail() {
       fontPt: titlePt, align: "center", lineHeight: lh,
       segments: [{ text: data.companyName, bold: true }],
     });
-    y += ptMm(titlePt) * lh + 0.3;
+    y += ptMm(titlePt) * lh + 0.5;
 
     // Nome prodotto (stesso formato)
     items.push({
@@ -221,15 +253,15 @@ export default function ProductDetail() {
 
     // Data produzione (in basso a sinistra)
     items.push({
-      x: p, y: footerY, w: (wMm - 2 * p) / 2 - 0.5,
+      x: p, y: footerY, w: footerColW,
       fontPt: footerPt, align: "left", lineHeight: lh,
-      segments: [{ text: `Prod.: ${data.productionDate}`, bold: false }],
+      segments: [{ text: dataText, bold: false }],
     });
     // Lotto (in basso a destra)
     items.push({
-      x: wMm / 2 + 0.5, y: footerY, w: wMm / 2 - p - 0.5,
+      x: wMm / 2 + 0.5, y: footerY, w: footerColW,
       fontPt: footerPt, align: "right", lineHeight: lh,
-      segments: [{ text: `Lotto: ${data.internalLot}`, bold: true }],
+      segments: [{ text: lotText, bold: true }],
     });
 
     return items;
