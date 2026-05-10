@@ -28,9 +28,11 @@ type ProductLine = {
   origin: string;
   internalLot: string;
   departmentId: string;
+  meatType: "fresh" | "preparato";
   bornIn: string;
   raisedIn: string;
   slaughteredIn: string;
+  slaughterMark: string;
 };
 
 function newProductLine(date?: string): ProductLine {
