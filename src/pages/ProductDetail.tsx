@@ -479,8 +479,10 @@ ${labelsHtml}
       // Risultato: ~5–10x più veloce di solo write-with-response, mantenendo
       // affidabilità su Android.
       const isAndroid = /Android/i.test(navigator.userAgent);
-      const CHUNK = 100;
-      const SYNC_EVERY = isAndroid ? 8 : 16;
+      // Su Android serve un buon margine: chunk più piccoli e barriere
+      // di flow-control più frequenti per evitare pacchetti persi.
+      const CHUNK = isAndroid ? 60 : 100;
+      const SYNC_EVERY = isAndroid ? 4 : 16;
       const supportsWoR = ch.properties.writeWithoutResponse;
       const supportsWithR = ch.properties.write;
       toast.message(`Invio ${data.length} byte alla stampante…`);
