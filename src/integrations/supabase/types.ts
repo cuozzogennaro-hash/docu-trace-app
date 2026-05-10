@@ -313,6 +313,7 @@ export type Database = {
       }
       raw_materials: {
         Row: {
+          born_in: string | null
           category: string
           created_at: string
           department_id: string | null
@@ -327,12 +328,15 @@ export type Database = {
           origin: string | null
           product_name: string
           quantity: string | null
+          raised_in: string | null
+          slaughtered_in: string | null
           supplier_id: string | null
           supplier_lot: string | null
           supplier_name: string | null
           user_id: string
         }
         Insert: {
+          born_in?: string | null
           category?: string
           created_at?: string
           department_id?: string | null
@@ -347,12 +351,15 @@ export type Database = {
           origin?: string | null
           product_name: string
           quantity?: string | null
+          raised_in?: string | null
+          slaughtered_in?: string | null
           supplier_id?: string | null
           supplier_lot?: string | null
           supplier_name?: string | null
           user_id: string
         }
         Update: {
+          born_in?: string | null
           category?: string
           created_at?: string
           department_id?: string | null
@@ -367,6 +374,8 @@ export type Database = {
           origin?: string | null
           product_name?: string
           quantity?: string | null
+          raised_in?: string | null
+          slaughtered_in?: string | null
           supplier_id?: string | null
           supplier_lot?: string | null
           supplier_name?: string | null
