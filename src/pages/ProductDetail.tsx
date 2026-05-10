@@ -250,7 +250,7 @@ ${labelsHtml}
     return strToBytes(lines.join("\r\n"));
   }
 
-  async function findWritableCharacteristic(server: BluetoothRemoteGATTServer) {
+  async function findWritableCharacteristic(server: any) {
     for (const uuid of BT_SERVICE_UUIDS) {
       try {
         const svc = await server.getPrimaryService(uuid);
@@ -280,7 +280,7 @@ ${labelsHtml}
     try {
       setBtPrinting(true);
       toast.message("Ricerca dispositivi Bluetooth…");
-      const device: BluetoothDevice = await nav.bluetooth.requestDevice({
+      const device: any = await nav.bluetooth.requestDevice({
         // Show all devices so any CLABEL 221D variant is selectable
         acceptAllDevices: true,
         optionalServices: BT_SERVICE_UUIDS,
