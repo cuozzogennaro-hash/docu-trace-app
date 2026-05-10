@@ -262,9 +262,9 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const grouped = useMemo(() => isGroupable ? groupByMonth(filteredRows) : {}, [filteredRows, isGroupable]);
   const sortedMonths = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
 
-  // Weekly grouping for raw materials by document_date
-  const weeklyGroups = useMemo(() => {
-    if (tableKey !== "raw_materials") return [] as { key: string; label: string; items: any[] }[];
+  // Weekly + monthly grouping for raw materials by document_date
+  const monthlyGroups = useMemo(() => {
+    if (tableKey !== "raw_materials") return [] as { monthKey: string; monthLabel: string; items: any[]; weeks: { key: string; label: string; items: any[] }[] }[];
     const startOfWeek = (d: Date) => {
       const x = new Date(d);
       const day = (x.getDay() + 6) % 7;
@@ -272,7 +272,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
       x.setDate(x.getDate() - day);
       return x;
     };
-    const map: Record<string, { key: string; start: Date; items: any[] }> = {};
+    const weekMap: Record<string, { key: string; start: Date; items: any[] }> = {};
     for (const r of filteredRows) {
       const ref = r.document_date || (r.created_at ? r.created_at.slice(0, 10) : null);
       let key: string;
@@ -285,26 +285,48 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
         start = startOfWeek(d);
         key = start.toISOString().slice(0, 10);
       }
-      if (!map[key]) map[key] = { key, start, items: [] };
-      map[key].items.push(r);
+      if (!weekMap[key]) weekMap[key] = { key, start, items: [] };
+      weekMap[key].items.push(r);
     }
     const fmt = (d: Date) => d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
-    return Object.values(map)
+    const weeks = Object.values(weekMap)
       .sort((a, b) => b.start.getTime() - a.start.getTime())
       .map((g) => {
-        if (g.key === "senza-data") return { key: g.key, label: "Senza data", items: g.items };
+        if (g.key === "senza-data") return { key: g.key, start: g.start, monthKey: "senza-data", label: "Senza data", items: g.items };
         const end = new Date(g.start);
         end.setDate(end.getDate() + 6);
-        return { key: g.key, label: `Settimana del ${fmt(g.start)} → ${fmt(end)}`, items: g.items };
+        const monthKey = `${g.start.getFullYear()}-${String(g.start.getMonth() + 1).padStart(2, "0")}`;
+        return { key: g.key, start: g.start, monthKey, label: `Settimana del ${fmt(g.start)} → ${fmt(end)}`, items: g.items };
       });
+    // Group weeks by month
+    const monthMap: Record<string, { monthKey: string; monthLabel: string; items: any[]; weeks: typeof weeks }> = {};
+    for (const w of weeks) {
+      if (!monthMap[w.monthKey]) {
+        monthMap[w.monthKey] = {
+          monthKey: w.monthKey,
+          monthLabel: w.monthKey === "senza-data" ? "Senza data" : monthLabel(w.monthKey),
+          items: [],
+          weeks: [],
+        };
+      }
+      monthMap[w.monthKey].weeks.push(w);
+      monthMap[w.monthKey].items.push(...w.items);
+    }
+    return Object.values(monthMap).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }, [filteredRows, tableKey]);
 
   const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({});
+  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
   useEffect(() => {
-    if (tableKey === "raw_materials" && weeklyGroups.length > 0) {
-      setOpenWeeks((prev) => (prev[weeklyGroups[0].key] === undefined ? { ...prev, [weeklyGroups[0].key]: true } : prev));
+    if (tableKey === "raw_materials" && monthlyGroups.length > 0) {
+      const firstMonth = monthlyGroups[0];
+      setOpenMonths((prev) => (prev[firstMonth.monthKey] === undefined ? { ...prev, [firstMonth.monthKey]: true } : prev));
+      if (firstMonth.weeks[0]) {
+        const firstWeek = firstMonth.weeks[0];
+        setOpenWeeks((prev) => (prev[firstWeek.key] === undefined ? { ...prev, [firstWeek.key]: true } : prev));
+      }
     }
-  }, [weeklyGroups, tableKey]);
+  }, [monthlyGroups, tableKey]);
 
   async function save(updated: any) {
     const payload: any = {};
