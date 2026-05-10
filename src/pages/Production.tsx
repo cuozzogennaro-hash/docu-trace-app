@@ -32,7 +32,7 @@ export default function Production() {
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
     const [{ data: m }, { data: p }] = await Promise.all([
-      supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
+      supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at").eq("is_out_of_stock", false).order("created_at", { ascending: true }),
       supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").eq("production_date", today).order("created_at", { ascending: false }),
     ]);
     // Hide raw materials older than 2 weeks (only for category materia_prima)
