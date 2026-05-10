@@ -475,6 +475,90 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
     );
   }
 
+  if (tableKey === "raw_materials") {
+    return (
+      <>
+        {SearchBar}
+        <div className="space-y-3">
+          {weeklyGroups.map((g) => (
+            <Collapsible
+              key={g.key}
+              open={openWeeks[g.key] ?? false}
+              onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [g.key]: o }))}
+            >
+              <Card className="overflow-hidden">
+                <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 border-b bg-muted/30 hover:bg-muted/50 transition text-left">
+                  <h3 className="font-display font-bold text-sm">{g.label} <span className="text-muted-foreground font-normal">({g.items.length})</span></h3>
+                  <ChevronDown size={16} className={`text-muted-foreground transition-transform ${openWeeks[g.key] ? "rotate-180" : ""}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  {/* Desktop table */}
+                  <div className="overflow-x-auto hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {cfg.columns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
+                          <TableHead className="text-right">Azioni</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {g.items.map((r: any) => (
+                          <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onRowClick(r)}>
+                            {cfg.columns.map((c) => (
+                              <TableCell key={c.key} className="text-sm">{r[c.key] ?? "—"}</TableCell>
+                            ))}
+                            <TableCell className="text-right whitespace-nowrap">
+                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
+                                <Pencil size={14} />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
+                                <Trash2 size={14} className="text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {/* Mobile cards */}
+                  <div className="md:hidden divide-y">
+                    {g.items.map((r: any) => (
+                      <div key={r.id} className="p-3"><MobileCard r={r} /></div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          ))}
+          {weeklyGroups.length === 0 && (
+            <Card className="p-12 text-center text-muted-foreground">Nessun risultato.</Card>
+          )}
+        </div>
+
+        <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Modifica record</DialogTitle></DialogHeader>
+            {editing && (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {cfg.columns.map((c) => (
+                  <div key={c.key} className="space-y-1.5">
+                    <Label>{c.label}</Label>
+                    {c.type === "textarea" ? (
+                      <Textarea value={editing[c.key] ?? ""} disabled={c.readOnly} onChange={(e) => setEditing({ ...editing, [c.key]: e.target.value })} />
+                    ) : (
+                      <Input type={c.type ?? "text"} value={editing[c.key] ?? ""} disabled={c.readOnly} onChange={(e) => setEditing({ ...editing, [c.key]: e.target.value })} />
+                    )}
+                  </div>
+                ))}
+                <Button onClick={() => save(editing)} className="w-full bg-gradient-primary">Salva modifiche</Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
   return (
     <>
       {SearchBar}
