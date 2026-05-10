@@ -7,7 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Sparkles, Thermometer, CheckCircle2, Loader2, Building2 } from "lucide-react";
+import { Sparkles, Thermometer, CheckCircle2, Loader2, Building2, Package } from "lucide-react";
+import { Link } from "react-router-dom";
 
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null; target_temp_min: number | null; target_temp_max: number | null };
 type Assignment = {
@@ -118,6 +119,20 @@ export default function OperatorDashboard() {
           <Button variant="ghost" onClick={signOut}>Esci</Button>
         }
       />
+
+      {operator.is_admin && (
+        <Link to="/ingresso" className="block mb-6">
+          <Card className="p-5 lg:p-6 bg-orange-500 hover:bg-orange-600 transition cursor-pointer border-orange-600 shadow-elevated flex items-center gap-4">
+            <div className="h-14 w-14 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+              <Package className="text-white" size={28} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-display font-bold text-xl lg:text-2xl text-white">Ingresso merci</div>
+              <div className="text-sm text-white/90">Registra una nuova consegna</div>
+            </div>
+          </Card>
+        </Link>
+      )}
 
       {loading ? (
         <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>
