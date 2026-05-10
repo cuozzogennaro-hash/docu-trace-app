@@ -8,7 +8,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Factory, Check, PackageMinus, Archive as ArchiveIcon, ChevronDown } from "lucide-react";
 import { generateInternalLot } from "@/lib/lot";
-import { Link } from "react-router-dom";
+import { Link, useNavigate } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
@@ -32,6 +32,7 @@ export default function Production() {
   const [rows, setRows] = useState<any[]>([]);
   const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({ "Questa settimana": true, "Settimana scorsa": false });
   const { departments } = useDepartments();
+  const navigate = useNavigate();
   const isMacelleria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
 
@@ -300,7 +301,7 @@ export default function Production() {
 
       <div className="space-y-2">
         {rows.map((p) => (
-          <Card key={p.id} className="p-4 hover:shadow-md transition cursor-pointer" onClick={() => window.location.assign(`/archivio/prodotto/${p.id}`)}>
+          <Card key={p.id} className="p-4 hover:shadow-md transition cursor-pointer" onClick={() => navigate(`/archivio/prodotto/${p.id}`)}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="font-semibold">{p.name}</div>
