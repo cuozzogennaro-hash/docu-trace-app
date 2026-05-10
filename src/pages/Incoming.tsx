@@ -46,9 +46,11 @@ function newProductLine(date?: string): ProductLine {
     origin: "",
     internalLot: generateInternalLot("L", d),
     departmentId: "",
+    meatType: "fresh",
     bornIn: "",
     raisedIn: "",
     slaughteredIn: "",
+    slaughterMark: "",
   };
 }
 
