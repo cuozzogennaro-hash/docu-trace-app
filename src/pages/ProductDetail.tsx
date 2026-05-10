@@ -431,8 +431,8 @@ ${labelsHtml}
       const server = await device.gatt.connect();
       const ch = await findWritableCharacteristic(server);
 
-      const data = await buildRaster();
-      console.log(`[BT print] payload ${data.length} bytes — invio in chunk da 64`);
+      const data = buildEscPosText();
+      console.log(`[BT print] payload ${data.length} bytes (testo) — invio in chunk da 64`);
       toast.message("Invio dati in corso…");
       // BLE MTU sicuro per la maggior parte delle stampanti CLABEL/Xprinter:
       // chunk piccoli (64 byte) con micro-pausa tra uno e l'altro per evitare
