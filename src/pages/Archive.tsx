@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Trash2, Loader2, FileDown, ChevronRight, Search } from "lucide-react";
+import { Pencil, Trash2, Loader2, FileDown, ChevronRight, Search, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { useNavigate } from "react-router-dom";
@@ -260,6 +261,50 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const isGroupable = tableKey === "temperatures" || tableKey === "sanitations";
   const grouped = useMemo(() => isGroupable ? groupByMonth(filteredRows) : {}, [filteredRows, isGroupable]);
   const sortedMonths = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
+
+  // Weekly grouping for raw materials by document_date
+  const weeklyGroups = useMemo(() => {
+    if (tableKey !== "raw_materials") return [] as { key: string; label: string; items: any[] }[];
+    const startOfWeek = (d: Date) => {
+      const x = new Date(d);
+      const day = (x.getDay() + 6) % 7;
+      x.setHours(0, 0, 0, 0);
+      x.setDate(x.getDate() - day);
+      return x;
+    };
+    const map: Record<string, { key: string; start: Date; items: any[] }> = {};
+    for (const r of filteredRows) {
+      const ref = r.document_date || (r.created_at ? r.created_at.slice(0, 10) : null);
+      let key: string;
+      let start: Date;
+      if (!ref) {
+        key = "senza-data";
+        start = new Date(0);
+      } else {
+        const d = new Date(ref + (ref.length === 10 ? "T00:00:00" : ""));
+        start = startOfWeek(d);
+        key = start.toISOString().slice(0, 10);
+      }
+      if (!map[key]) map[key] = { key, start, items: [] };
+      map[key].items.push(r);
+    }
+    const fmt = (d: Date) => d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return Object.values(map)
+      .sort((a, b) => b.start.getTime() - a.start.getTime())
+      .map((g) => {
+        if (g.key === "senza-data") return { key: g.key, label: "Senza data", items: g.items };
+        const end = new Date(g.start);
+        end.setDate(end.getDate() + 6);
+        return { key: g.key, label: `Settimana del ${fmt(g.start)} → ${fmt(end)}`, items: g.items };
+      });
+  }, [filteredRows, tableKey]);
+
+  const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (tableKey === "raw_materials" && weeklyGroups.length > 0) {
+      setOpenWeeks((prev) => (prev[weeklyGroups[0].key] === undefined ? { ...prev, [weeklyGroups[0].key]: true } : prev));
+    }
+  }, [weeklyGroups, tableKey]);
 
   async function save(updated: any) {
     const payload: any = {};
