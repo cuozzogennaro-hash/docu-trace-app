@@ -463,16 +463,50 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   const showSearch = tableKey === "raw_materials" || tableKey === "products";
 
-  const SearchBar = showSearch ? (
-    <div className="relative mb-4">
-      <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
-      <Input
-        placeholder="Cerca per lotto interno, lotto fornitore o nome…"
-        value={search}
-        onChange={(e) => setSearch(e.target.value)}
-        className="pl-9"
-      />
+  const DeptTabs = supportsDept ? (
+    <div className="mb-3 -mx-1 overflow-x-auto">
+      <div className="flex gap-1.5 px-1 min-w-max">
+        <button
+          type="button"
+          onClick={() => setDeptFilter("all")}
+          className={`text-xs sm:text-sm px-3 py-1.5 rounded-full border whitespace-nowrap transition ${deptFilter === "all" ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"}`}
+        >
+          Tutti
+        </button>
+        {departments.map((d) => (
+          <button
+            key={d.id}
+            type="button"
+            onClick={() => setDeptFilter(d.id)}
+            className={`text-xs sm:text-sm px-3 py-1.5 rounded-full border whitespace-nowrap transition ${deptFilter === d.id ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border"}`}
+          >
+            {d.name}
+          </button>
+        ))}
+        <button
+          type="button"
+          onClick={() => setDeptFilter("none")}
+          className={`text-xs sm:text-sm px-3 py-1.5 rounded-full border whitespace-nowrap transition ${deptFilter === "none" ? "bg-primary text-primary-foreground border-primary" : "bg-card hover:bg-muted border-border text-muted-foreground"}`}
+        >
+          Senza reparto
+        </button>
+      </div>
     </div>
+  ) : null;
+
+  const SearchBar = showSearch ? (
+    <>
+      {DeptTabs}
+      <div className="relative mb-4">
+        <Search size={16} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+        <Input
+          placeholder="Cerca per lotto interno, lotto fornitore o nome…"
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+          className="pl-9"
+        />
+      </div>
+    </>
   ) : null;
 
   /* ---- Mobile card renderer ---- */
