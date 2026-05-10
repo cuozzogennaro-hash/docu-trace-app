@@ -6,9 +6,10 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Factory, Check, PackageMinus, Archive as ArchiveIcon } from "lucide-react";
+import { Factory, Check, PackageMinus, Archive as ArchiveIcon, ChevronDown } from "lucide-react";
 import { generateInternalLot } from "@/lib/lot";
 import { Link } from "react-router-dom";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
@@ -24,6 +25,7 @@ export default function Production() {
   const [materials, setMaterials] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rows, setRows] = useState<any[]>([]);
+  const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({ "Questa settimana": true, "Settimana scorsa": false });
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
@@ -149,9 +151,18 @@ export default function Production() {
                   <div key={cat}>
                     <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{CATEGORY_LABELS[cat]}</div>
                     {groups.map((g) => g.items.length === 0 ? null : (
-                      <div key={g.label} className="mb-2">
-                        <div className="text-[11px] font-medium text-muted-foreground px-2 py-1">{g.label}</div>
-                        <div className="space-y-1">
+                      <Collapsible
+                        key={g.label}
+                        open={openWeeks[g.label] ?? false}
+                        onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [g.label]: o }))}
+                        className="mb-2"
+                      >
+                        <CollapsibleTrigger className="w-full flex items-center justify-between px-2 py-1.5 rounded-md hover:bg-card transition text-left">
+                          <span className="text-[11px] font-medium text-muted-foreground">{g.label} ({g.items.length})</span>
+                          <ChevronDown size={14} className={`text-muted-foreground transition-transform ${openWeeks[g.label] ? "rotate-180" : ""}`} />
+                        </CollapsibleTrigger>
+                        <CollapsibleContent>
+                          <div className="space-y-1 pt-1">
                           {g.items.map((m: any) => {
                             const on = selected.has(m.id);
                             return (
@@ -174,8 +185,9 @@ export default function Production() {
                               </div>
                             );
                           })}
-                        </div>
-                      </div>
+                          </div>
+                        </CollapsibleContent>
+                      </Collapsible>
                     ))}
                   </div>
                 );
