@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Trash2, Loader2, FileDown, ChevronRight, Search } from "lucide-react";
+import { Pencil, Trash2, Loader2, FileDown, ChevronRight, Search, ChevronDown } from "lucide-react";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { useNavigate } from "react-router-dom";
@@ -261,6 +262,50 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const grouped = useMemo(() => isGroupable ? groupByMonth(filteredRows) : {}, [filteredRows, isGroupable]);
   const sortedMonths = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
 
+  // Weekly grouping for raw materials by document_date
+  const weeklyGroups = useMemo(() => {
+    if (tableKey !== "raw_materials") return [] as { key: string; label: string; items: any[] }[];
+    const startOfWeek = (d: Date) => {
+      const x = new Date(d);
+      const day = (x.getDay() + 6) % 7;
+      x.setHours(0, 0, 0, 0);
+      x.setDate(x.getDate() - day);
+      return x;
+    };
+    const map: Record<string, { key: string; start: Date; items: any[] }> = {};
+    for (const r of filteredRows) {
+      const ref = r.document_date || (r.created_at ? r.created_at.slice(0, 10) : null);
+      let key: string;
+      let start: Date;
+      if (!ref) {
+        key = "senza-data";
+        start = new Date(0);
+      } else {
+        const d = new Date(ref + (ref.length === 10 ? "T00:00:00" : ""));
+        start = startOfWeek(d);
+        key = start.toISOString().slice(0, 10);
+      }
+      if (!map[key]) map[key] = { key, start, items: [] };
+      map[key].items.push(r);
+    }
+    const fmt = (d: Date) => d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
+    return Object.values(map)
+      .sort((a, b) => b.start.getTime() - a.start.getTime())
+      .map((g) => {
+        if (g.key === "senza-data") return { key: g.key, label: "Senza data", items: g.items };
+        const end = new Date(g.start);
+        end.setDate(end.getDate() + 6);
+        return { key: g.key, label: `Settimana del ${fmt(g.start)} → ${fmt(end)}`, items: g.items };
+      });
+  }, [filteredRows, tableKey]);
+
+  const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({});
+  useEffect(() => {
+    if (tableKey === "raw_materials" && weeklyGroups.length > 0) {
+      setOpenWeeks((prev) => (prev[weeklyGroups[0].key] === undefined ? { ...prev, [weeklyGroups[0].key]: true } : prev));
+    }
+  }, [weeklyGroups, tableKey]);
+
   async function save(updated: any) {
     const payload: any = {};
     cfg.columns.forEach((c) => {
@@ -418,6 +463,90 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
                         disabled={c.readOnly}
                         onChange={(e) => setEditing({ ...editing, [c.key]: e.target.value })}
                       />
+                    )}
+                  </div>
+                ))}
+                <Button onClick={() => save(editing)} className="w-full bg-gradient-primary">Salva modifiche</Button>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
+      </>
+    );
+  }
+
+  if (tableKey === "raw_materials") {
+    return (
+      <>
+        {SearchBar}
+        <div className="space-y-3">
+          {weeklyGroups.map((g) => (
+            <Collapsible
+              key={g.key}
+              open={openWeeks[g.key] ?? false}
+              onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [g.key]: o }))}
+            >
+              <Card className="overflow-hidden">
+                <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 border-b bg-muted/30 hover:bg-muted/50 transition text-left">
+                  <h3 className="font-display font-bold text-sm">{g.label} <span className="text-muted-foreground font-normal">({g.items.length})</span></h3>
+                  <ChevronDown size={16} className={`text-muted-foreground transition-transform ${openWeeks[g.key] ? "rotate-180" : ""}`} />
+                </CollapsibleTrigger>
+                <CollapsibleContent>
+                  {/* Desktop table */}
+                  <div className="overflow-x-auto hidden md:block">
+                    <Table>
+                      <TableHeader>
+                        <TableRow>
+                          {cfg.columns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
+                          <TableHead className="text-right">Azioni</TableHead>
+                        </TableRow>
+                      </TableHeader>
+                      <TableBody>
+                        {g.items.map((r: any) => (
+                          <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onRowClick(r)}>
+                            {cfg.columns.map((c) => (
+                              <TableCell key={c.key} className="text-sm">{r[c.key] ?? "—"}</TableCell>
+                            ))}
+                            <TableCell className="text-right whitespace-nowrap">
+                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
+                                <Pencil size={14} />
+                              </Button>
+                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
+                                <Trash2 size={14} className="text-destructive" />
+                              </Button>
+                            </TableCell>
+                          </TableRow>
+                        ))}
+                      </TableBody>
+                    </Table>
+                  </div>
+                  {/* Mobile cards */}
+                  <div className="md:hidden divide-y">
+                    {g.items.map((r: any) => (
+                      <div key={r.id} className="p-3"><MobileCard r={r} /></div>
+                    ))}
+                  </div>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
+          ))}
+          {weeklyGroups.length === 0 && (
+            <Card className="p-12 text-center text-muted-foreground">Nessun risultato.</Card>
+          )}
+        </div>
+
+        <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
+          <DialogContent className="max-w-lg">
+            <DialogHeader><DialogTitle>Modifica record</DialogTitle></DialogHeader>
+            {editing && (
+              <div className="space-y-3 max-h-[60vh] overflow-y-auto">
+                {cfg.columns.map((c) => (
+                  <div key={c.key} className="space-y-1.5">
+                    <Label>{c.label}</Label>
+                    {c.type === "textarea" ? (
+                      <Textarea value={editing[c.key] ?? ""} disabled={c.readOnly} onChange={(e) => setEditing({ ...editing, [c.key]: e.target.value })} />
+                    ) : (
+                      <Input type={c.type ?? "text"} value={editing[c.key] ?? ""} disabled={c.readOnly} onChange={(e) => setEditing({ ...editing, [c.key]: e.target.value })} />
                     )}
                   </div>
                 ))}
