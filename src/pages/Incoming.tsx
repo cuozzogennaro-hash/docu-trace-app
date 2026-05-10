@@ -57,7 +57,7 @@ export default function Incoming() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const { departments } = useDepartments();
+  const { departments, visibleDepartments } = useDepartments();
   const isMacelleria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
   const isOrtofrutta = (depId: string) =>
