@@ -6,8 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Factory, Check, PackageMinus } from "lucide-react";
+import { Factory, Check, PackageMinus, Archive as ArchiveIcon } from "lucide-react";
 import { generateInternalLot } from "@/lib/lot";
+import { Link } from "react-router-dom";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
@@ -25,9 +26,10 @@ export default function Production() {
   const [rows, setRows] = useState<any[]>([]);
 
   async function load() {
+    const today = new Date().toISOString().slice(0, 10);
     const [{ data: m }, { data: p }] = await Promise.all([
       supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock").eq("is_out_of_stock", false).order("product_name"),
-      supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").order("production_date", { ascending: false }).limit(20),
+      supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").eq("production_date", today).order("created_at", { ascending: false }),
     ]);
     setMaterials(m ?? []);
     setRows(p ?? []);
@@ -77,6 +79,12 @@ export default function Production() {
   return (
     <>
       <PageHeader title="Produzione" subtitle="Crea semilavorati e prodotti finiti con tracciabilità ingredienti" />
+
+      <div className="mb-4">
+        <Button asChild variant="outline" className="gap-2">
+          <Link to="/archivio"><ArchiveIcon size={16} /> Archivio Prodotti</Link>
+        </Button>
+      </div>
 
       <Card className="p-5 mb-6 shadow-soft">
         <div className="grid lg:grid-cols-2 gap-4">
@@ -164,6 +172,7 @@ export default function Production() {
             </div>
           </Card>
         ))}
+        {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessun prodotto creato oggi.</p>}
       </div>
     </>
   );
