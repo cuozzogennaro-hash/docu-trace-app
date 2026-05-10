@@ -557,57 +557,93 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
       <>
         {SearchBar}
         <div className="space-y-3">
-          {weeklyGroups.map((g) => (
+          {monthlyGroups.map((mg) => (
             <Collapsible
-              key={g.key}
-              open={openWeeks[g.key] ?? false}
-              onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [g.key]: o }))}
+              key={mg.monthKey}
+              open={openMonths[mg.monthKey] ?? false}
+              onOpenChange={(o) => setOpenMonths((prev) => ({ ...prev, [mg.monthKey]: o }))}
             >
               <Card className="overflow-hidden">
-                <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 border-b bg-muted/30 hover:bg-muted/50 transition text-left">
-                  <h3 className="font-display font-bold text-sm">{g.label} <span className="text-muted-foreground font-normal">({g.items.length})</span></h3>
-                  <ChevronDown size={16} className={`text-muted-foreground transition-transform ${openWeeks[g.key] ? "rotate-180" : ""}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  {/* Desktop table */}
-                  <div className="overflow-x-auto hidden md:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {cfg.columns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
-                          <TableHead className="text-right">Azioni</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {g.items.map((r: any) => (
-                          <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onRowClick(r)}>
-                            {cfg.columns.map((c) => (
-                              <TableCell key={c.key} className="text-sm">{r[c.key] ?? "—"}</TableCell>
-                            ))}
-                            <TableCell className="text-right whitespace-nowrap">
-                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
-                                <Pencil size={14} />
-                              </Button>
-                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
-                                <Trash2 size={14} className="text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-muted/40">
+                  <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left hover:opacity-80 transition">
+                    <ChevronDown size={18} className={`text-muted-foreground transition-transform shrink-0 ${openMonths[mg.monthKey] ? "rotate-180" : ""}`} />
+                    <h3 className="font-display font-bold text-base truncate">{mg.monthLabel} <span className="text-muted-foreground font-normal text-sm">({mg.items.length})</span></h3>
+                  </CollapsibleTrigger>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => generateRawMaterialsMonthlyPdf(mg.monthKey, mg.monthLabel, mg.weeks, company)}
+                    >
+                      <FileDown size={14} /> PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-destructive hover:text-destructive"
+                      onClick={() => removeMany(mg.items.map((r: any) => r.id), mg.monthLabel)}
+                    >
+                      <Trash2 size={14} /> Elimina
+                    </Button>
                   </div>
-                  {/* Mobile cards */}
-                  <div className="md:hidden divide-y">
-                    {g.items.map((r: any) => (
-                      <div key={r.id} className="p-3"><MobileCard r={r} /></div>
+                </div>
+                <CollapsibleContent>
+                  <div className="p-3 space-y-2 bg-muted/10">
+                    {mg.weeks.map((g) => (
+                      <Collapsible
+                        key={g.key}
+                        open={openWeeks[g.key] ?? false}
+                        onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [g.key]: o }))}
+                      >
+                        <Card className="overflow-hidden">
+                          <CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-2 border-b bg-card hover:bg-muted/40 transition text-left">
+                            <span className="font-medium text-sm">{g.label} <span className="text-muted-foreground font-normal">({g.items.length})</span></span>
+                            <ChevronDown size={14} className={`text-muted-foreground transition-transform ${openWeeks[g.key] ? "rotate-180" : ""}`} />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="overflow-x-auto hidden md:block">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    {cfg.columns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
+                                    <TableHead className="text-right">Azioni</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {g.items.map((r: any) => (
+                                    <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onRowClick(r)}>
+                                      {cfg.columns.map((c) => (
+                                        <TableCell key={c.key} className="text-sm">{r[c.key] ?? "—"}</TableCell>
+                                      ))}
+                                      <TableCell className="text-right whitespace-nowrap">
+                                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
+                                          <Pencil size={14} />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
+                                          <Trash2 size={14} className="text-destructive" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                            <div className="md:hidden divide-y">
+                              {g.items.map((r: any) => (
+                                <div key={r.id} className="p-3"><MobileCard r={r} /></div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Card>
+                      </Collapsible>
                     ))}
                   </div>
                 </CollapsibleContent>
               </Card>
             </Collapsible>
           ))}
-          {weeklyGroups.length === 0 && (
+          {monthlyGroups.length === 0 && (
             <Card className="p-12 text-center text-muted-foreground">Nessun risultato.</Card>
           )}
         </div>
