@@ -166,6 +166,12 @@ export default function Incoming() {
     <>
       <PageHeader title="Ingresso Merci" subtitle="Scatta una foto del documento: l'AI compila il resto." />
 
+      <div className="mb-4">
+        <Button asChild variant="outline" className="gap-2">
+          <Link to="/archivio"><ArchiveIcon size={16} /> Archivio Materie Prime</Link>
+        </Button>
+      </div>
+
       <Card className="p-5 mb-6 shadow-soft">
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile} />
         <div className="grid lg:grid-cols-[180px_1fr] gap-5">
@@ -300,7 +306,7 @@ export default function Incoming() {
             </label>
           </Card>
         ))}
-        {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessuna materia prima registrata.</p>}
+        {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessuna materia prima registrata oggi.</p>}
       </div>
     </>
   );
