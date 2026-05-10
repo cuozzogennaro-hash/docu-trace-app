@@ -175,6 +175,11 @@ export default function ProductDetail() {
 
     // Padding proporzionale (min 1.2mm)
     const p = Math.max(1.2, Math.min(wMm, hMm) * 0.04);
+    // Margine di sicurezza extra sul lato destro: la CT221D ha un piccolo
+    // bordo non stampabile e il rendering canvas può eccedere di una frazione
+    // di mm rispetto a measureText. Senza questo le ultime lettere/cifre
+    // dei testi centrati o allineati a destra vengono troncate.
+    const safetyR = Math.max(1.5, wMm * 0.02);
     // Dimensioni font in pt — scalano con altezza etichetta
     const titlePtBase = Math.max(10, Math.round(hMm * 0.34));
     const ingrPt = Math.max(7, Math.round(hMm * 0.22));
@@ -201,18 +206,19 @@ export default function ProductDetail() {
 
     // Auto-fit titoli per stare su una riga sola; usa la stessa dimensione
     // (la più piccola fra i due) così che mantengano lo stesso formato.
-    const titleMaxMm = wMm - 2 * p;
+    const titleMaxMm = wMm - 2 * p - safetyR;
     const titleCompanyPt = fitPt(data.companyName || " ", titleMaxMm, titlePtBase, 8, true);
     const titleProductPt = fitPt(data.productName || " ", titleMaxMm, titlePtBase, 8, true);
     const titlePt = Math.min(titleCompanyPt, titleProductPt);
 
     // Footer: la metà di larghezza ciascuno; auto-fit per evitare overflow
-    const footerColW = (wMm - 2 * p) / 2 - 0.5;
+    const footerLeftW = (wMm - 2 * p - safetyR) / 2 - 0.5;
+    const footerRightW = (wMm - 2 * p - safetyR) / 2 - 0.5;
     const dataText = `Data Pro.: ${data.productionDate}`;
     const lotText = `Lotto: ${data.internalLot}`;
     const footerPt = Math.min(
-      fitPt(dataText, footerColW, footerPtBase, 6, false),
-      fitPt(lotText, footerColW, footerPtBase, 6, true),
+      fitPt(dataText, footerLeftW, footerPtBase, 6, false),
+      fitPt(lotText, footerRightW, footerPtBase, 6, true),
     );
 
     const items: LabelItem[] = [];
@@ -220,7 +226,7 @@ export default function ProductDetail() {
 
     // Nome società
     items.push({
-      x: p, y, w: wMm - 2 * p,
+      x: p, y, w: wMm - 2 * p - safetyR,
       fontPt: titlePt, align: "center", lineHeight: lh,
       segments: [{ text: data.companyName, bold: true }],
     });
@@ -228,7 +234,7 @@ export default function ProductDetail() {
 
     // Nome prodotto (stesso formato)
     items.push({
-      x: p, y, w: wMm - 2 * p,
+      x: p, y, w: wMm - 2 * p - safetyR,
       fontPt: titlePt, align: "center", lineHeight: lh,
       segments: [{ text: data.productName, bold: true }],
     });
@@ -246,20 +252,20 @@ export default function ProductDetail() {
     });
     if (data.ingredients.length === 0) ingrSegs.push({ text: "—", bold: false });
     items.push({
-      x: p, y, w: wMm - 2 * p,
+      x: p, y, w: wMm - 2 * p - safetyR,
       fontPt: ingrPt, align: "left", lineHeight: lh,
       segments: ingrSegs,
     });
 
     // Data produzione (in basso a sinistra)
     items.push({
-      x: p, y: footerY, w: footerColW,
+      x: p, y: footerY, w: footerLeftW,
       fontPt: footerPt, align: "left", lineHeight: lh,
       segments: [{ text: dataText, bold: false }],
     });
-    // Lotto (in basso a destra)
+    // Lotto (in basso a destra) — termina a (wMm - p - safetyR)
     items.push({
-      x: wMm / 2 + 0.5, y: footerY, w: footerColW,
+      x: wMm - p - safetyR - footerRightW, y: footerY, w: footerRightW,
       fontPt: footerPt, align: "right", lineHeight: lh,
       segments: [{ text: lotText, bold: true }],
     });
