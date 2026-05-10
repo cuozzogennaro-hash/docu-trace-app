@@ -27,11 +27,18 @@ export default function Production() {
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
+    const twoWeeksAgo = new Date();
+    twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
     const [{ data: m }, { data: p }] = await Promise.all([
-      supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock").eq("is_out_of_stock", false).order("product_name"),
+      supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
       supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").eq("production_date", today).order("created_at", { ascending: false }),
     ]);
-    setMaterials(m ?? []);
+    // Hide raw materials older than 2 weeks (only for category materia_prima)
+    const filtered = (m ?? []).filter((it: any) => {
+      if ((it.category || "materia_prima") !== "materia_prima") return true;
+      return new Date(it.created_at) >= twoWeeksAgo;
+    });
+    setMaterials(filtered);
     setRows(p ?? []);
   }
   useEffect(() => { load(); }, []);
@@ -116,6 +123,63 @@ export default function Production() {
             {(["materia_prima", "aroma", "additivo_allergene"] as const).map((cat) => {
               const items = materials.filter((m: any) => (m.category || "materia_prima") === cat);
               if (items.length === 0) return null;
+              if (cat === "materia_prima") {
+                // Group by ISO week
+                const startOfWeek = (d: Date) => {
+                  const x = new Date(d);
+                  const day = (x.getDay() + 6) % 7; // Monday = 0
+                  x.setHours(0, 0, 0, 0);
+                  x.setDate(x.getDate() - day);
+                  return x;
+                };
+                const today = new Date();
+                const thisWeekStart = startOfWeek(today);
+                const lastWeekStart = new Date(thisWeekStart);
+                lastWeekStart.setDate(lastWeekStart.getDate() - 7);
+                const groups: { label: string; items: any[] }[] = [
+                  { label: "Questa settimana", items: [] },
+                  { label: "Settimana scorsa", items: [] },
+                ];
+                items.forEach((it: any) => {
+                  const d = new Date(it.created_at);
+                  if (d >= thisWeekStart) groups[0].items.push(it);
+                  else if (d >= lastWeekStart) groups[1].items.push(it);
+                });
+                return (
+                  <div key={cat}>
+                    <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{CATEGORY_LABELS[cat]}</div>
+                    {groups.map((g) => g.items.length === 0 ? null : (
+                      <div key={g.label} className="mb-2">
+                        <div className="text-[11px] font-medium text-muted-foreground px-2 py-1">{g.label}</div>
+                        <div className="space-y-1">
+                          {g.items.map((m: any) => {
+                            const on = selected.has(m.id);
+                            return (
+                              <div key={m.id} className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-left transition ${on ? "bg-primary text-primary-foreground" : "hover:bg-card"}`}>
+                                <button type="button" onClick={() => toggle(m.id)} className="flex items-center gap-3 flex-1 min-w-0">
+                                  <div className={`h-5 w-5 rounded border flex items-center justify-center shrink-0 ${on ? "bg-primary-foreground border-primary-foreground" : "border-border"}`}>
+                                    {on && <Check size={14} className="text-primary" />}
+                                  </div>
+                                  <span className="flex-1 text-sm truncate">{m.product_name}</span>
+                                  <span className="font-mono text-xs opacity-70">{m.internal_lot}</span>
+                                </button>
+                                <button
+                                  type="button"
+                                  onClick={(e) => markOutOfStock(m.id, e)}
+                                  className={`shrink-0 p-1 rounded hover:bg-destructive/20 transition ${on ? "text-primary-foreground/70 hover:text-primary-foreground" : "text-muted-foreground hover:text-destructive"}`}
+                                  title="Segna esaurito"
+                                >
+                                  <PackageMinus size={16} />
+                                </button>
+                              </div>
+                            );
+                          })}
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                );
+              }
               return (
                 <div key={cat}>
                   <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-2 py-1">{CATEGORY_LABELS[cat]}</div>
