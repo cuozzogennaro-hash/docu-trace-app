@@ -170,13 +170,14 @@ export default function ProductDetail() {
     // - otherwise (fresh / default): Nato / Allevato / Macellato + Bollo CE
     const productMeatType: string | null = (product as any)?.meat_type ?? null;
     const freshMap = new Map<string, { born: Set<string>; raised: Set<string>; slaughter: Set<string>; marks: Set<string> }>();
-    const prepMap = new Map<string, Set<string>>();
+    const prepCountries = new Set<string>();
     for (const m of ingredients as any[]) {
       const name = m.product_name || "carne";
       if (productMeatType === "preparato") {
-        const o = (m.origin || "").trim();
-        if (!prepMap.has(name)) prepMap.set(name, new Set());
-        if (o) prepMap.get(name)!.add(o);
+        [m.born_in, m.raised_in, m.slaughtered_in].forEach((v: string | null) => {
+          const t = (v || "").trim();
+          if (t) prepCountries.add(t);
+        });
         continue;
       }
       if (!m.born_in && !m.raised_in && !m.slaughtered_in && !m.slaughter_mark) continue;
@@ -199,10 +200,11 @@ export default function ProductDetail() {
       }
       if (parts.length) traceLines.push(`${name} — ${parts.join(" • ")}`);
     });
-    prepMap.forEach((origins, name) => {
-      const o = origins.size ? [...origins].join("/") : "—";
-      traceLines.push(`${name} origine: ${o}`);
-    });
+    if (productMeatType === "preparato" && prepCountries.size > 0) {
+      const norm = [...prepCountries].map((c) => c.toLowerCase().trim());
+      const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
+      traceLines.push(`Carne origine: ${allItaly ? "IT" : "UE"}`);
+    }
     const data = {
       companyName: company?.business_name ?? "",
       productName: product?.name ?? "",
