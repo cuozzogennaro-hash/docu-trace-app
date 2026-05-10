@@ -172,6 +172,7 @@ export default function Production() {
                                     {on && <Check size={14} className="text-primary" />}
                                   </div>
                                   <span className="flex-1 text-sm truncate">{m.product_name}</span>
+                                  <span className="text-[10px] opacity-60 whitespace-nowrap">{new Date(m.created_at).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" })}</span>
                                   <span className="font-mono text-xs opacity-70">{m.internal_lot}</span>
                                 </button>
                                 <button
@@ -205,6 +206,7 @@ export default function Production() {
                               {on && <Check size={14} className="text-primary" />}
                             </div>
                             <span className="flex-1 text-sm truncate">{m.product_name}</span>
+                            <span className="text-[10px] opacity-60 whitespace-nowrap">{new Date(m.created_at).toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit" })}</span>
                             <span className="font-mono text-xs opacity-70">{m.internal_lot}</span>
                           </button>
                           <button
