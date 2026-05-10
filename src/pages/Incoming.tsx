@@ -7,9 +7,10 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Camera, Loader2, Package, Sparkles, Trash2, Plus } from "lucide-react";
+import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon } from "lucide-react";
 import { generateInternalLot } from "@/lib/lot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Link } from "react-router-dom";
 
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
@@ -53,11 +54,14 @@ export default function Incoming() {
   const [rows, setRows] = useState<any[]>([]);
 
   async function load() {
+    const today = new Date().toISOString().slice(0, 10);
     const { data } = await supabase
       .from("raw_materials")
       .select("*")
+      .gte("created_at", `${today}T00:00:00`)
+      .lte("created_at", `${today}T23:59:59`)
       .order("created_at", { ascending: false })
-      .limit(30);
+      .limit(100);
     setRows(data ?? []);
   }
   useEffect(() => {
