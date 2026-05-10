@@ -13,7 +13,7 @@ import { Pencil, Trash2, Loader2, FileDown, ChevronRight, Search, ChevronDown } 
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -69,13 +69,25 @@ const CONFIGS: Record<TableKey, { label: string; columns: ColumnDef[]; relation?
 };
 
 export default function Archive() {
-  const [tab, setTab] = useState<TableKey>("raw_materials");
+  const [searchParams, setSearchParams] = useSearchParams();
+  const initialTab = (searchParams.get("tab") as TableKey) || "raw_materials";
+  const [tab, setTab] = useState<TableKey>(
+    (Object.keys(CONFIGS) as TableKey[]).includes(initialTab) ? initialTab : "raw_materials"
+  );
   const { company } = useCompany();
+
+  useEffect(() => {
+    const q = searchParams.get("tab") as TableKey | null;
+    if (q && q !== tab && (Object.keys(CONFIGS) as TableKey[]).includes(q)) {
+      setTab(q);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   return (
     <>
       <PageHeader title="Archivio" subtitle="Visualizza, modifica e gestisci tutti i tuoi dati HACCP" />
-      <Tabs value={tab} onValueChange={(v) => setTab(v as TableKey)}>
+      <Tabs value={tab} onValueChange={(v) => { setTab(v as TableKey); setSearchParams({ tab: v }, { replace: true }); }}>
         <TabsList className="w-full grid grid-cols-2 lg:grid-cols-4 mb-4 h-auto">
           {(Object.keys(CONFIGS) as TableKey[]).map((k) => (
             <TabsTrigger key={k} value={k} className="py-2">{CONFIGS[k].label}</TabsTrigger>
