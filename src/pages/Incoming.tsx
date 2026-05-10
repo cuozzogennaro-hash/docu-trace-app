@@ -60,6 +60,8 @@ export default function Incoming() {
   const { departments } = useDepartments();
   const isMacelleria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
+  const isOrtofrutta = (depId: string) =>
+    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "ortofrutta";
 
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -323,10 +325,12 @@ export default function Incoming() {
                   <Label className="text-xs">Scadenza</Label>
                   <Input type="date" value={line.expiry} onChange={(e) => updateLine(idx, { expiry: e.target.value })} />
                 </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Origine</Label>
-                  <Input value={line.origin} onChange={(e) => updateLine(idx, { origin: e.target.value })} placeholder="Italia…" />
-                </div>
+                {isOrtofrutta(line.departmentId) && (
+                  <div className="space-y-1">
+                    <Label className="text-xs">Origine</Label>
+                    <Input value={line.origin} onChange={(e) => updateLine(idx, { origin: e.target.value })} placeholder="Italia…" />
+                  </div>
+                )}
               </div>
               {isMacelleria(line.departmentId) && (
                 <div className="mt-3 p-3 rounded-md bg-orange-50 border border-orange-200 space-y-2">
