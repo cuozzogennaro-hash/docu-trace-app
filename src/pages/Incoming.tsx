@@ -145,8 +145,11 @@ export default function Incoming() {
     const validLines = lines.filter((l) => l.productName.trim());
     if (validLines.length === 0) return toast.error("Almeno un prodotto obbligatorio");
     if (validLines.some((l) => !l.departmentId)) return toast.error("Seleziona un reparto per ogni prodotto");
-    if (validLines.some((l) => isMacelleria(l.departmentId) && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim()))) {
-      return toast.error("Per Macelleria: Nato, Allevato e Macellato sono obbligatori");
+    if (validLines.some((l) => isMacelleria(l.departmentId) && l.meatType === "fresh" && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim() || !l.slaughterMark.trim()))) {
+      return toast.error("Carne Fresca: Nato, Allevato, Macellato e Bollo CE sono obbligatori");
+    }
+    if (validLines.some((l) => isMacelleria(l.departmentId) && l.meatType === "preparato" && !l.origin.trim())) {
+      return toast.error("Preparato di Macelleria: il campo Origine è obbligatorio");
     }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
     const { data: { user } } = await supabase.auth.getUser();
@@ -170,9 +173,11 @@ export default function Incoming() {
       document_image_url: imageUrl,
       category: l.category,
       department_id: l.departmentId,
-      born_in: isMacelleria(l.departmentId) ? l.bornIn.trim() : null,
-      raised_in: isMacelleria(l.departmentId) ? l.raisedIn.trim() : null,
-      slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
+      meat_type: isMacelleria(l.departmentId) ? l.meatType : null,
+      born_in: isMacelleria(l.departmentId) && l.meatType === "fresh" ? l.bornIn.trim() : null,
+      raised_in: isMacelleria(l.departmentId) && l.meatType === "fresh" ? l.raisedIn.trim() : null,
+      slaughtered_in: isMacelleria(l.departmentId) && l.meatType === "fresh" ? l.slaughteredIn.trim() : null,
+      slaughter_mark: isMacelleria(l.departmentId) && l.meatType === "fresh" ? l.slaughterMark.trim() : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
