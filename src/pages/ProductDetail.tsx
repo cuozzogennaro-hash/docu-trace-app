@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, FileDown, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Bluetooth, FileDown, Loader2, Printer } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { Label } from "@/components/ui/label";
 import jsPDF from "jspdf";
@@ -25,6 +25,7 @@ export default function ProductDetail() {
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [showLabelDialog, setShowLabelDialog] = useState(false);
   const [labelQty, setLabelQty] = useState(1);
+  const [btPrinting, setBtPrinting] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -169,6 +170,146 @@ ${labelsHtml}
       window.location.href = url;
     }
     setShowLabelDialog(false);
+  }
+
+  // ---------- Bluetooth printing (CLABEL 221D / TSPL) ----------
+
+  // Common BLE service/characteristic UUIDs used by thermal label printers
+  // (CLABEL 221D, Xprinter, many TSPL/ESC-POS printers expose a generic
+  // "Nordic UART"–style serial profile under one of these UUIDs).
+  const BT_SERVICE_UUIDS = [
+    "000018f0-0000-1000-8000-00805f9b34fb",
+    "0000ff00-0000-1000-8000-00805f9b34fb",
+    "0000ffe0-0000-1000-8000-00805f9b34fb",
+    "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+    "6e400001-b5a3-f393-e0a9-e50e24dcca9e",
+  ];
+
+  function strToBytes(s: string) {
+    // CLABEL/TSPL uses CP437/Latin1 for accented chars in Italian.
+    const out = new Uint8Array(s.length);
+    for (let i = 0; i < s.length; i++) out[i] = s.charCodeAt(i) & 0xff;
+    return out;
+  }
+
+  function concatBytes(chunks: Uint8Array[]) {
+    const len = chunks.reduce((n, c) => n + c.length, 0);
+    const out = new Uint8Array(len);
+    let off = 0;
+    for (const c of chunks) { out.set(c, off); off += c.length; }
+    return out;
+  }
+
+  function buildTSPL(): Uint8Array {
+    const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
+    if (!tpl) throw new Error("Template non selezionato");
+    const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
+    const fields: any[] = config.fields ?? [];
+    const wMm = Number(tpl.width_mm);
+    const hMm = Number(tpl.height_mm);
+    const { valueMap } = getValueMap();
+
+    const DPMM = 8; // 203 dpi printers ~ 8 dots/mm
+    const mmToDots = (mm: number) => Math.round(mm * DPMM);
+
+    const lines: string[] = [];
+    lines.push(`SIZE ${wMm} mm,${hMm} mm`);
+    lines.push(`GAP 2 mm,0 mm`);
+    lines.push(`DIRECTION 1`);
+    lines.push(`CLS`);
+
+    for (const f of fields) {
+      if (!f.visible) continue;
+      if (f.key === "logo") continue; // skip logo on BT printer
+      const x = mmToDots(f.x);
+      const y = mmToDots(f.y);
+
+      if (f.key === "qr") {
+        const data = valueMap.qr ?? `${product?.name ?? ""} ${product?.internal_lot ?? ""}`.trim();
+        const cell = Math.max(2, Math.round((f.fontSize ?? 6) / 2));
+        lines.push(`QRCODE ${x},${y},H,${cell},A,0,"${data.replace(/"/g, '\\"')}"`);
+        continue;
+      }
+
+      const text = (valueMap[f.key] ?? "").toString();
+      if (!text) continue;
+      // Map pt → TSPL built-in font (1..5). Bigger pt → bigger font.
+      const pt = f.fontSize ?? 10;
+      let font = "2"; let mul = 1;
+      if (pt <= 8) { font = "1"; mul = 1; }
+      else if (pt <= 11) { font = "2"; mul = 1; }
+      else if (pt <= 14) { font = "3"; mul = 1; }
+      else if (pt <= 18) { font = "4"; mul = 1; }
+      else { font = "4"; mul = 2; }
+      const safe = text.replace(/"/g, "''");
+      lines.push(`TEXT ${x},${y},"${font}",0,${mul},${mul},"${safe}"`);
+    }
+
+    lines.push(`PRINT ${labelQty},1`);
+    lines.push("");
+    return strToBytes(lines.join("\r\n"));
+  }
+
+  async function findWritableCharacteristic(server: any) {
+    for (const uuid of BT_SERVICE_UUIDS) {
+      try {
+        const svc = await server.getPrimaryService(uuid);
+        const chars = await svc.getCharacteristics();
+        const c = chars.find((ch) => ch.properties.write || ch.properties.writeWithoutResponse);
+        if (c) return c;
+      } catch { /* try next */ }
+    }
+    // Fallback: scan all primary services
+    const services = await server.getPrimaryServices();
+    for (const svc of services) {
+      const chars = await svc.getCharacteristics();
+      const c = chars.find((ch) => ch.properties.write || ch.properties.writeWithoutResponse);
+      if (c) return c;
+    }
+    throw new Error("Nessuna caratteristica scrivibile trovata sulla stampante");
+  }
+
+  async function printLabelBluetooth() {
+    if (!product) return;
+    if (!selectedTemplate) { toast.error("Seleziona un template"); return; }
+    const nav: any = navigator;
+    if (!nav?.bluetooth) {
+      toast.error("Web Bluetooth non supportato. Usa Chrome/Edge su Android o desktop.");
+      return;
+    }
+    try {
+      setBtPrinting(true);
+      toast.message("Ricerca dispositivi Bluetooth…");
+      const device: any = await nav.bluetooth.requestDevice({
+        // Show all devices so any CLABEL 221D variant is selectable
+        acceptAllDevices: true,
+        optionalServices: BT_SERVICE_UUIDS,
+      });
+      if (!device.gatt) throw new Error("GATT non disponibile");
+      toast.message(`Connessione a ${device.name ?? "stampante"}…`);
+      const server = await device.gatt.connect();
+      const ch = await findWritableCharacteristic(server);
+
+      const data = buildTSPL();
+      // Write in chunks (BLE MTU ~ 180-200 bytes)
+      const CHUNK = 180;
+      for (let i = 0; i < data.length; i += CHUNK) {
+        const slice = data.slice(i, i + CHUNK);
+        if (ch.properties.writeWithoutResponse) {
+          await ch.writeValueWithoutResponse(slice);
+        } else {
+          await ch.writeValue(slice);
+        }
+      }
+      toast.success("Etichetta inviata alla stampante");
+      try { device.gatt.disconnect(); } catch { /* ignore */ }
+      setShowLabelDialog(false);
+    } catch (e: any) {
+      console.error("[BT print]", e);
+      toast.error(e?.message ?? "Errore stampa Bluetooth");
+    } finally {
+      setBtPrinting(false);
+    }
   }
 
   function downloadPdf() {
@@ -378,9 +519,18 @@ ${labelsHtml}
               );
             })()}
 
-            <Button onClick={printLabel} className="w-full gap-2">
-              <Printer size={16} /> Stampa
-            </Button>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              <Button onClick={printLabel} className="w-full gap-2">
+                <Printer size={16} /> Stampa di sistema
+              </Button>
+              <Button onClick={printLabelBluetooth} disabled={btPrinting} variant="secondary" className="w-full gap-2">
+                {btPrinting ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
+                Stampa Etichetta Bluetooth
+              </Button>
+            </div>
+            <p className="text-xs text-muted-foreground">
+              Il pulsante Bluetooth invia comandi TSPL alla CLABEL 221D. Richiede Chrome/Edge (desktop o Android).
+            </p>
           </div>
         </DialogContent>
       </Dialog>
