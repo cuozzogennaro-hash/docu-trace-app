@@ -306,54 +306,178 @@ ${labelsHtml}
     return out;
   }
 
-  function buildTSPL(): Uint8Array {
+  function loadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  /**
+   * Render label to a monochrome raster bitmap and wrap it in ESC/POS
+   * GS v 0 commands. The CLABEL 221D has a 58mm / 384-dot print head,
+   * so we render the label canvas at exactly that pixel density. This
+   * makes the print output match the on-screen preview pixel-for-pixel,
+   * independent of the printer's internal fonts.
+   */
+  async function buildRaster(): Promise<Uint8Array> {
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) throw new Error("Template non selezionato");
     const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
     const fields: any[] = config.fields ?? [];
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
-    const { valueMap } = getValueMap();
+    const { valueMap, ingredientParts } = getValueMap();
 
-    const DPMM = 8; // 203 dpi printers ~ 8 dots/mm
-    const mmToDots = (mm: number) => Math.round(mm * DPMM);
+    // CLABEL 221D — 58mm head = 384 dots
+    const HEAD_DOTS = 384;
+    const HEAD_MM = 58;
+    const PX_PER_MM = HEAD_DOTS / HEAD_MM;
 
-    const lines: string[] = [];
-    lines.push(`SIZE ${wMm} mm,${hMm} mm`);
-    lines.push(`GAP 2 mm,0 mm`);
-    lines.push(`DIRECTION 1`);
-    lines.push(`CLS`);
+    const rawWidthPx = Math.min(HEAD_DOTS, Math.round(wMm * PX_PER_MM));
+    const widthBytes = Math.ceil(rawWidthPx / 8);
+    const widthPx = widthBytes * 8; // round up to byte boundary
+    const heightPx = Math.max(1, Math.round(hMm * PX_PER_MM));
 
-    for (const f of fields) {
-      if (!f.visible) continue;
-      if (f.key === "logo") continue; // skip logo on BT printer
-      const x = mmToDots(f.x);
-      const y = mmToDots(f.y);
+    const canvas = document.createElement("canvas");
+    canvas.width = widthPx;
+    canvas.height = heightPx;
+    const ctx = canvas.getContext("2d")!;
+    ctx.fillStyle = "#fff";
+    ctx.fillRect(0, 0, widthPx, heightPx);
+    ctx.fillStyle = "#000";
+    ctx.textBaseline = "top";
 
-      if (f.key === "qr") {
-        const data = valueMap.qr ?? `${product?.name ?? ""} ${product?.internal_lot ?? ""}`.trim();
-        const cell = Math.max(2, Math.round((f.fontSize ?? 6) / 2));
-        lines.push(`QRCODE ${x},${y},H,${cell},A,0,"${data.replace(/"/g, '\\"')}"`);
-        continue;
-      }
+    const offX = (printOffsetX || 0) * PX_PER_MM;
+    const offY = (printOffsetY || 0) * PX_PER_MM;
 
-      const text = (valueMap[f.key] ?? "").toString();
-      if (!text) continue;
-      // Map pt → TSPL built-in font (1..5). Bigger pt → bigger font.
-      const pt = f.fontSize ?? 10;
-      let font = "2"; let mul = 1;
-      if (pt <= 8) { font = "1"; mul = 1; }
-      else if (pt <= 11) { font = "2"; mul = 1; }
-      else if (pt <= 14) { font = "3"; mul = 1; }
-      else if (pt <= 18) { font = "4"; mul = 1; }
-      else { font = "4"; mul = 2; }
-      const safe = text.replace(/"/g, "''");
-      lines.push(`TEXT ${x},${y},"${font}",0,${mul},${mul},"${safe}"`);
+    // pt → device px:  1pt = 1/72in = 25.4/72mm
+    const ptToPx = (pt: number) => pt * (25.4 / 72) * PX_PER_MM;
+
+    function setFont(sizePx: number, bold: boolean) {
+      ctx.font = `${bold ? "bold " : ""}${sizePx}px Helvetica, Arial, sans-serif`;
     }
 
-    lines.push(`PRINT ${labelQty},1`);
-    lines.push("");
-    return strToBytes(lines.join("\r\n"));
+    type Tok = { text: string; bold: boolean };
+    function tokensFor(text: string, bold: boolean, parts?: IngPart[]): Tok[] {
+      if (parts && parts.length) {
+        const out: Tok[] = [{ text: "Ingr.: ", bold: false }];
+        parts.forEach((p, i) => {
+          out.push({ text: p.text + (i < parts.length - 1 ? ", " : ""), bold: p.bold });
+        });
+        return out;
+      }
+      return [{ text, bold }];
+    }
+
+    function layout(tokens: Tok[], maxW: number, fontPx: number) {
+      const lines: Tok[][] = [[]];
+      let curW = 0;
+      for (const seg of tokens) {
+        // split keeping whitespace boundaries
+        const words = seg.text.split(/(\s+)/).filter((w) => w.length > 0);
+        for (const w of words) {
+          setFont(fontPx, seg.bold);
+          const ww = ctx.measureText(w).width;
+          if (curW + ww > maxW && curW > 0) {
+            lines.push([]);
+            curW = 0;
+            if (!w.trim()) continue; // drop leading spaces
+          }
+          lines[lines.length - 1].push({ text: w, bold: seg.bold });
+          curW += ww;
+        }
+      }
+      return lines;
+    }
+
+    function drawField(text: string, x: number, y: number, maxW: number, maxH: number, fontPt: number, bold: boolean, parts?: IngPart[]): boolean {
+      const tokens = tokensFor(text, bold, parts);
+      let size = fontPt;
+      const minPt = 5;
+      let lines: Tok[][] = [];
+      let lineH = 0;
+      let fontPx = ptToPx(size);
+      while (true) {
+        fontPx = ptToPx(size);
+        lineH = fontPx * 1.15;
+        lines = layout(tokens, maxW, fontPx);
+        const totalH = lines.length * lineH;
+        if (totalH <= maxH || size <= minPt) break;
+        size = Math.max(minPt, size - 0.5);
+      }
+      let cy = y;
+      for (const line of lines) {
+        let cx = x;
+        for (const tok of line) {
+          setFont(fontPx, tok.bold);
+          ctx.fillText(tok.text, cx, cy);
+          cx += ctx.measureText(tok.text).width;
+        }
+        cy += lineH;
+      }
+      return lines.length * lineH > maxH;
+    }
+
+    let overflow = false;
+    for (const f of fields) {
+      if (!f.visible) continue;
+      const x = f.x * PX_PER_MM + offX;
+      const y = f.y * PX_PER_MM + offY;
+      if (f.key === "logo") {
+        if (!company?.logo_url) continue;
+        try {
+          const img = await loadImage(company.logo_url);
+          const w = (f.width ?? 25) * PX_PER_MM;
+          const h = (f.height ?? 15) * PX_PER_MM;
+          ctx.drawImage(img, x, y, w, h);
+        } catch { /* ignore logo failure */ }
+        continue;
+      }
+      const text = (valueMap[f.key] ?? "").toString();
+      if (!text) continue;
+      const maxW = Math.max(5, (wMm - f.x - 1) * PX_PER_MM);
+      const maxH = Math.max(3, (hMm - f.y - 1) * PX_PER_MM);
+      const parts = f.key === "ingredients" ? ingredientParts : undefined;
+      const ov = drawField(text, x, y, maxW, maxH, f.fontSize ?? 10, !!f.bold, parts);
+      if (ov) overflow = true;
+    }
+
+    if (overflow) {
+      toast.warning("Alcune informazioni non entrano nell'etichetta — riduci i contenuti o aumenta le dimensioni.");
+    }
+
+    // 1-bit threshold (Floyd-style not needed for crisp text)
+    const imgData = ctx.getImageData(0, 0, widthPx, heightPx).data;
+    const bytesPerRow = widthBytes;
+    const bitmap = new Uint8Array(bytesPerRow * heightPx);
+    for (let yy = 0; yy < heightPx; yy++) {
+      for (let xx = 0; xx < widthPx; xx++) {
+        const i = (yy * widthPx + xx) * 4;
+        // luminance, alpha-aware
+        const a = imgData[i + 3] / 255;
+        const lum = (0.299 * imgData[i] + 0.587 * imgData[i + 1] + 0.114 * imgData[i + 2]) * a + 255 * (1 - a);
+        if (lum < 160) {
+          bitmap[yy * bytesPerRow + (xx >> 3)] |= 0x80 >> (xx & 7);
+        }
+      }
+    }
+
+    // ESC/POS GS v 0 raster bit image
+    const init = new Uint8Array([0x1b, 0x40]); // ESC @ (initialize)
+    const xL = bytesPerRow & 0xff;
+    const xH = (bytesPerRow >> 8) & 0xff;
+    const yL = heightPx & 0xff;
+    const yH = (heightPx >> 8) & 0xff;
+    const header = new Uint8Array([0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
+    const feed = new Uint8Array([0x1b, 0x64, 0x03]); // feed 3 lines between copies
+    const oneCopy = concatBytes([header, bitmap, feed]);
+    const chunks: Uint8Array[] = [init];
+    for (let i = 0; i < Math.max(1, labelQty); i++) chunks.push(oneCopy);
+    return concatBytes(chunks);
   }
 
   async function findWritableCharacteristic(server: any) {
@@ -396,7 +520,7 @@ ${labelsHtml}
       const server = await device.gatt.connect();
       const ch = await findWritableCharacteristic(server);
 
-      const data = buildTSPL();
+      const data = await buildRaster();
       // Write in chunks (BLE MTU ~ 180-200 bytes)
       const CHUNK = 180;
       for (let i = 0; i < data.length; i += CHUNK) {
