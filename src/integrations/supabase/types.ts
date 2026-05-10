@@ -257,6 +257,7 @@ export type Database = {
           department_id: string | null
           id: string
           internal_lot: string
+          meat_type: string | null
           name: string
           notes: string | null
           operator_id: string | null
@@ -268,6 +269,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           internal_lot: string
+          meat_type?: string | null
           name: string
           notes?: string | null
           operator_id?: string | null
@@ -279,6 +281,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           internal_lot?: string
+          meat_type?: string | null
           name?: string
           notes?: string | null
           operator_id?: string | null
