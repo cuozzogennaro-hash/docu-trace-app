@@ -471,7 +471,7 @@ ${labelsHtml}
       const server = await device.gatt.connect();
       const ch = await findWritableCharacteristic(server);
 
-      const data = buildTSPL();
+      const data = await buildTSPL();
       // Write in chunks (BLE MTU ~ 180-200 bytes)
       const CHUNK = 180;
       for (let i = 0; i < data.length; i += CHUNK) {
