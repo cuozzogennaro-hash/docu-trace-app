@@ -94,92 +94,79 @@ export default function ProductDetail() {
 
     const { valueMap, allergenNames } = getValueMap();
 
-    // Pre-load logo as base64 if available
-    let logoDataUrl: string | null = null;
-    const logoField = fields.find((f: any) => f.key === "logo" && f.visible);
-    if (logoField && company?.logo_url) {
-      try {
-        const resp = await fetch(company.logo_url);
-        const blob = await resp.blob();
-        logoDataUrl = await new Promise<string>((resolve) => {
-          const reader = new FileReader();
-          reader.onloadend = () => resolve(reader.result as string);
-          reader.readAsDataURL(blob);
-        });
-      } catch { /* skip logo on error */ }
-    }
+    // Build HTML for one label
+    const escapeHtml = (s: string) =>
+      s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    const pageW = wMm;
-    const pageH = hMm;
-    const orient = pageW > pageH ? "landscape" : "portrait";
-    const doc = new jsPDF({ orientation: orient as any, unit: "mm", format: [pageW, pageH] });
-
-    for (let copy = 0; copy < labelQty; copy++) {
-      if (copy > 0) doc.addPage([pageW, pageH], orient as any);
-
-      for (const f of fields) {
-        if (!f.visible) continue;
-        if (f.key === "logo") {
-          if (logoDataUrl) {
-            try {
-              doc.addImage(logoDataUrl, "PNG", f.x, f.y, f.width ?? 25, f.height ?? 15);
-            } catch { /* skip */ }
-          }
-          continue;
-        }
-
-        const text = valueMap[f.key] ?? "";
-        if (!text) continue;
-
-        doc.setFontSize(f.fontSize ?? 10);
-        doc.setFont("helvetica", f.bold ? "bold" : "normal");
-
-        const maxWidth = pageW - f.x - 2;
-
-        if (f.key === "ingredients" && allergenNames.length > 0) {
-          // Print ingredients with allergens inline in bold
-          const prefix = "Ingr.: ";
-          let curX = f.x;
-          let curY = f.y + (f.fontSize ?? 10) * 0.35;
-          const fontSize = f.fontSize ?? 10;
-          const lineH = fontSize * 0.4;
-
-          // Print prefix
-          doc.setFont("helvetica", f.bold ? "bold" : "normal");
-          doc.text(prefix, curX, curY);
-          curX += doc.getTextWidth(prefix);
-
-          ingredients.forEach((m: any, idx: number) => {
-            const isAllergen = allergenNames.includes(m.product_name);
-            const separator = idx < ingredients.length - 1 ? ", " : "";
-            const chunk = m.product_name + separator;
-
-            doc.setFont("helvetica", isAllergen ? "bold" : "normal");
-            const chunkW = doc.getTextWidth(chunk);
-
-            if (curX + chunkW > f.x + maxWidth && curX > f.x) {
-              curX = f.x;
-              curY += lineH;
-            }
-
-            doc.text(chunk, curX, curY);
-            curX += chunkW;
-          });
-        } else {
-          const lines = doc.splitTextToSize(text, maxWidth);
-          doc.text(lines, f.x, f.y + (f.fontSize ?? 10) * 0.35);
-        }
+    const renderField = (f: any) => {
+      if (!f.visible) return "";
+      const baseStyle = `position:absolute;left:${f.x}mm;top:${f.y}mm;`;
+      if (f.key === "logo") {
+        if (!company?.logo_url) return "";
+        const w = f.width ?? 25;
+        const h = f.height ?? 15;
+        return `<img src="${company.logo_url}" style="${baseStyle}width:${w}mm;height:${h}mm;object-fit:contain;" />`;
       }
-    }
+      const text = valueMap[f.key] ?? "";
+      if (!text) return "";
+      const fontSize = f.fontSize ?? 10;
+      const maxW = wMm - f.x - 2;
+      const style = `${baseStyle}max-width:${maxW}mm;font-size:${fontSize}pt;line-height:1.2;font-weight:${f.bold ? 700 : 400};word-break:break-word;`;
+      if (f.key === "ingredients" && allergenNames.length > 0) {
+        const parts = ingredients
+          .map((m: any, idx: number) => {
+            const sep = idx < ingredients.length - 1 ? ", " : "";
+            const w = allergenNames.includes(m.product_name) ? 700 : 400;
+            return `<span style="font-weight:${w}">${escapeHtml(m.product_name)}${sep}</span>`;
+          })
+          .join("");
+        return `<div style="${style}">Ingr.: ${parts}</div>`;
+      }
+      return `<div style="${style}">${escapeHtml(text)}</div>`;
+    };
 
-    // Open print dialog
-    const pdfBlob = doc.output("blob");
-    const url = URL.createObjectURL(pdfBlob);
-    const printWindow = window.open(url);
-    if (printWindow) {
-      printWindow.addEventListener("load", () => {
-        printWindow.print();
-      });
+    const labelHtml = fields.map(renderField).join("");
+    const labelsHtml = Array.from({ length: labelQty })
+      .map(
+        () =>
+          `<div class="label" style="position:relative;width:${wMm}mm;height:${hMm}mm;overflow:hidden;page-break-after:always;">${labelHtml}</div>`,
+      )
+      .join("");
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Etichetta</title>
+<style>
+  @page { size: ${wMm}mm ${hMm}mm; margin: 0; }
+  html, body { margin: 0; padding: 0; background: #fff; font-family: Helvetica, Arial, sans-serif; color: #000; }
+  .label { box-sizing: border-box; }
+  @media screen {
+    body { padding: 12px; background: #f5f5f5; }
+    .label { background: #fff; box-shadow: 0 2px 8px rgba(0,0,0,0.15); margin: 0 auto 12px; }
+    .actions { position: fixed; top: 8px; right: 8px; display: flex; gap: 8px; z-index: 10; }
+    .actions button { padding: 10px 16px; font-size: 14px; border: 0; border-radius: 8px; background: #0a7; color: #fff; }
+  }
+  @media print {
+    .actions { display: none !important; }
+    body { padding: 0; background: #fff; }
+    .label { box-shadow: none; margin: 0; }
+  }
+</style></head>
+<body>
+<div class="actions"><button onclick="window.print()">Stampa</button></div>
+${labelsHtml}
+<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 300); });</script>
+</body></html>`;
+
+    // Open in a new tab — works on both desktop and mobile, lets the system print menu open.
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+    } else {
+      // Fallback: data URL navigation (mobile popup-blocked case)
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.location.href = url;
     }
     setShowLabelDialog(false);
   }
