@@ -212,6 +212,52 @@ function generateMonthlyPdf(
   doc.save(`${type === "temperatures" ? "temperature" : "sanificazioni"}_${month}.pdf`);
 }
 
+function generateRawMaterialsMonthlyPdf(
+  monthKey: string,
+  monthLbl: string,
+  weeks: { label: string; items: any[] }[],
+  company: any,
+) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  doc.setFontSize(16);
+  doc.text(`Registro Materie Prime — ${monthLbl}`, 14, 20);
+  doc.setFontSize(10);
+  if (company?.business_name) doc.text(company.business_name, 14, 28);
+  if (company?.address) doc.text(company.address, 14, 33);
+  let startY = company?.address ? 40 : company?.business_name ? 35 : 28;
+  weeks.forEach((w) => {
+    doc.setFontSize(11);
+    doc.text(w.label, 14, startY);
+    autoTable(doc, {
+      startY: startY + 3,
+      head: [["Prodotto", "Fornitore", "Lotto int.", "Lotto forn.", "Quantità", "Data doc.", "Scadenza"]],
+      body: w.items.map((r) => [
+        r.product_name ?? "—",
+        r.supplier_name ?? "—",
+        r.internal_lot ?? "—",
+        r.supplier_lot ?? "—",
+        r.quantity ?? "—",
+        r.document_date ?? "—",
+        r.expiry_date ?? "—",
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+    startY = (doc as any).lastAutoTable.finalY + 8;
+    if (startY > 270) {
+      doc.addPage();
+      startY = 20;
+    }
+  });
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
+  }
+  doc.save(`materie_prime_${monthKey}.pdf`);
+}
+
 function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any }) {
   const cfg = CONFIGS[tableKey];
   const [rows, setRows] = useState<any[]>([]);
@@ -262,9 +308,9 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const grouped = useMemo(() => isGroupable ? groupByMonth(filteredRows) : {}, [filteredRows, isGroupable]);
   const sortedMonths = useMemo(() => Object.keys(grouped).sort((a, b) => b.localeCompare(a)), [grouped]);
 
-  // Weekly grouping for raw materials by document_date
-  const weeklyGroups = useMemo(() => {
-    if (tableKey !== "raw_materials") return [] as { key: string; label: string; items: any[] }[];
+  // Weekly + monthly grouping for raw materials by document_date
+  const monthlyGroups = useMemo(() => {
+    if (tableKey !== "raw_materials") return [] as { monthKey: string; monthLabel: string; items: any[]; weeks: { key: string; label: string; items: any[] }[] }[];
     const startOfWeek = (d: Date) => {
       const x = new Date(d);
       const day = (x.getDay() + 6) % 7;
@@ -272,7 +318,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
       x.setDate(x.getDate() - day);
       return x;
     };
-    const map: Record<string, { key: string; start: Date; items: any[] }> = {};
+    const weekMap: Record<string, { key: string; start: Date; items: any[] }> = {};
     for (const r of filteredRows) {
       const ref = r.document_date || (r.created_at ? r.created_at.slice(0, 10) : null);
       let key: string;
@@ -285,26 +331,48 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
         start = startOfWeek(d);
         key = start.toISOString().slice(0, 10);
       }
-      if (!map[key]) map[key] = { key, start, items: [] };
-      map[key].items.push(r);
+      if (!weekMap[key]) weekMap[key] = { key, start, items: [] };
+      weekMap[key].items.push(r);
     }
     const fmt = (d: Date) => d.toLocaleDateString("it-IT", { day: "2-digit", month: "2-digit", year: "numeric" });
-    return Object.values(map)
+    const weeks = Object.values(weekMap)
       .sort((a, b) => b.start.getTime() - a.start.getTime())
       .map((g) => {
-        if (g.key === "senza-data") return { key: g.key, label: "Senza data", items: g.items };
+        if (g.key === "senza-data") return { key: g.key, start: g.start, monthKey: "senza-data", label: "Senza data", items: g.items };
         const end = new Date(g.start);
         end.setDate(end.getDate() + 6);
-        return { key: g.key, label: `Settimana del ${fmt(g.start)} → ${fmt(end)}`, items: g.items };
+        const monthKey = `${g.start.getFullYear()}-${String(g.start.getMonth() + 1).padStart(2, "0")}`;
+        return { key: g.key, start: g.start, monthKey, label: `Settimana del ${fmt(g.start)} → ${fmt(end)}`, items: g.items };
       });
+    // Group weeks by month
+    const monthMap: Record<string, { monthKey: string; monthLabel: string; items: any[]; weeks: typeof weeks }> = {};
+    for (const w of weeks) {
+      if (!monthMap[w.monthKey]) {
+        monthMap[w.monthKey] = {
+          monthKey: w.monthKey,
+          monthLabel: w.monthKey === "senza-data" ? "Senza data" : monthLabel(w.monthKey),
+          items: [],
+          weeks: [],
+        };
+      }
+      monthMap[w.monthKey].weeks.push(w);
+      monthMap[w.monthKey].items.push(...w.items);
+    }
+    return Object.values(monthMap).sort((a, b) => b.monthKey.localeCompare(a.monthKey));
   }, [filteredRows, tableKey]);
 
   const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({});
+  const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
   useEffect(() => {
-    if (tableKey === "raw_materials" && weeklyGroups.length > 0) {
-      setOpenWeeks((prev) => (prev[weeklyGroups[0].key] === undefined ? { ...prev, [weeklyGroups[0].key]: true } : prev));
+    if (tableKey === "raw_materials" && monthlyGroups.length > 0) {
+      const firstMonth = monthlyGroups[0];
+      setOpenMonths((prev) => (prev[firstMonth.monthKey] === undefined ? { ...prev, [firstMonth.monthKey]: true } : prev));
+      if (firstMonth.weeks[0]) {
+        const firstWeek = firstMonth.weeks[0];
+        setOpenWeeks((prev) => (prev[firstWeek.key] === undefined ? { ...prev, [firstWeek.key]: true } : prev));
+      }
     }
-  }, [weeklyGroups, tableKey]);
+  }, [monthlyGroups, tableKey]);
 
   async function save(updated: any) {
     const payload: any = {};
@@ -324,6 +392,15 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
     const { error } = await supabase.from(tableKey).delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Eliminato");
+    load();
+  }
+
+  async function removeMany(ids: string[], label: string) {
+    if (ids.length === 0) return;
+    if (!confirm(`Eliminare ${ids.length} record di "${label}"? L'azione è irreversibile.`)) return;
+    const { error } = await supabase.from(tableKey).delete().in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(`${ids.length} record eliminati`);
     load();
   }
 
@@ -480,57 +557,93 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
       <>
         {SearchBar}
         <div className="space-y-3">
-          {weeklyGroups.map((g) => (
+          {monthlyGroups.map((mg) => (
             <Collapsible
-              key={g.key}
-              open={openWeeks[g.key] ?? false}
-              onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [g.key]: o }))}
+              key={mg.monthKey}
+              open={openMonths[mg.monthKey] ?? false}
+              onOpenChange={(o) => setOpenMonths((prev) => ({ ...prev, [mg.monthKey]: o }))}
             >
               <Card className="overflow-hidden">
-                <CollapsibleTrigger className="w-full flex items-center justify-between px-4 py-3 border-b bg-muted/30 hover:bg-muted/50 transition text-left">
-                  <h3 className="font-display font-bold text-sm">{g.label} <span className="text-muted-foreground font-normal">({g.items.length})</span></h3>
-                  <ChevronDown size={16} className={`text-muted-foreground transition-transform ${openWeeks[g.key] ? "rotate-180" : ""}`} />
-                </CollapsibleTrigger>
-                <CollapsibleContent>
-                  {/* Desktop table */}
-                  <div className="overflow-x-auto hidden md:block">
-                    <Table>
-                      <TableHeader>
-                        <TableRow>
-                          {cfg.columns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
-                          <TableHead className="text-right">Azioni</TableHead>
-                        </TableRow>
-                      </TableHeader>
-                      <TableBody>
-                        {g.items.map((r: any) => (
-                          <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onRowClick(r)}>
-                            {cfg.columns.map((c) => (
-                              <TableCell key={c.key} className="text-sm">{r[c.key] ?? "—"}</TableCell>
-                            ))}
-                            <TableCell className="text-right whitespace-nowrap">
-                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
-                                <Pencil size={14} />
-                              </Button>
-                              <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
-                                <Trash2 size={14} className="text-destructive" />
-                              </Button>
-                            </TableCell>
-                          </TableRow>
-                        ))}
-                      </TableBody>
-                    </Table>
+                <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-muted/40">
+                  <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left hover:opacity-80 transition">
+                    <ChevronDown size={18} className={`text-muted-foreground transition-transform shrink-0 ${openMonths[mg.monthKey] ? "rotate-180" : ""}`} />
+                    <h3 className="font-display font-bold text-base truncate">{mg.monthLabel} <span className="text-muted-foreground font-normal text-sm">({mg.items.length})</span></h3>
+                  </CollapsibleTrigger>
+                  <div className="flex items-center gap-1 shrink-0">
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5"
+                      onClick={() => generateRawMaterialsMonthlyPdf(mg.monthKey, mg.monthLabel, mg.weeks, company)}
+                    >
+                      <FileDown size={14} /> PDF
+                    </Button>
+                    <Button
+                      size="sm"
+                      variant="outline"
+                      className="gap-1.5 text-destructive hover:text-destructive"
+                      onClick={() => removeMany(mg.items.map((r: any) => r.id), mg.monthLabel)}
+                    >
+                      <Trash2 size={14} /> Elimina
+                    </Button>
                   </div>
-                  {/* Mobile cards */}
-                  <div className="md:hidden divide-y">
-                    {g.items.map((r: any) => (
-                      <div key={r.id} className="p-3"><MobileCard r={r} /></div>
+                </div>
+                <CollapsibleContent>
+                  <div className="p-3 space-y-2 bg-muted/10">
+                    {mg.weeks.map((g) => (
+                      <Collapsible
+                        key={g.key}
+                        open={openWeeks[g.key] ?? false}
+                        onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [g.key]: o }))}
+                      >
+                        <Card className="overflow-hidden">
+                          <CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-2 border-b bg-card hover:bg-muted/40 transition text-left">
+                            <span className="font-medium text-sm">{g.label} <span className="text-muted-foreground font-normal">({g.items.length})</span></span>
+                            <ChevronDown size={14} className={`text-muted-foreground transition-transform ${openWeeks[g.key] ? "rotate-180" : ""}`} />
+                          </CollapsibleTrigger>
+                          <CollapsibleContent>
+                            <div className="overflow-x-auto hidden md:block">
+                              <Table>
+                                <TableHeader>
+                                  <TableRow>
+                                    {cfg.columns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
+                                    <TableHead className="text-right">Azioni</TableHead>
+                                  </TableRow>
+                                </TableHeader>
+                                <TableBody>
+                                  {g.items.map((r: any) => (
+                                    <TableRow key={r.id} className="cursor-pointer hover:bg-muted/40" onClick={() => onRowClick(r)}>
+                                      {cfg.columns.map((c) => (
+                                        <TableCell key={c.key} className="text-sm">{r[c.key] ?? "—"}</TableCell>
+                                      ))}
+                                      <TableCell className="text-right whitespace-nowrap">
+                                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
+                                          <Pencil size={14} />
+                                        </Button>
+                                        <Button size="icon" variant="ghost" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
+                                          <Trash2 size={14} className="text-destructive" />
+                                        </Button>
+                                      </TableCell>
+                                    </TableRow>
+                                  ))}
+                                </TableBody>
+                              </Table>
+                            </div>
+                            <div className="md:hidden divide-y">
+                              {g.items.map((r: any) => (
+                                <div key={r.id} className="p-3"><MobileCard r={r} /></div>
+                              ))}
+                            </div>
+                          </CollapsibleContent>
+                        </Card>
+                      </Collapsible>
                     ))}
                   </div>
                 </CollapsibleContent>
               </Card>
             </Collapsible>
           ))}
-          {weeklyGroups.length === 0 && (
+          {monthlyGroups.length === 0 && (
             <Card className="p-12 text-center text-muted-foreground">Nessun risultato.</Card>
           )}
         </div>
