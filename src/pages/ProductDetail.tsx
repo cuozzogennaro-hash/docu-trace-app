@@ -40,7 +40,7 @@ export default function ProductDetail() {
 
       const { data: links } = await supabase
         .from("product_ingredients")
-        .select("raw_materials(id, product_name, internal_lot, supplier_name, supplier_lot, origin, quantity, expiry_date, category, born_in, raised_in, slaughtered_in, department_id, departments:department_id(name))")
+        .select("raw_materials(id, product_name, internal_lot, supplier_name, supplier_lot, origin, quantity, expiry_date, category, born_in, raised_in, slaughtered_in)")
         .eq("product_id", id);
 
       setIngredients((links ?? []).map((l: any) => l.raw_materials).filter(Boolean));
