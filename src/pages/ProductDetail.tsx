@@ -489,7 +489,7 @@ ${labelsHtml}
               const fields: any[] = config.fields ?? [];
               const wMm = Number(tpl.width_mm);
               const hMm = Number(tpl.height_mm);
-              const { valueMap, allergenNames } = getValueMap();
+              const { valueMap, ingredientParts } = getValueMap();
               const logoUrl = company?.logo_url;
               return (
                 <div>
@@ -533,7 +533,7 @@ ${labelsHtml}
                         const isIngredients = f.key === "ingredients";
                         return (
                           <div key={f.key} className="absolute" style={{ left: f.x * PX_PER_MM, top: f.y * PX_PER_MM, maxWidth: (wMm - f.x - 2) * PX_PER_MM }}>
-                            {isIngredients && allergenNames.length > 0 ? (
+                            {isIngredients && ingredientParts.length > 0 ? (
                               <span
                                 className="text-black block"
                                 style={{
@@ -543,9 +543,9 @@ ${labelsHtml}
                                 }}
                               >
                                 Ingr.:{" "}
-                                {ingredients.map((m: any, idx: number) => (
-                                  <span key={m.id} style={{ fontWeight: allergenNames.includes(m.product_name) ? 700 : 400 }}>
-                                    {m.product_name}{idx < ingredients.length - 1 ? ", " : ""}
+                                {ingredientParts.map((p, idx) => (
+                                  <span key={idx} style={{ fontWeight: p.bold ? 700 : 400 }}>
+                                    {p.text}{idx < ingredientParts.length - 1 ? ", " : ""}
                                   </span>
                                 ))}
                               </span>
