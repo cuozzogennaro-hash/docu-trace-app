@@ -212,6 +212,52 @@ function generateMonthlyPdf(
   doc.save(`${type === "temperatures" ? "temperature" : "sanificazioni"}_${month}.pdf`);
 }
 
+function generateRawMaterialsMonthlyPdf(
+  monthKey: string,
+  monthLbl: string,
+  weeks: { label: string; items: any[] }[],
+  company: any,
+) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  doc.setFontSize(16);
+  doc.text(`Registro Materie Prime — ${monthLbl}`, 14, 20);
+  doc.setFontSize(10);
+  if (company?.business_name) doc.text(company.business_name, 14, 28);
+  if (company?.address) doc.text(company.address, 14, 33);
+  let startY = company?.address ? 40 : company?.business_name ? 35 : 28;
+  weeks.forEach((w) => {
+    doc.setFontSize(11);
+    doc.text(w.label, 14, startY);
+    autoTable(doc, {
+      startY: startY + 3,
+      head: [["Prodotto", "Fornitore", "Lotto int.", "Lotto forn.", "Quantità", "Data doc.", "Scadenza"]],
+      body: w.items.map((r) => [
+        r.product_name ?? "—",
+        r.supplier_name ?? "—",
+        r.internal_lot ?? "—",
+        r.supplier_lot ?? "—",
+        r.quantity ?? "—",
+        r.document_date ?? "—",
+        r.expiry_date ?? "—",
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+    startY = (doc as any).lastAutoTable.finalY + 8;
+    if (startY > 270) {
+      doc.addPage();
+      startY = 20;
+    }
+  });
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
+  }
+  doc.save(`materie_prime_${monthKey}.pdf`);
+}
+
 function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any }) {
   const cfg = CONFIGS[tableKey];
   const [rows, setRows] = useState<any[]>([]);
