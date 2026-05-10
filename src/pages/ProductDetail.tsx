@@ -321,21 +321,16 @@ export default function ProductDetail() {
     }
 
     // Data produzione (in basso a sinistra)
-    // Avvisi macelleria (sopra la riga data/lotto), font più piccolo
+    // Avvisi macelleria (sopra la riga data/lotto), su una sola riga senza wrap
     if (productMeatType) {
-      const noticePt = Math.max(5, Math.round(footerPt * 0.85));
+      const noticeText = "Conservare da 0° e +4°   Consumare previa cottura";
+      const noticePt = fitPt(noticeText, wMm - 2 * p - safetyR, Math.max(5, footerPt * 0.82), 4, false);
       const noticeH = ptMm(noticePt) * lh;
-      const noticeY = footerY - noticeH - 0.3;
-      const halfW = (wMm - 2 * p - safetyR) / 2 - 0.5;
+      const noticeY = footerY - noticeH - 0.6;
       items.push({
-        x: p, y: noticeY, w: halfW,
-        fontPt: noticePt, align: "left", lineHeight: lh,
-        segments: [{ text: "Conservare da 0° e +4°", bold: false }],
-      });
-      items.push({
-        x: wMm - p - safetyR - halfW, y: noticeY, w: halfW,
-        fontPt: noticePt, align: "right", lineHeight: lh,
-        segments: [{ text: "Consumare previa cottura", bold: false }],
+        x: p, y: noticeY, w: wMm - 2 * p - safetyR,
+        fontPt: noticePt, align: "center", lineHeight: lh,
+        segments: [{ text: noticeText, bold: false }],
       });
     }
 
@@ -371,7 +366,7 @@ export default function ProductDetail() {
       const segHtml = it.segments
         .map((s) => `<span style="font-weight:${s.bold ? 700 : 400}">${escapeHtml(s.text)}</span>`)
         .join("");
-      const style = `position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;overflow:hidden;`;
+      const style = `position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;white-space:${it.align === "left" ? "normal" : "nowrap"};overflow:hidden;`;
       return `<div style="${style}">${segHtml}</div>`;
     };
     const labelHtml = items.map(renderItem).join("");
