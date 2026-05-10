@@ -179,9 +179,10 @@ export default function ProductDetail() {
     // bordo non stampabile e il rendering canvas può eccedere di una frazione
     // di mm rispetto a measureText. Senza questo le ultime lettere/cifre
     // dei testi centrati o allineati a destra vengono troncate.
-    const safetyR = Math.max(1.5, wMm * 0.02);
+    const safetyR = Math.max(3, wMm * 0.04);
     // Dimensioni font in pt — scalano con altezza etichetta
     const titlePtBase = Math.max(10, Math.round(hMm * 0.34));
+    const companyPtBase = Math.max(9, Math.round(hMm * 0.28));
     const ingrPt = Math.max(7, Math.round(hMm * 0.22));
     const footerPtBase = Math.max(7, Math.round(hMm * 0.22));
     const lh = 1.2;
@@ -207,9 +208,10 @@ export default function ProductDetail() {
     // Auto-fit titoli per stare su una riga sola; usa la stessa dimensione
     // (la più piccola fra i due) così che mantengano lo stesso formato.
     const titleMaxMm = wMm - 2 * p - safetyR;
-    const titleCompanyPt = fitPt(data.companyName || " ", titleMaxMm, titlePtBase, 8, true);
+    const titleCompanyPt = fitPt(data.companyName || " ", titleMaxMm, companyPtBase, 8, true);
     const titleProductPt = fitPt(data.productName || " ", titleMaxMm, titlePtBase, 8, true);
-    const titlePt = Math.min(titleCompanyPt, titleProductPt);
+    const productPt = titleProductPt;
+    const companyPt = Math.min(titleCompanyPt, companyPtBase);
 
     // Footer: la metà di larghezza ciascuno; auto-fit per evitare overflow
     const footerLeftW = (wMm - 2 * p - safetyR) / 2 - 0.5;
@@ -227,18 +229,18 @@ export default function ProductDetail() {
     // Nome società
     items.push({
       x: p, y, w: wMm - 2 * p - safetyR,
-      fontPt: titlePt, align: "center", lineHeight: lh,
+      fontPt: companyPt, align: "center", lineHeight: lh,
       segments: [{ text: data.companyName, bold: true }],
     });
-    y += ptMm(titlePt) * lh + 0.5;
+    y += ptMm(companyPt) * lh + 0.5;
 
     // Nome prodotto (stesso formato)
     items.push({
       x: p, y, w: wMm - 2 * p - safetyR,
-      fontPt: titlePt, align: "center", lineHeight: lh,
+      fontPt: productPt, align: "center", lineHeight: lh,
       segments: [{ text: data.productName, bold: true }],
     });
-    y += ptMm(titlePt) * lh + 0.6;
+    y += ptMm(productPt) * lh + 0.6;
 
     // Footer: data prod (sx) + lotto (dx)
     const footerH = ptMm(footerPt) * lh;
