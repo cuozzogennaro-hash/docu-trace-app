@@ -56,6 +56,7 @@ export default function Incoming() {
   const [documentNumber, setDocumentNumber] = useState("");
   const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
+  const [bulkDepartmentId, setBulkDepartmentId] = useState<string>("");
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
@@ -111,7 +112,7 @@ export default function Incoming() {
             expiry: "",
             origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
-            departmentId: "",
+            departmentId: bulkDepartmentId || "",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
@@ -242,6 +243,33 @@ export default function Incoming() {
               <Plus size={14} /> Aggiungi riga
             </Button>
           </div>
+        {lines.length > 1 && (
+          <Card className="p-3 bg-accent/10 border-dashed">
+            <Label className="text-xs font-semibold mb-1.5 block">Reparto per tutti i prodotti</Label>
+            <div className="flex gap-2">
+              <Select value={bulkDepartmentId} onValueChange={setBulkDepartmentId}>
+                <SelectTrigger className="flex-1"><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
+                <SelectContent>
+                  {departments.map((d) => (
+                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+              <Button
+                type="button"
+                variant="secondary"
+                size="sm"
+                disabled={!bulkDepartmentId}
+                onClick={() => {
+                  setLines((prev) => prev.map((l) => ({ ...l, departmentId: bulkDepartmentId })));
+                  toast.success("Reparto applicato a tutti i prodotti");
+                }}
+              >
+                Applica a tutti
+              </Button>
+            </div>
+          </Card>
+        )}
           {lines.map((line, idx) => (
             <Card key={idx} className="p-3 bg-muted/30 border-dashed">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
