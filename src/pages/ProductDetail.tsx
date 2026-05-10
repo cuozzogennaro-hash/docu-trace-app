@@ -532,6 +532,37 @@ ${labelsHtml}
               <Input type="number" min={1} max={100} value={labelQty} onChange={(e) => setLabelQty(Math.max(1, +e.target.value))} />
             </div>
 
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-medium">Offset X stampa (mm)</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={printOffsetX}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    setPrintOffsetX(v);
+                    window.localStorage.setItem("label_print_offset_x", String(v));
+                  }}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">Negativo = sposta a sinistra</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Offset Y stampa (mm)</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={printOffsetY}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    setPrintOffsetY(v);
+                    window.localStorage.setItem("label_print_offset_y", String(v));
+                  }}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">Negativo = sposta in alto</p>
+              </div>
+            </div>
+
             {/* Live preview */}
             {selectedTemplate && (() => {
               const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
