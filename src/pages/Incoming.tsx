@@ -265,6 +265,17 @@ export default function Incoming() {
                   </Select>
                 </div>
                 <div className="space-y-1">
+                  <Label className="text-xs">Reparto *</Label>
+                  <Select value={line.departmentId} onValueChange={(v) => updateLine(idx, { departmentId: v })}>
+                    <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
+                    <SelectContent>
+                      {departments.map((d) => (
+                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                      ))}
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
                   <Label className="text-xs">Lotto fornitore</Label>
                   <Input value={line.supplierLot} onChange={(e) => updateLine(idx, { supplierLot: e.target.value })} />
                 </div>
