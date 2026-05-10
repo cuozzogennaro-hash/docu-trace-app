@@ -107,7 +107,7 @@ export default function Production() {
 
       <div className="mb-4">
         <Button asChild variant="outline" className="gap-2">
-          <Link to="/archivio"><ArchiveIcon size={16} /> Archivio Prodotti</Link>
+          <Link to="/archivio?tab=products"><ArchiveIcon size={16} /> Archivio Prodotti</Link>
         </Button>
       </div>
 
@@ -300,7 +300,7 @@ export default function Production() {
 
       <div className="space-y-2">
         {rows.map((p) => (
-          <Card key={p.id} className="p-4">
+          <Card key={p.id} className="p-4 hover:shadow-md transition cursor-pointer" onClick={() => window.location.assign(`/archivio/prodotto/${p.id}`)}>
             <div className="flex items-center justify-between mb-2">
               <div>
                 <div className="font-semibold">{p.name}</div>
