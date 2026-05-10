@@ -28,6 +28,9 @@ type ProductLine = {
   origin: string;
   internalLot: string;
   departmentId: string;
+  bornIn: string;
+  raisedIn: string;
+  slaughteredIn: string;
 };
 
 function newProductLine(date?: string): ProductLine {
@@ -41,6 +44,9 @@ function newProductLine(date?: string): ProductLine {
     origin: "",
     internalLot: generateInternalLot("L", d),
     departmentId: "",
+    bornIn: "",
+    raisedIn: "",
+    slaughteredIn: "",
   };
 }
 
@@ -50,6 +56,8 @@ export default function Incoming() {
   const [preview, setPreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
   const { departments } = useDepartments();
+  const isMacelleria = (depId: string) =>
+    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
 
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -113,6 +121,9 @@ export default function Incoming() {
             origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
             departmentId: bulkDepartmentId || "",
+            bornIn: "",
+            raisedIn: "",
+            slaughteredIn: "",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
@@ -130,6 +141,9 @@ export default function Incoming() {
     const validLines = lines.filter((l) => l.productName.trim());
     if (validLines.length === 0) return toast.error("Almeno un prodotto obbligatorio");
     if (validLines.some((l) => !l.departmentId)) return toast.error("Seleziona un reparto per ogni prodotto");
+    if (validLines.some((l) => isMacelleria(l.departmentId) && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim()))) {
+      return toast.error("Per Macelleria: Nato, Allevato e Macellato sono obbligatori");
+    }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
     const { data: { user } } = await supabase.auth.getUser();
     let imageUrl: string | null = null;
@@ -152,6 +166,9 @@ export default function Incoming() {
       document_image_url: imageUrl,
       category: l.category,
       department_id: l.departmentId,
+      born_in: isMacelleria(l.departmentId) ? l.bornIn.trim() : null,
+      raised_in: isMacelleria(l.departmentId) ? l.raisedIn.trim() : null,
+      slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
@@ -320,6 +337,25 @@ export default function Incoming() {
                   <Input value={line.origin} onChange={(e) => updateLine(idx, { origin: e.target.value })} placeholder="Italia…" />
                 </div>
               </div>
+              {isMacelleria(line.departmentId) && (
+                <div className="mt-3 p-3 rounded-md bg-orange-50 border border-orange-200 space-y-2">
+                  <Label className="text-xs font-semibold text-orange-900">Tracciabilità carne (obbligatoria)</Label>
+                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
+                    <div className="space-y-1">
+                      <Label className="text-xs">Nato in *</Label>
+                      <Input value={line.bornIn} onChange={(e) => updateLine(idx, { bornIn: e.target.value })} placeholder="Italia" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Allevato in *</Label>
+                      <Input value={line.raisedIn} onChange={(e) => updateLine(idx, { raisedIn: e.target.value })} placeholder="Italia" />
+                    </div>
+                    <div className="space-y-1">
+                      <Label className="text-xs">Macellato in *</Label>
+                      <Input value={line.slaughteredIn} onChange={(e) => updateLine(idx, { slaughteredIn: e.target.value })} placeholder="Italia" />
+                    </div>
+                  </div>
+                </div>
+              )}
               {lines.length > 1 && (
                 <Button type="button" variant="ghost" size="sm" className="mt-2 text-destructive gap-1" onClick={() => removeLine(idx)}>
                   <Trash2 size={14} /> Rimuovi
