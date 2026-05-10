@@ -351,20 +351,40 @@ export default function Incoming() {
               {isMacelleria(line.departmentId) && (
                 <div className="mt-3 p-3 rounded-md bg-orange-50 border border-orange-200 space-y-2">
                   <Label className="text-xs font-semibold text-orange-900">Tracciabilità carne (obbligatoria)</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Nato in *</Label>
-                      <Input value={line.bornIn} onChange={(e) => updateLine(idx, { bornIn: e.target.value })} placeholder="Italia" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Allevato in *</Label>
-                      <Input value={line.raisedIn} onChange={(e) => updateLine(idx, { raisedIn: e.target.value })} placeholder="Italia" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Macellato in *</Label>
-                      <Input value={line.slaughteredIn} onChange={(e) => updateLine(idx, { slaughteredIn: e.target.value })} placeholder="Italia" />
-                    </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo prodotto *</Label>
+                    <Select value={line.meatType} onValueChange={(v: "fresh" | "preparato") => updateLine(idx, { meatType: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fresh">Carne Fresca (Monocomponente)</SelectItem>
+                        <SelectItem value="preparato">Preparato / Trasformato (Multicomponente)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                  {line.meatType === "fresh" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Nato in *</Label>
+                        <Input value={line.bornIn} onChange={(e) => updateLine(idx, { bornIn: e.target.value })} placeholder="Italia" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Allevato in *</Label>
+                        <Input value={line.raisedIn} onChange={(e) => updateLine(idx, { raisedIn: e.target.value })} placeholder="Italia" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Macellato in *</Label>
+                        <Input value={line.slaughteredIn} onChange={(e) => updateLine(idx, { slaughteredIn: e.target.value })} placeholder="Italia" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Bollo CE *</Label>
+                        <Input value={line.slaughterMark} onChange={(e) => updateLine(idx, { slaughterMark: e.target.value })} placeholder="IT 1234 L CE" />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-orange-900/80">
+                      Per i preparati verrà stampato in etichetta solo il campo <strong>Origine</strong> (es. "Carni suine origine: UE").
+                    </p>
+                  )}
                 </div>
               )}
               {lines.length > 1 && (
