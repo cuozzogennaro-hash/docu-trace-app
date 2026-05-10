@@ -32,7 +32,12 @@ export default function AppShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isAdminOperator = operator?.is_admin === true;
-  const nav = (!operator || isAdminOperator) ? adminNav : operatorNav;
+  const adminOperatorRestricted = ["/impostazioni", "/acquisti", "/clienti"];
+  const nav = !operator
+    ? adminNav
+    : isAdminOperator
+    ? adminNav.filter((i) => !adminOperatorRestricted.includes(i.to))
+    : operatorNav;
 
   async function handleLogout() {
     signOutOperator();
