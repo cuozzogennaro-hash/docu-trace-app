@@ -49,6 +49,18 @@ export default function Dashboard() {
       <CompanyHeader />
       <PageHeader title="Dashboard" subtitle="Panoramica del tuo autocontrollo HACCP" />
 
+      <Link to="/ingresso" className="block mb-6">
+        <Card className="p-5 lg:p-6 bg-orange-500 hover:bg-orange-600 transition cursor-pointer border-orange-600 shadow-elevated flex items-center gap-4">
+          <div className="h-14 w-14 rounded-xl bg-white/20 flex items-center justify-center shrink-0">
+            <Package className="text-white" size={28} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-bold text-xl lg:text-2xl text-white">Ingresso merci</div>
+            <div className="text-sm text-white/90">Registra una nuova consegna</div>
+          </div>
+        </Card>
+      </Link>
+
       {stats.missingToday && (
         <Card className="p-4 mb-6 border-warning/40 bg-warning/5 flex items-start gap-3">
           <AlertTriangle className="text-warning shrink-0 mt-0.5" />
