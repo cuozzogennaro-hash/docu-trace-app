@@ -262,6 +262,22 @@ export default function Incoming() {
           </div>
         </div>
 
+        {/* Top-level department selector — drives loading logic for all lines */}
+        <Card className="mt-4 p-3 bg-accent/10 border-dashed">
+          <Label className="text-xs font-semibold mb-1.5 block">Reparto *</Label>
+          <Select value={departmentId} onValueChange={setDepartmentId}>
+            <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
+            <SelectContent>
+              {departments.map((d) => (
+                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Il reparto definisce le logiche di caricamento delle materie prime (es. tracciabilità carne per Macelleria).
+          </p>
+        </Card>
+
         {/* Product lines */}
         <div className="mt-4 space-y-3">
           <div className="flex items-center justify-between">
@@ -270,33 +286,6 @@ export default function Incoming() {
               <Plus size={14} /> Aggiungi riga
             </Button>
           </div>
-        {lines.length > 1 && (
-          <Card className="p-3 bg-accent/10 border-dashed">
-            <Label className="text-xs font-semibold mb-1.5 block">Reparto per tutti i prodotti</Label>
-            <div className="flex gap-2">
-              <Select value={bulkDepartmentId} onValueChange={setBulkDepartmentId}>
-                <SelectTrigger className="flex-1"><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
-                <SelectContent>
-                  {departments.map((d) => (
-                    <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-              <Button
-                type="button"
-                variant="secondary"
-                size="sm"
-                disabled={!bulkDepartmentId}
-                onClick={() => {
-                  setLines((prev) => prev.map((l) => ({ ...l, departmentId: bulkDepartmentId })));
-                  toast.success("Reparto applicato a tutti i prodotti");
-                }}
-              >
-                Applica a tutti
-              </Button>
-            </div>
-          </Card>
-        )}
           {lines.map((line, idx) => (
             <Card key={idx} className="p-3 bg-muted/30 border-dashed">
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
@@ -315,17 +304,6 @@ export default function Incoming() {
                     <SelectContent>
                       {CATEGORIES.map((c) => (
                         <SelectItem key={c.value} value={c.value}>{c.label}</SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Reparto *</Label>
-                  <Select value={line.departmentId} onValueChange={(v) => updateLine(idx, { departmentId: v })}>
-                    <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
-                    <SelectContent>
-                      {departments.map((d) => (
-                        <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
                       ))}
                     </SelectContent>
                   </Select>
