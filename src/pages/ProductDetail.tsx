@@ -306,181 +306,89 @@ ${labelsHtml}
     return out;
   }
 
-  function loadImage(url: string): Promise<HTMLImageElement> {
-    return new Promise((resolve, reject) => {
-      const img = new Image();
-      img.crossOrigin = "anonymous";
-      img.onload = () => resolve(img);
-      img.onerror = reject;
-      img.src = url;
-    });
-  }
-
   /**
-   * Render label to a monochrome raster bitmap and wrap it in ESC/POS
-   * GS v 0 commands. The CLABEL 221D has a 58mm / 384-dot print head,
-   * so we render the label canvas at exactly that pixel density. This
-   * makes the print output match the on-screen preview pixel-for-pixel,
-   * independent of the printer's internal fonts.
+   * Build a lightweight ESC/POS *text* payload for the CLABEL 221D.
+   *
+   * Approach: keep it small and printer-friendly. We don't send raster
+   * images (the bitmap was too heavy and the printer stayed silent).
+   * Instead we emit plain text + a few control commands:
+   *   - 1B 40        ESC @     reset/init printer
+   *   - 1B 61 00     ESC a 0   align left (avoids text exiting margins)
+   *   - 1D 21 00     GS ! 00   font normal (secondary info)
+   *   - 1D 21 01     GS ! 01   font slightly taller (only product name)
+   *   - 0A           LF        new line
+   * Each line is truncated to MAX_COLS chars to avoid the printer doing
+   * its own (often broken) word-wrap.
    */
-  async function buildRaster(): Promise<Uint8Array> {
-    const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
-    if (!tpl) throw new Error("Template non selezionato");
-    const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
-    const fields: any[] = config.fields ?? [];
-    const wMm = Number(tpl.width_mm);
-    const hMm = Number(tpl.height_mm);
+  function buildEscPosText(): Uint8Array {
     const { valueMap, ingredientParts } = getValueMap();
+    const MAX_COLS = 32;
 
-    // CLABEL 221D — 58mm head = 384 dots
-    const HEAD_DOTS = 384;
-    const HEAD_MM = 58;
-    const PX_PER_MM = HEAD_DOTS / HEAD_MM;
-
-    // Force exact head width (384 dots) regardless of label width — required
-    // by the CLABEL 221D / 58mm thermal head. Bytes per row = 48.
-    const widthPx = HEAD_DOTS;
-    const widthBytes = widthPx / 8;
-    const heightPx = Math.max(1, Math.round(hMm * PX_PER_MM));
-
-    const canvas = document.createElement("canvas");
-    canvas.width = widthPx;
-    canvas.height = heightPx;
-    const ctx = canvas.getContext("2d")!;
-    ctx.fillStyle = "#fff";
-    ctx.fillRect(0, 0, widthPx, heightPx);
-    ctx.fillStyle = "#000";
-    ctx.textBaseline = "top";
-
-    const offX = (printOffsetX || 0) * PX_PER_MM;
-    const offY = (printOffsetY || 0) * PX_PER_MM;
-
-    // pt → device px:  1pt = 1/72in = 25.4/72mm
-    const ptToPx = (pt: number) => pt * (25.4 / 72) * PX_PER_MM;
-
-    function setFont(sizePx: number, bold: boolean) {
-      ctx.font = `${bold ? "bold " : ""}${sizePx}px Helvetica, Arial, sans-serif`;
-    }
-
-    type Tok = { text: string; bold: boolean };
-    function tokensFor(text: string, bold: boolean, parts?: IngPart[]): Tok[] {
-      if (parts && parts.length) {
-        const out: Tok[] = [{ text: "Ingr.: ", bold: false }];
-        parts.forEach((p, i) => {
-          out.push({ text: p.text + (i < parts.length - 1 ? ", " : ""), bold: p.bold });
-        });
-        return out;
-      }
-      return [{ text, bold }];
-    }
-
-    function layout(tokens: Tok[], maxW: number, fontPx: number) {
-      const lines: Tok[][] = [[]];
-      let curW = 0;
-      for (const seg of tokens) {
-        // split keeping whitespace boundaries
-        const words = seg.text.split(/(\s+)/).filter((w) => w.length > 0);
-        for (const w of words) {
-          setFont(fontPx, seg.bold);
-          const ww = ctx.measureText(w).width;
-          if (curW + ww > maxW && curW > 0) {
-            lines.push([]);
-            curW = 0;
-            if (!w.trim()) continue; // drop leading spaces
-          }
-          lines[lines.length - 1].push({ text: w, bold: seg.bold });
-          curW += ww;
+    const truncate = (s: string) => (s.length > MAX_COLS ? s.slice(0, MAX_COLS) : s);
+    function wrap(text: string): string[] {
+      const words = text.split(/\s+/).filter(Boolean);
+      const lines: string[] = [];
+      let cur = "";
+      for (const w of words) {
+        const candidate = cur ? cur + " " + w : w;
+        if (candidate.length > MAX_COLS) {
+          if (cur) lines.push(cur);
+          // hard-truncate single oversized words
+          cur = w.length > MAX_COLS ? w.slice(0, MAX_COLS) : w;
+        } else {
+          cur = candidate;
         }
       }
-      return lines;
+      if (cur) lines.push(cur);
+      return lines.length ? lines : [""];
     }
 
-    function drawField(text: string, x: number, y: number, maxW: number, maxH: number, fontPt: number, bold: boolean, parts?: IngPart[]): boolean {
-      const tokens = tokensFor(text, bold, parts);
-      let size = fontPt;
-      const minPt = 5;
-      let lines: Tok[][] = [];
-      let lineH = 0;
-      let fontPx = ptToPx(size);
-      while (true) {
-        fontPx = ptToPx(size);
-        lineH = fontPx * 1.15;
-        lines = layout(tokens, maxW, fontPx);
-        const totalH = lines.length * lineH;
-        if (totalH <= maxH || size <= minPt) break;
-        size = Math.max(minPt, size - 0.5);
+    const ESC_INIT = [0x1b, 0x40];
+    const ALIGN_LEFT = [0x1b, 0x61, 0x00];
+    const FONT_NORMAL = [0x1d, 0x21, 0x00];
+    const FONT_TALL = [0x1d, 0x21, 0x01];
+    const LF = 0x0a;
+
+    const out: number[] = [];
+    const pushBytes = (arr: number[]) => { for (const b of arr) out.push(b); };
+    const pushLine = (s: string) => {
+      const bytes = strToBytes(truncate(s));
+      for (const b of bytes) out.push(b);
+      out.push(LF);
+    };
+
+    // Build the textual content once
+    const ingrLine = `Ingr.: ${ingredientParts.map((p) => p.text).join(", ") || "—"}`;
+
+    for (let copy = 0; copy < Math.max(1, labelQty); copy++) {
+      pushBytes(ESC_INIT);
+      pushBytes(ALIGN_LEFT);
+
+      // Header (company + product) — product name uses slightly taller font
+      pushBytes(FONT_NORMAL);
+      if (valueMap.company_name) pushLine(valueMap.company_name);
+
+      pushBytes(FONT_TALL);
+      if (valueMap.product_name) pushLine(valueMap.product_name);
+
+      // Secondary info — normal font
+      pushBytes(FONT_NORMAL);
+      if (valueMap.internal_lot) pushLine(valueMap.internal_lot);
+      if (valueMap.production_date) pushLine(valueMap.production_date);
+      if (valueMap.expiry_date) pushLine(valueMap.expiry_date);
+
+      // Ingredients can wrap
+      for (const line of wrap(ingrLine)) pushLine(line);
+
+      if (valueMap.company_address) {
+        for (const line of wrap(valueMap.company_address)) pushLine(line);
       }
-      let cy = y;
-      for (const line of lines) {
-        let cx = x;
-        for (const tok of line) {
-          setFont(fontPx, tok.bold);
-          ctx.fillText(tok.text, cx, cy);
-          cx += ctx.measureText(tok.text).width;
-        }
-        cy += lineH;
-      }
-      return lines.length * lineH > maxH;
+
+      // Final paper feed so the label is pushed past the tear bar
+      pushBytes([LF, LF, LF]);
     }
 
-    let overflow = false;
-    for (const f of fields) {
-      if (!f.visible) continue;
-      const x = f.x * PX_PER_MM + offX;
-      const y = f.y * PX_PER_MM + offY;
-      if (f.key === "logo") {
-        if (!company?.logo_url) continue;
-        try {
-          const img = await loadImage(company.logo_url);
-          const w = (f.width ?? 25) * PX_PER_MM;
-          const h = (f.height ?? 15) * PX_PER_MM;
-          ctx.drawImage(img, x, y, w, h);
-        } catch { /* ignore logo failure */ }
-        continue;
-      }
-      const text = (valueMap[f.key] ?? "").toString();
-      if (!text) continue;
-      const maxW = Math.max(5, (wMm - f.x - 1) * PX_PER_MM);
-      const maxH = Math.max(3, (hMm - f.y - 1) * PX_PER_MM);
-      const parts = f.key === "ingredients" ? ingredientParts : undefined;
-      const ov = drawField(text, x, y, maxW, maxH, f.fontSize ?? 10, !!f.bold, parts);
-      if (ov) overflow = true;
-    }
-
-    if (overflow) {
-      toast.warning("Alcune informazioni non entrano nell'etichetta — riduci i contenuti o aumenta le dimensioni.");
-    }
-
-    // 1-bit threshold (Floyd-style not needed for crisp text)
-    const imgData = ctx.getImageData(0, 0, widthPx, heightPx).data;
-    const bytesPerRow = widthBytes;
-    const bitmap = new Uint8Array(bytesPerRow * heightPx);
-    for (let yy = 0; yy < heightPx; yy++) {
-      for (let xx = 0; xx < widthPx; xx++) {
-        const i = (yy * widthPx + xx) * 4;
-        // luminance, alpha-aware
-        const a = imgData[i + 3] / 255;
-        const lum = (0.299 * imgData[i] + 0.587 * imgData[i + 1] + 0.114 * imgData[i + 2]) * a + 255 * (1 - a);
-        if (lum < 160) {
-          bitmap[yy * bytesPerRow + (xx >> 3)] |= 0x80 >> (xx & 7);
-        }
-      }
-    }
-
-    // ESC/POS GS v 0 raster bit image
-    const init = new Uint8Array([0x1b, 0x40]); // ESC @ (initialize)
-    const xL = bytesPerRow & 0xff;
-    const xH = (bytesPerRow >> 8) & 0xff;
-    const yL = heightPx & 0xff;
-    const yH = (heightPx >> 8) & 0xff;
-    const header = new Uint8Array([0x1d, 0x76, 0x30, 0x00, xL, xH, yL, yH]);
-    // Print + paper feed (LF LF) — mandatory at the end of each copy so the
-    // printer actually flushes the buffer to the head.
-    const feed = new Uint8Array([0x0a, 0x0a]);
-    const oneCopy = concatBytes([header, bitmap, feed]);
-    const chunks: Uint8Array[] = [init];
-    for (let i = 0; i < Math.max(1, labelQty); i++) chunks.push(oneCopy);
-    return concatBytes(chunks);
+    return new Uint8Array(out);
   }
 
   async function findWritableCharacteristic(server: any) {
@@ -523,8 +431,8 @@ ${labelsHtml}
       const server = await device.gatt.connect();
       const ch = await findWritableCharacteristic(server);
 
-      const data = await buildRaster();
-      console.log(`[BT print] payload ${data.length} bytes — invio in chunk da 64`);
+      const data = buildEscPosText();
+      console.log(`[BT print] payload ${data.length} bytes (testo) — invio in chunk da 64`);
       toast.message("Invio dati in corso…");
       // BLE MTU sicuro per la maggior parte delle stampanti CLABEL/Xprinter:
       // chunk piccoli (64 byte) con micro-pausa tra uno e l'altro per evitare
