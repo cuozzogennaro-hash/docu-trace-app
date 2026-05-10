@@ -165,10 +165,30 @@ export default function ProductDetail() {
 
   function computeLabelLayout(wMm: number, hMm: number) {
     const { ingredientParts } = getValueMap();
+    // Traceability: aggregate Nato/Allevato/Macellato from Macelleria materials
+    const traceMap = new Map<string, { born: Set<string>; raised: Set<string>; slaughter: Set<string> }>();
+    for (const m of ingredients as any[]) {
+      if (!m.born_in && !m.raised_in && !m.slaughtered_in) continue;
+      const key = m.product_name || "carne";
+      if (!traceMap.has(key)) traceMap.set(key, { born: new Set(), raised: new Set(), slaughter: new Set() });
+      const t = traceMap.get(key)!;
+      if (m.born_in) t.born.add(m.born_in);
+      if (m.raised_in) t.raised.add(m.raised_in);
+      if (m.slaughtered_in) t.slaughter.add(m.slaughtered_in);
+    }
+    const traceLines: string[] = [];
+    traceMap.forEach((t, name) => {
+      const parts: string[] = [];
+      if (t.born.size) parts.push(`Nato: ${[...t.born].join("/")}`);
+      if (t.raised.size) parts.push(`Allevato: ${[...t.raised].join("/")}`);
+      if (t.slaughter.size) parts.push(`Macellato: ${[...t.slaughter].join("/")}`);
+      if (parts.length) traceLines.push(`${name} — ${parts.join(" • ")}`);
+    });
     const data = {
       companyName: company?.business_name ?? "",
       productName: product?.name ?? "",
       ingredients: ingredientParts,
+      traceLines,
       productionDate: formatDateDDMMYY(product?.production_date),
       internalLot: product?.internal_lot ?? "—",
     };
@@ -245,6 +265,21 @@ export default function ProductDetail() {
     // Footer: data prod (sx) + lotto (dx)
     const footerH = ptMm(footerPt) * lh;
     const footerY = hMm - p - footerH;
+
+    // Tracciabilità carne (prima degli ingredienti)
+    if (data.traceLines.length > 0) {
+      const traceSegs: LabelSeg[] = [
+        { text: "Origine carne: ", bold: true },
+        { text: data.traceLines.join(" | "), bold: false },
+      ];
+      items.push({
+        x: p, y, w: wMm - 2 * p - safetyR,
+        fontPt: ingrPt, align: "left", lineHeight: lh,
+        segments: traceSegs,
+      });
+      // Reserve ~2 lines of space before ingredients
+      y += ptMm(ingrPt) * lh * 2 + 0.4;
+    }
 
     // Ingredienti (riempiono lo spazio fra titolo e footer)
     const ingrSegs: LabelSeg[] = [{ text: "Ingr.: ", bold: false }];
