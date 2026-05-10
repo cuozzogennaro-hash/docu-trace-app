@@ -25,12 +25,15 @@ export default function Production() {
   const [lot, setLot] = useState(generateInternalLot("P", new Date()));
   const [notes, setNotes] = useState("");
   const [productDeptId, setProductDeptId] = useState<string>("");
+  const [meatType, setMeatType] = useState<"fresh" | "preparato">("fresh");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rows, setRows] = useState<any[]>([]);
   const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({ "Questa settimana": true, "Settimana scorsa": false });
   const { departments } = useDepartments();
+  const isMacelleria = (depId: string) =>
+    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
@@ -71,9 +74,10 @@ export default function Production() {
     if (!productDeptId) return toast.error("Seleziona un reparto per il prodotto");
     if (selected.size === 0) return toast.error("Seleziona almeno un ingrediente");
     const { data: { user } } = await supabase.auth.getUser();
+    const meat_type = isMacelleria(productDeptId) ? meatType : null;
     const { data: prod, error } = await supabase
       .from("products")
-      .insert({ user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes, department_id: productDeptId })
+      .insert({ user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes, department_id: productDeptId, meat_type })
       .select()
       .single();
     if (error) return toast.error(error.message);
@@ -87,6 +91,7 @@ export default function Production() {
     setName("");
     setNotes("");
     setSelected(new Set());
+    setMeatType("fresh");
     setLot(generateInternalLot("P", new Date()));
     load();
   }
@@ -139,6 +144,24 @@ export default function Production() {
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
         </div>
+
+        {isMacelleria(productDeptId) && (
+          <div className="mt-4 p-3 rounded-md bg-orange-50 border border-orange-200 space-y-2">
+            <Label className="text-xs font-semibold text-orange-900">Tipo prodotto Macelleria *</Label>
+            <Select value={meatType} onValueChange={(v: "fresh" | "preparato") => setMeatType(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="fresh">Carne Fresca (Monocomponente)</SelectItem>
+                <SelectItem value="preparato">Preparato / Trasformato (Multicomponente)</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-orange-900/80">
+              {meatType === "fresh"
+                ? "In etichetta: Nato in / Allevato in / Macellato in + Bollo CE."
+                : "In etichetta: stringa semplificata con origine prevalente (es. \"Carni suine origine: UE\")."}
+            </p>
+          </div>
+        )}
 
         <div className="mt-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
