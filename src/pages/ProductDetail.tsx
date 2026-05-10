@@ -26,6 +26,24 @@ export default function ProductDetail() {
   const [showLabelDialog, setShowLabelDialog] = useState(false);
   const [labelQty, setLabelQty] = useState(1);
   const [btPrinting, setBtPrinting] = useState(false);
+  const [printOffsetX, setPrintOffsetX] = useState<number>(() => {
+    const v = typeof window !== "undefined" ? window.localStorage.getItem("label_print_offset_x") : null;
+    return v ? Number(v) : 0;
+  });
+  const [printOffsetY, setPrintOffsetY] = useState<number>(() => {
+    const v = typeof window !== "undefined" ? window.localStorage.getItem("label_print_offset_y") : null;
+    return v ? Number(v) : 0;
+  });
+
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.data && e.data.__labelOverflow) {
+        toast.warning("Alcune informazioni eccedono i bordi dell'etichetta. Riduci il font o ingrandisci l'etichetta.");
+      }
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
@@ -166,8 +184,10 @@ export default function ProductDetail() {
       const text = valueMap[f.key] ?? "";
       if (!text) return "";
       const fontSize = f.fontSize ?? 10;
-      const maxW = wMm - f.x - 2;
-      const style = `${baseStyle}max-width:${maxW}mm;font-size:${fontSize}pt;line-height:1.2;font-weight:${f.bold ? 700 : 400};word-break:break-word;`;
+      const maxW = Math.max(5, wMm - f.x - 1);
+      const maxH = Math.max(3, hMm - f.y - 1);
+      const style = `${baseStyle}max-width:${maxW}mm;max-height:${maxH}mm;font-size:${fontSize}pt;line-height:1.15;font-weight:${f.bold ? 700 : 400};word-break:break-word;overflow:hidden;`;
+      const dataAttrs = `data-autofit="1" data-min="5" data-max="${fontSize}"`;
       if (f.key === "ingredients" && ingredientParts.length > 0) {
         const parts = ingredientParts
           .map((p, idx) => {
@@ -176,16 +196,18 @@ export default function ProductDetail() {
             return `<span style="font-weight:${w}">${escapeHtml(p.text)}${sep}</span>`;
           })
           .join("");
-        return `<div style="${style}">Ingr.: ${parts}</div>`;
+        return `<div ${dataAttrs} style="${style}">Ingr.: ${parts}</div>`;
       }
-      return `<div style="${style}">${escapeHtml(text)}</div>`;
+      return `<div ${dataAttrs} style="${style}">${escapeHtml(text)}</div>`;
     };
 
     const labelHtml = fields.map(renderField).join("");
+    const offX = printOffsetX || 0;
+    const offY = printOffsetY || 0;
     const labelsHtml = Array.from({ length: labelQty })
       .map(
         () =>
-          `<div class="label" style="position:relative;width:${wMm}mm;height:${hMm}mm;overflow:hidden;page-break-after:always;">${labelHtml}</div>`,
+          `<div class="label" style="position:relative;width:${wMm}mm;height:${hMm}mm;overflow:hidden;page-break-after:always;"><div class="label-inner" style="position:absolute;inset:0;transform:translate(${offX}mm, ${offY}mm);">${labelHtml}</div></div>`,
       )
       .join("");
 
@@ -209,7 +231,36 @@ export default function ProductDetail() {
 <body>
 <div class="actions"><button onclick="window.print()">Stampa</button></div>
 ${labelsHtml}
-<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 300); });</script>
+<script>
+(function(){
+  function autofit(){
+    var overflow = false;
+    var nodes = document.querySelectorAll('[data-autofit="1"]');
+    nodes.forEach(function(el){
+      var min = parseFloat(el.getAttribute('data-min')) || 5;
+      var max = parseFloat(el.getAttribute('data-max')) || 12;
+      var size = max;
+      el.style.fontSize = size + 'pt';
+      var guard = 30;
+      while (guard-- > 0 && (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) && size > min) {
+        size = Math.max(min, size - 0.5);
+        el.style.fontSize = size + 'pt';
+      }
+      if (el.scrollHeight > el.clientHeight + 1 || el.scrollWidth > el.clientWidth + 1) {
+        overflow = true;
+        el.style.outline = '1px dashed red';
+      }
+    });
+    if (overflow && window.opener) {
+      try { window.opener.postMessage({ __labelOverflow: true }, '*'); } catch(e){}
+    }
+  }
+  window.addEventListener('load', function(){
+    autofit();
+    setTimeout(function(){ window.print(); }, 350);
+  });
+})();
+</script>
 </body></html>`;
 
     // Open in a new tab — works on both desktop and mobile, lets the system print menu open.
@@ -479,6 +530,37 @@ ${labelsHtml}
             <div>
               <Label className="text-sm font-medium">Quantità etichette</Label>
               <Input type="number" min={1} max={100} value={labelQty} onChange={(e) => setLabelQty(Math.max(1, +e.target.value))} />
+            </div>
+
+            <div className="grid grid-cols-2 gap-2">
+              <div>
+                <Label className="text-sm font-medium">Offset X stampa (mm)</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={printOffsetX}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    setPrintOffsetX(v);
+                    window.localStorage.setItem("label_print_offset_x", String(v));
+                  }}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">Negativo = sposta a sinistra</p>
+              </div>
+              <div>
+                <Label className="text-sm font-medium">Offset Y stampa (mm)</Label>
+                <Input
+                  type="number"
+                  step="0.5"
+                  value={printOffsetY}
+                  onChange={(e) => {
+                    const v = Number(e.target.value) || 0;
+                    setPrintOffsetY(v);
+                    window.localStorage.setItem("label_print_offset_y", String(v));
+                  }}
+                />
+                <p className="text-[10px] text-muted-foreground mt-1">Negativo = sposta in alto</p>
+              </div>
             </div>
 
             {/* Live preview */}
