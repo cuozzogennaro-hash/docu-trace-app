@@ -255,54 +255,180 @@ ${labelsHtml}
     return out;
   }
 
-  function buildTSPL(): Uint8Array {
+  // Carica un'immagine in modo asincrono per renderizzarla su canvas
+  function loadImage(url: string): Promise<HTMLImageElement> {
+    return new Promise((resolve, reject) => {
+      const img = new Image();
+      img.crossOrigin = "anonymous";
+      img.onload = () => resolve(img);
+      img.onerror = reject;
+      img.src = url;
+    });
+  }
+
+  // Renderizza l'etichetta su un canvas monocromatico alla risoluzione
+  // esatta della stampante (CLABEL CT221D = 203 dpi = 8 dots/mm) in modo
+  // che la stampa sia identica al pixel rispetto al preview.
+  async function buildTSPL(): Promise<Uint8Array> {
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) throw new Error("Template non selezionato");
     const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
     const fields: any[] = config.fields ?? [];
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
-    const { valueMap } = getValueMap();
+    const { valueMap, ingredientParts } = getValueMap();
 
-    const DPMM = 8; // 203 dpi printers ~ 8 dots/mm
-    const mmToDots = (mm: number) => Math.round(mm * DPMM);
+    const DPMM = 8; // 203 dpi
+    const widthDots = Math.round(wMm * DPMM);
+    const heightDots = Math.round(hMm * DPMM);
 
-    const lines: string[] = [];
-    lines.push(`SIZE ${wMm} mm,${hMm} mm`);
-    lines.push(`GAP 2 mm,0 mm`);
-    lines.push(`DIRECTION 1`);
-    lines.push(`CLS`);
+    // 1 pt = 1/72 inch = 203/72 dots ≈ 2.819 dots
+    const ptToDots = (pt: number) => pt * (203 / 72);
+    const mmToDots = (mm: number) => mm * DPMM;
 
+    const canvas = document.createElement("canvas");
+    canvas.width = widthDots;
+    canvas.height = heightDots;
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    ctx.fillStyle = "#ffffff";
+    ctx.fillRect(0, 0, widthDots, heightDots);
+    ctx.fillStyle = "#000000";
+    ctx.textBaseline = "top";
+
+    const fontFamily = "Helvetica, Arial, sans-serif";
+    const setFont = (px: number, bold: boolean) => {
+      ctx.font = `${bold ? "bold " : ""}${px}px ${fontFamily}`;
+    };
+
+    // Disegno parole con wrap; ritorna y finale
+    const drawWrapped = (
+      segments: { text: string; bold: boolean }[],
+      xStart: number,
+      yStart: number,
+      maxWidth: number,
+      lineHeight: number,
+      px: number,
+    ) => {
+      // Espandi parole preservando il flag bold per ogni parola
+      type Tok = { word: string; bold: boolean; trailingSpace: boolean };
+      const tokens: Tok[] = [];
+      segments.forEach((seg, segIdx) => {
+        const words = seg.text.split(/\s+/).filter((w) => w.length > 0);
+        words.forEach((w, i) => {
+          tokens.push({
+            word: w,
+            bold: seg.bold,
+            trailingSpace: i < words.length - 1 || segIdx < segments.length - 1,
+          });
+        });
+      });
+
+      let x = xStart;
+      let y = yStart;
+      const spaceW = (() => {
+        setFont(px, false);
+        return ctx.measureText(" ").width;
+      })();
+
+      for (const tok of tokens) {
+        setFont(px, tok.bold);
+        const w = ctx.measureText(tok.word).width;
+        if (x + w > xStart + maxWidth && x > xStart) {
+          x = xStart;
+          y += lineHeight;
+        }
+        ctx.fillText(tok.word, x, y);
+        x += w;
+        if (tok.trailingSpace) x += spaceW;
+      }
+      return y + lineHeight;
+    };
+
+    // Disegno campi
     for (const f of fields) {
       if (!f.visible) continue;
-      if (f.key === "logo") continue; // skip logo on BT printer
       const x = mmToDots(f.x);
       const y = mmToDots(f.y);
 
-      if (f.key === "qr") {
-        const data = valueMap.qr ?? `${product?.name ?? ""} ${product?.internal_lot ?? ""}`.trim();
-        const cell = Math.max(2, Math.round((f.fontSize ?? 6) / 2));
-        lines.push(`QRCODE ${x},${y},H,${cell},A,0,"${data.replace(/"/g, '\\"')}"`);
+      if (f.key === "logo") {
+        if (!company?.logo_url) continue;
+        try {
+          const img = await loadImage(company.logo_url);
+          const w = mmToDots(f.width ?? 25);
+          const h = mmToDots(f.height ?? 15);
+          // object-fit: contain
+          const ratio = Math.min(w / img.width, h / img.height);
+          const dw = img.width * ratio;
+          const dh = img.height * ratio;
+          ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
+        } catch {
+          // ignora errori logo
+        }
         continue;
       }
 
       const text = (valueMap[f.key] ?? "").toString();
-      if (!text) continue;
-      // Map pt → TSPL built-in font (1..5). Bigger pt → bigger font.
+      if (!text && !(f.key === "ingredients" && ingredientParts.length > 0)) continue;
+
       const pt = f.fontSize ?? 10;
-      let font = "2"; let mul = 1;
-      if (pt <= 8) { font = "1"; mul = 1; }
-      else if (pt <= 11) { font = "2"; mul = 1; }
-      else if (pt <= 14) { font = "3"; mul = 1; }
-      else if (pt <= 18) { font = "4"; mul = 1; }
-      else { font = "4"; mul = 2; }
-      const safe = text.replace(/"/g, "''");
-      lines.push(`TEXT ${x},${y},"${font}",0,${mul},${mul},"${safe}"`);
+      const px = ptToDots(pt);
+      const lineHeight = px * 1.2;
+      const maxWidth = mmToDots(wMm - f.x - 2);
+
+      if (f.key === "ingredients" && ingredientParts.length > 0) {
+        const segs: { text: string; bold: boolean }[] = [{ text: "Ingr.: ", bold: !!f.bold }];
+        ingredientParts.forEach((p: any, idx: number) => {
+          const sep = idx < ingredientParts.length - 1 ? ", " : "";
+          segs.push({ text: p.text + sep, bold: !!p.bold });
+        });
+        drawWrapped(segs, x, y, maxWidth, lineHeight, px);
+      } else {
+        drawWrapped([{ text, bold: !!f.bold }], x, y, maxWidth, lineHeight, px);
+      }
     }
 
-    lines.push(`PRINT ${labelQty},1`);
-    lines.push("");
-    return strToBytes(lines.join("\r\n"));
+    // Conversione canvas → bitmap monocromatica (1 bpp, MSB-first, 0=black)
+    const imgData = ctx.getImageData(0, 0, widthDots, heightDots);
+    const widthBytes = Math.ceil(widthDots / 8);
+    const bitmap = new Uint8Array(widthBytes * heightDots);
+    bitmap.fill(0xff); // tutto bianco
+    for (let py = 0; py < heightDots; py++) {
+      for (let px2 = 0; px2 < widthDots; px2++) {
+        const i = (py * widthDots + px2) * 4;
+        const r = imgData.data[i];
+        const g = imgData.data[i + 1];
+        const b = imgData.data[i + 2];
+        const a = imgData.data[i + 3];
+        // Luminance threshold; pixel "scuro" → bit 0 (black)
+        const lum = (r * 0.299 + g * 0.587 + b * 0.114) * (a / 255) + 255 * (1 - a / 255);
+        if (lum < 160) {
+          const byteIdx = py * widthBytes + (px2 >> 3);
+          const bit = 7 - (px2 & 7);
+          bitmap[byteIdx] &= ~(1 << bit);
+        }
+      }
+    }
+
+    // Composizione comando TSPL: header testuale + BITMAP + dati binari + footer
+    const enc = new TextEncoder();
+    const header = enc.encode(
+      [
+        `SIZE ${wMm} mm,${hMm} mm`,
+        `GAP 2 mm,0 mm`,
+        `DIRECTION 1`,
+        `CLS`,
+        `BITMAP 0,0,${widthBytes},${heightDots},0,`,
+      ].join("\r\n") + "",
+    );
+    // La riga BITMAP termina dopo la virgola: i dati binari seguono direttamente
+    // (così come da specifica TSPL), poi CRLF e PRINT.
+    const footer = enc.encode(`\r\nPRINT ${labelQty},1\r\n`);
+
+    const total = new Uint8Array(header.length + bitmap.length + footer.length);
+    total.set(header, 0);
+    total.set(bitmap, header.length);
+    total.set(footer, header.length + bitmap.length);
+    return total;
   }
 
   async function findWritableCharacteristic(server: any) {
