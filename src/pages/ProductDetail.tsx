@@ -472,14 +472,23 @@ ${labelsHtml}
       const ch = await findWritableCharacteristic(server);
 
       const data = await buildTSPL();
-      // Write in chunks (BLE MTU ~ 180-200 bytes)
-      const CHUNK = 180;
+      // Su Android Web Bluetooth, writeWithoutResponse perde pacchetti con
+      // payload grandi (bitmap di etichette = decine di KB). Per garantire
+      // affidabilità usiamo write CON response (flow-control automatico) e
+      // chunk piccoli (20 byte = MTU minima garantita finché non negoziato).
+      const isAndroid = /Android/i.test(navigator.userAgent);
+      const CHUNK = isAndroid ? 20 : 180;
+      const useWithResponse = ch.properties.write; // preferisci with-response se supportata
+      const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+      toast.message(`Invio ${data.length} byte alla stampante…`);
       for (let i = 0; i < data.length; i += CHUNK) {
         const slice = data.slice(i, i + CHUNK);
-        if (ch.properties.writeWithoutResponse) {
-          await ch.writeValueWithoutResponse(slice);
-        } else {
+        if (useWithResponse) {
           await ch.writeValue(slice);
+        } else {
+          await ch.writeValueWithoutResponse(slice);
+          // Su writeWithoutResponse serve un piccolo gap per non saturare la coda BLE
+          if (isAndroid) await sleep(8);
         }
       }
       toast.success("Etichetta inviata alla stampante");
