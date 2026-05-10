@@ -395,6 +395,15 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
     load();
   }
 
+  async function removeMany(ids: string[], label: string) {
+    if (ids.length === 0) return;
+    if (!confirm(`Eliminare ${ids.length} record di "${label}"? L'azione è irreversibile.`)) return;
+    const { error } = await supabase.from(tableKey).delete().in("id", ids);
+    if (error) return toast.error(error.message);
+    toast.success(`${ids.length} record eliminati`);
+    load();
+  }
+
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (rows.length === 0) return <Card className="p-12 text-center text-muted-foreground">Nessun record.</Card>;
 
