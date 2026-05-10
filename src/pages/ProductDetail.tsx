@@ -138,50 +138,124 @@ export default function ProductDetail() {
     };
   }
 
+  // ---------- Layout etichetta (sorgente unica condivisa) ----------
+  // Formato data GG/MM/AA
+  function formatDateDDMMYY(s?: string | null): string {
+    if (!s) return "—";
+    const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
+    if (m) return `${m[3]}/${m[2]}/${m[1].slice(-2)}`;
+    const d = new Date(s);
+    if (!isNaN(d.getTime())) {
+      const dd = String(d.getDate()).padStart(2, "0");
+      const mm = String(d.getMonth() + 1).padStart(2, "0");
+      const yy = String(d.getFullYear()).slice(-2);
+      return `${dd}/${mm}/${yy}`;
+    }
+    return s;
+  }
+
+  type LabelSeg = { text: string; bold: boolean };
+  type LabelItem = {
+    x: number; y: number; w: number; // mm
+    fontPt: number;
+    align: "left" | "center" | "right";
+    segments: LabelSeg[];
+    lineHeight: number;
+  };
+
+  function computeLabelLayout(wMm: number, hMm: number) {
+    const { ingredientParts } = getValueMap();
+    const data = {
+      companyName: company?.business_name ?? "",
+      productName: product?.name ?? "",
+      ingredients: ingredientParts,
+      productionDate: formatDateDDMMYY(product?.production_date),
+      internalLot: product?.internal_lot ?? "—",
+    };
+
+    // Padding proporzionale (min 1.2mm)
+    const p = Math.max(1.2, Math.min(wMm, hMm) * 0.04);
+    // Dimensioni font in pt — scalano con altezza etichetta
+    // Massima leggibilità mantenendo proporzione.
+    const titlePt = Math.max(10, Math.round(hMm * 0.40)); // company + product
+    const ingrPt = Math.max(7, Math.round(hMm * 0.26));
+    const footerPt = Math.max(7, Math.round(hMm * 0.26));
+    const lh = 1.15;
+    const ptMm = (pt: number) => pt * 0.3528;
+
+    const items: LabelItem[] = [];
+    let y = p;
+
+    // Nome società
+    items.push({
+      x: p, y, w: wMm - 2 * p,
+      fontPt: titlePt, align: "center", lineHeight: lh,
+      segments: [{ text: data.companyName, bold: true }],
+    });
+    y += ptMm(titlePt) * lh + 0.3;
+
+    // Nome prodotto (stesso formato)
+    items.push({
+      x: p, y, w: wMm - 2 * p,
+      fontPt: titlePt, align: "center", lineHeight: lh,
+      segments: [{ text: data.productName, bold: true }],
+    });
+    y += ptMm(titlePt) * lh + 0.6;
+
+    // Footer: data prod (sx) + lotto (dx)
+    const footerH = ptMm(footerPt) * lh;
+    const footerY = hMm - p - footerH;
+
+    // Ingredienti (riempiono lo spazio fra titolo e footer)
+    const ingrSegs: LabelSeg[] = [{ text: "Ingr.: ", bold: false }];
+    data.ingredients.forEach((ing, i) => {
+      const sep = i < data.ingredients.length - 1 ? ", " : "";
+      ingrSegs.push({ text: ing.text + sep, bold: ing.bold });
+    });
+    if (data.ingredients.length === 0) ingrSegs.push({ text: "—", bold: false });
+    items.push({
+      x: p, y, w: wMm - 2 * p,
+      fontPt: ingrPt, align: "left", lineHeight: lh,
+      segments: ingrSegs,
+    });
+
+    // Data produzione (in basso a sinistra)
+    items.push({
+      x: p, y: footerY, w: (wMm - 2 * p) / 2 - 0.5,
+      fontPt: footerPt, align: "left", lineHeight: lh,
+      segments: [{ text: `Prod.: ${data.productionDate}`, bold: false }],
+    });
+    // Lotto (in basso a destra)
+    items.push({
+      x: wMm / 2 + 0.5, y: footerY, w: wMm / 2 - p - 0.5,
+      fontPt: footerPt, align: "right", lineHeight: lh,
+      segments: [{ text: `Lotto: ${data.internalLot}`, bold: true }],
+    });
+
+    return items;
+  }
+
   async function printLabel() {
     if (!product) return;
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) { toast.error("Seleziona un template"); return; }
 
-    const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
-    const fields: any[] = config.fields ?? [];
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
-
-    const { valueMap, ingredientParts } = getValueMap();
+    const items = computeLabelLayout(wMm, hMm);
 
     // Build HTML for one label
     const escapeHtml = (s: string) =>
       s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    const renderField = (f: any) => {
-      if (!f.visible) return "";
-      const baseStyle = `position:absolute;left:${f.x}mm;top:${f.y}mm;`;
-      if (f.key === "logo") {
-        if (!company?.logo_url) return "";
-        const w = f.width ?? 25;
-        const h = f.height ?? 15;
-        return `<img src="${company.logo_url}" style="${baseStyle}width:${w}mm;height:${h}mm;object-fit:contain;" />`;
-      }
-      const text = valueMap[f.key] ?? "";
-      if (!text) return "";
-      const fontSize = f.fontSize ?? 10;
-      const maxW = wMm - f.x - 2;
-      const style = `${baseStyle}max-width:${maxW}mm;font-size:${fontSize}pt;line-height:1.2;font-weight:${f.bold ? 700 : 400};word-break:break-word;`;
-      if (f.key === "ingredients" && ingredientParts.length > 0) {
-        const parts = ingredientParts
-          .map((p, idx) => {
-            const sep = idx < ingredientParts.length - 1 ? ", " : "";
-            const w = p.bold ? 700 : 400;
-            return `<span style="font-weight:${w}">${escapeHtml(p.text)}${sep}</span>`;
-          })
-          .join("");
-        return `<div style="${style}">Ingr.: ${parts}</div>`;
-      }
-      return `<div style="${style}">${escapeHtml(text)}</div>`;
+    const renderItem = (it: LabelItem) => {
+      const segHtml = it.segments
+        .map((s) => `<span style="font-weight:${s.bold ? 700 : 400}">${escapeHtml(s.text)}</span>`)
+        .join("");
+      const style = `position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;overflow:hidden;`;
+      return `<div style="${style}">${segHtml}</div>`;
     };
-
-    const labelHtml = fields.map(renderField).join("");
+    const labelHtml = items.map(renderItem).join("");
     const labelsHtml = Array.from({ length: labelQty })
       .map(
         () =>
@@ -272,11 +346,9 @@ ${labelsHtml}
   async function buildTSPL(): Promise<Uint8Array> {
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) throw new Error("Template non selezionato");
-    const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
-    const fields: any[] = config.fields ?? [];
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
-    const { valueMap, ingredientParts } = getValueMap();
+    const items = computeLabelLayout(wMm, hMm);
 
     const DPMM = 8; // 203 dpi
     const widthDots = Math.round(wMm * DPMM);
@@ -344,46 +416,32 @@ ${labelsHtml}
       return y + lineHeight;
     };
 
-    // Disegno campi
-    for (const f of fields) {
-      if (!f.visible) continue;
-      const x = mmToDots(f.x);
-      const y = mmToDots(f.y);
+    // Disegno layout fisso
+    for (const it of items) {
+      const x = mmToDots(it.x);
+      const y = mmToDots(it.y);
+      const px = ptToDots(it.fontPt);
+      const lineHeight = px * it.lineHeight;
+      const maxWidth = mmToDots(it.w);
 
-      if (f.key === "logo") {
-        if (!company?.logo_url) continue;
-        try {
-          const img = await loadImage(company.logo_url);
-          const w = mmToDots(f.width ?? 25);
-          const h = mmToDots(f.height ?? 15);
-          // object-fit: contain
-          const ratio = Math.min(w / img.width, h / img.height);
-          const dw = img.width * ratio;
-          const dh = img.height * ratio;
-          ctx.drawImage(img, x + (w - dw) / 2, y + (h - dh) / 2, dw, dh);
-        } catch {
-          // ignora errori logo
-        }
-        continue;
-      }
-
-      const text = (valueMap[f.key] ?? "").toString();
-      if (!text && !(f.key === "ingredients" && ingredientParts.length > 0)) continue;
-
-      const pt = f.fontSize ?? 10;
-      const px = ptToDots(pt);
-      const lineHeight = px * 1.2;
-      const maxWidth = mmToDots(wMm - f.x - 2);
-
-      if (f.key === "ingredients" && ingredientParts.length > 0) {
-        const segs: { text: string; bold: boolean }[] = [{ text: "Ingr.: ", bold: !!f.bold }];
-        ingredientParts.forEach((p: any, idx: number) => {
-          const sep = idx < ingredientParts.length - 1 ? ", " : "";
-          segs.push({ text: p.text + sep, bold: !!p.bold });
-        });
-        drawWrapped(segs, x, y, maxWidth, lineHeight, px);
+      if (it.align === "left") {
+        drawWrapped(it.segments, x, y, maxWidth, lineHeight, px);
       } else {
-        drawWrapped([{ text, bold: !!f.bold }], x, y, maxWidth, lineHeight, px);
+        // Allineamento single-line: misuro larghezza totale e calcolo offset
+        let total = 0;
+        for (const s of it.segments) {
+          setFont(px, s.bold);
+          total += ctx.measureText(s.text).width;
+        }
+        const offset = it.align === "center"
+          ? Math.max(0, (maxWidth - total) / 2)
+          : Math.max(0, maxWidth - total);
+        let cx = x + offset;
+        for (const s of it.segments) {
+          setFont(px, s.bold);
+          ctx.fillText(s.text, cx, y);
+          cx += ctx.measureText(s.text).width;
+        }
       }
     }
 
