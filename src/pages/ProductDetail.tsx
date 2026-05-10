@@ -188,18 +188,20 @@ export default function ProductDetail() {
       if (m.slaughtered_in) t.slaughter.add(m.slaughtered_in);
       if (m.slaughter_mark) t.marks.add(m.slaughter_mark);
     }
-    const traceLines: string[] = [];
-    freshMap.forEach((t, name) => {
-      const parts: string[] = [];
-      if (t.born.size) parts.push(`Nato in: ${[...t.born].join("/")}`);
-      if (t.raised.size) parts.push(`Allevato in: ${[...t.raised].join("/")}`);
+    // Linee tracciabilità:
+    // - fresh: una riga per Nato, Allevato, Macellato (con bollo accanto, senza "Bollo CE:")
+    // - preparato: singola riga "Carne origine: IT/UE"
+    const freshLines: string[] = [];
+    freshMap.forEach((t) => {
+      if (t.born.size) freshLines.push(`Nato in: ${[...t.born].join("/")}`);
+      if (t.raised.size) freshLines.push(`Allevato in: ${[...t.raised].join("/")}`);
       if (t.slaughter.size) {
         const slaughter = `Macellato in: ${[...t.slaughter].join("/")}`;
-        const mark = t.marks.size ? ` (Bollo CE: ${[...t.marks].join("/")})` : "";
-        parts.push(slaughter + mark);
+        const mark = t.marks.size ? ` ${[...t.marks].join("/")}` : "";
+        freshLines.push(slaughter + mark);
       }
-      if (parts.length) traceLines.push(`${name} — ${parts.join(" • ")}`);
     });
+    const traceLines: string[] = [];
     if (productMeatType === "preparato" && prepCountries.size > 0) {
       const norm = [...prepCountries].map((c) => c.toLowerCase().trim());
       const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
@@ -210,6 +212,7 @@ export default function ProductDetail() {
       productName: product?.name ?? "",
       ingredients: ingredientParts,
       traceLines,
+      freshLines,
       productionDate: formatDateDDMMYY(product?.production_date),
       internalLot: product?.internal_lot ?? "—",
     };
@@ -288,7 +291,17 @@ export default function ProductDetail() {
     const footerY = hMm - p - footerH;
 
     // Tracciabilità carne (prima degli ingredienti)
-    if (data.traceLines.length > 0) {
+    if (data.freshLines.length > 0) {
+      data.freshLines.forEach((line) => {
+        items.push({
+          x: p, y, w: wMm - 2 * p - safetyR,
+          fontPt: ingrPt, align: "left", lineHeight: lh,
+          segments: [{ text: line, bold: true }],
+        });
+        y += ptMm(ingrPt) * lh + 0.2;
+      });
+      y += 0.3;
+    } else if (data.traceLines.length > 0) {
       const traceSegs: LabelSeg[] = [
         { text: "Origine carne: ", bold: true },
         { text: data.traceLines.join(" | "), bold: false },
