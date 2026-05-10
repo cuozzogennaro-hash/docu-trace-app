@@ -66,7 +66,12 @@ export default function Incoming() {
   const [documentNumber, setDocumentNumber] = useState("");
   const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
-  const [bulkDepartmentId, setBulkDepartmentId] = useState<string>("");
+  const [departmentId, setDepartmentId] = useState<string>("");
+
+  // Keep all product lines in sync with the top-level department
+  useEffect(() => {
+    setLines((prev) => prev.map((l) => ({ ...l, departmentId })));
+  }, [departmentId]);
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
@@ -122,7 +127,7 @@ export default function Incoming() {
             expiry: "",
             origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
-            departmentId: bulkDepartmentId || "",
+            departmentId: departmentId || "",
             bornIn: "",
             raisedIn: "",
             slaughteredIn: "",
