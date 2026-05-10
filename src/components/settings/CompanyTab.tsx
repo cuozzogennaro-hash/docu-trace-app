@@ -7,15 +7,63 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
-import { Building2, Upload, Loader2, Save } from "lucide-react";
+import { Building2, Upload, Loader2, Save, Trash2, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 
 export default function CompanyTab() {
   const { company, reload, loading } = useCompany();
   const [form, setForm] = useState(company);
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [resetting, setResetting] = useState(false);
 
   useEffect(() => setForm(company), [company]);
+
+  async function resetAllData() {
+    setResetting(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) {
+      setResetting(false);
+      return;
+    }
+    const tables = [
+      "sales",
+      "product_ingredients",
+      "products",
+      "raw_materials",
+      "sanitations",
+      "temperatures",
+      "task_assignments",
+      "clients",
+      "suppliers",
+      "departments",
+      "assets",
+      "label_templates",
+      "company_settings",
+    ] as const;
+    try {
+      for (const t of tables) {
+        const { error } = await supabase.from(t).delete().eq("user_id", user.id);
+        if (error) throw error;
+      }
+      toast.success("Tutti i dati sono stati azzerati");
+      setTimeout(() => window.location.reload(), 800);
+    } catch (err: any) {
+      toast.error(err.message ?? "Errore durante l'azzeramento");
+    } finally {
+      setResetting(false);
+    }
+  }
 
   async function save() {
     setSaving(true);
@@ -108,10 +156,47 @@ export default function CompanyTab() {
         </div>
       </div>
 
-      <Button onClick={save} disabled={saving} className="bg-gradient-primary gap-2">
-        {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-        Salva impostazioni
-      </Button>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <Button onClick={save} disabled={saving} className="bg-gradient-primary gap-2">
+          {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
+          Salva impostazioni
+        </Button>
+
+        <AlertDialog>
+          <AlertDialogTrigger asChild>
+            <Button variant="destructive" disabled={resetting} className="gap-2">
+              {resetting ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+              Azzera tutti i dati
+            </Button>
+          </AlertDialogTrigger>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="text-destructive" size={20} />
+                Azzerare tutti i dati?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Verranno eliminati definitivamente: anagrafica azienda, reparti, attrezzature,
+                materie prime, prodotti, ingredienti, vendite, clienti, fornitori, rilevazioni di
+                temperatura e sanificazione, etichette e attività assegnate.
+                <br /><br />
+                <strong>Gli operatori e i loro PIN verranno mantenuti.</strong>
+                <br /><br />
+                L'app tornerà come al primo accesso. Questa azione non può essere annullata.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={resetAllData}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Sì, azzera tutto
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+      </div>
     </Card>
   );
 }
