@@ -210,11 +210,30 @@ export default function Incoming() {
 
       <Card className="p-5 mb-6 shadow-soft">
         <input ref={fileRef} type="file" accept="image/*" capture="environment" className="hidden" onChange={onFile} />
+        {/* Top-level department selector — drives OCR & loading logic */}
+        <Card className="mb-4 p-3 bg-accent/10 border-dashed">
+          <Label className="text-xs font-semibold mb-1.5 block">Reparto *</Label>
+          <Select value={departmentId} onValueChange={setDepartmentId}>
+            <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
+            <SelectContent>
+              {departments.map((d) => (
+                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+          <p className="text-[11px] text-muted-foreground mt-1.5">
+            Seleziona prima il reparto: condiziona la lettura della foto e le logiche di caricamento (es. tracciabilità carne per Macelleria).
+          </p>
+        </Card>
         <div className="grid lg:grid-cols-[180px_1fr] gap-5">
           <button
             type="button"
-            onClick={() => fileRef.current?.click()}
-            className="aspect-square rounded-2xl bg-gradient-accent text-accent-foreground flex flex-col items-center justify-center gap-2 shadow-elevated hover:opacity-95 transition overflow-hidden relative"
+            onClick={() => {
+              if (!departmentId) { toast.error("Seleziona prima il reparto"); return; }
+              fileRef.current?.click();
+            }}
+            disabled={!departmentId && !preview}
+            className="aspect-square rounded-2xl bg-gradient-accent text-accent-foreground flex flex-col items-center justify-center gap-2 shadow-elevated hover:opacity-95 transition overflow-hidden relative disabled:opacity-50 disabled:cursor-not-allowed"
           >
             {preview ? (
               <>
@@ -261,22 +280,6 @@ export default function Incoming() {
             </div>
           </div>
         </div>
-
-        {/* Top-level department selector — drives loading logic for all lines */}
-        <Card className="mt-4 p-3 bg-accent/10 border-dashed">
-          <Label className="text-xs font-semibold mb-1.5 block">Reparto *</Label>
-          <Select value={departmentId} onValueChange={setDepartmentId}>
-            <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
-            <SelectContent>
-              {departments.map((d) => (
-                <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
-              ))}
-            </SelectContent>
-          </Select>
-          <p className="text-[11px] text-muted-foreground mt-1.5">
-            Il reparto definisce le logiche di caricamento delle materie prime (es. tracciabilità carne per Macelleria).
-          </p>
-        </Card>
 
         {/* Product lines */}
         <div className="mt-4 space-y-3">
