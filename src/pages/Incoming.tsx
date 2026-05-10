@@ -125,9 +125,11 @@ export default function Incoming() {
             origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
             departmentId: bulkDepartmentId || "",
+            meatType: "fresh",
             bornIn: "",
             raisedIn: "",
             slaughteredIn: "",
+            slaughterMark: "",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
