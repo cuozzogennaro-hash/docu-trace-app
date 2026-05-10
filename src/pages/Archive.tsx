@@ -258,6 +258,49 @@ function generateRawMaterialsMonthlyPdf(
   doc.save(`materie_prime_${monthKey}.pdf`);
 }
 
+function generateProductsMonthlyPdf(
+  monthKey: string,
+  monthLbl: string,
+  weeks: { label: string; items: any[] }[],
+  company: any,
+) {
+  const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+  doc.setFontSize(16);
+  doc.text(`Registro Prodotti — ${monthLbl}`, 14, 20);
+  doc.setFontSize(10);
+  if (company?.business_name) doc.text(company.business_name, 14, 28);
+  if (company?.address) doc.text(company.address, 14, 33);
+  let startY = company?.address ? 40 : company?.business_name ? 35 : 28;
+  weeks.forEach((w) => {
+    doc.setFontSize(11);
+    doc.text(w.label, 14, startY);
+    autoTable(doc, {
+      startY: startY + 3,
+      head: [["Nome", "Lotto", "Produzione", "Note"]],
+      body: w.items.map((r) => [
+        r.name ?? "—",
+        r.internal_lot ?? "—",
+        r.production_date ?? "—",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 8 },
+      headStyles: { fillColor: [59, 130, 246] },
+    });
+    startY = (doc as any).lastAutoTable.finalY + 8;
+    if (startY > 270) {
+      doc.addPage();
+      startY = 20;
+    }
+  });
+  const pageCount = doc.getNumberOfPages();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
+  }
+  doc.save(`prodotti_${monthKey}.pdf`);
+}
+
 function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any }) {
   const cfg = CONFIGS[tableKey];
   const [rows, setRows] = useState<any[]>([]);
@@ -310,7 +353,8 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   // Weekly + monthly grouping for raw materials by document_date
   const monthlyGroups = useMemo(() => {
-    if (tableKey !== "raw_materials") return [] as { monthKey: string; monthLabel: string; items: any[]; weeks: { key: string; label: string; items: any[] }[] }[];
+    if (tableKey !== "raw_materials" && tableKey !== "products") return [] as { monthKey: string; monthLabel: string; items: any[]; weeks: { key: string; label: string; items: any[] }[] }[];
+    const dateField = tableKey === "raw_materials" ? "document_date" : "production_date";
     const startOfWeek = (d: Date) => {
       const x = new Date(d);
       const day = (x.getDay() + 6) % 7;
@@ -320,7 +364,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
     };
     const weekMap: Record<string, { key: string; start: Date; items: any[] }> = {};
     for (const r of filteredRows) {
-      const ref = r.document_date || (r.created_at ? r.created_at.slice(0, 10) : null);
+      const ref = r[dateField] || (r.created_at ? r.created_at.slice(0, 10) : null);
       let key: string;
       let start: Date;
       if (!ref) {
@@ -364,7 +408,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({});
   const [openMonths, setOpenMonths] = useState<Record<string, boolean>>({});
   useEffect(() => {
-    if (tableKey === "raw_materials" && monthlyGroups.length > 0) {
+    if ((tableKey === "raw_materials" || tableKey === "products") && monthlyGroups.length > 0) {
       const firstMonth = monthlyGroups[0];
       setOpenMonths((prev) => (prev[firstMonth.monthKey] === undefined ? { ...prev, [firstMonth.monthKey]: true } : prev));
       if (firstMonth.weeks[0]) {
@@ -552,7 +596,8 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
     );
   }
 
-  if (tableKey === "raw_materials") {
+  if (tableKey === "raw_materials" || tableKey === "products") {
+    const pdfFn = tableKey === "raw_materials" ? generateRawMaterialsMonthlyPdf : generateProductsMonthlyPdf;
     return (
       <>
         {SearchBar}
@@ -574,7 +619,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
                       size="sm"
                       variant="outline"
                       className="gap-1.5"
-                      onClick={() => generateRawMaterialsMonthlyPdf(mg.monthKey, mg.monthLabel, mg.weeks, company)}
+                      onClick={() => pdfFn(mg.monthKey, mg.monthLabel, mg.weeks, company)}
                     >
                       <FileDown size={14} /> PDF
                     </Button>
