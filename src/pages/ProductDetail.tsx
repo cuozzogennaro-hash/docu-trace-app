@@ -26,6 +26,24 @@ export default function ProductDetail() {
   const [showLabelDialog, setShowLabelDialog] = useState(false);
   const [labelQty, setLabelQty] = useState(1);
   const [btPrinting, setBtPrinting] = useState(false);
+  const [printOffsetX, setPrintOffsetX] = useState<number>(() => {
+    const v = typeof window !== "undefined" ? window.localStorage.getItem("label_print_offset_x") : null;
+    return v ? Number(v) : 0;
+  });
+  const [printOffsetY, setPrintOffsetY] = useState<number>(() => {
+    const v = typeof window !== "undefined" ? window.localStorage.getItem("label_print_offset_y") : null;
+    return v ? Number(v) : 0;
+  });
+
+  useEffect(() => {
+    const onMsg = (e: MessageEvent) => {
+      if (e.data && e.data.__labelOverflow) {
+        toast.warning("Alcune informazioni eccedono i bordi dell'etichetta. Riduci il font o ingrandisci l'etichetta.");
+      }
+    };
+    window.addEventListener("message", onMsg);
+    return () => window.removeEventListener("message", onMsg);
+  }, []);
 
   useEffect(() => {
     if (!id) return;
