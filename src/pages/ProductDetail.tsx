@@ -687,12 +687,10 @@ ${labelsHtml}
             {selectedTemplate && (() => {
               const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
               if (!tpl) return null;
-              const config = typeof tpl.layout_config === "string" ? JSON.parse(tpl.layout_config) : tpl.layout_config;
-              const fields: any[] = config.fields ?? [];
               const wMm = Number(tpl.width_mm);
               const hMm = Number(tpl.height_mm);
-              const { valueMap, ingredientParts } = getValueMap();
-              const logoUrl = company?.logo_url;
+              const items = computeLabelLayout(wMm, hMm);
+              const ptToPx = PX_PER_MM / 2.835;
               return (
                 <div>
                   <Label className="text-sm font-medium mb-2 block">Anteprima</Label>
@@ -701,72 +699,27 @@ ${labelsHtml}
                       className="relative bg-white border border-dashed border-border mx-auto"
                       style={{ width: wMm * PX_PER_MM, height: hMm * PX_PER_MM }}
                     >
-                      {fields.filter((f: any) => f.visible).map((f: any) => {
-                        if (f.key === "logo") {
-                          return logoUrl ? (
-                            <img
-                              key={f.key}
-                              src={logoUrl}
-                              alt="Logo"
-                              className="absolute object-contain"
-                              style={{
-                                left: f.x * PX_PER_MM,
-                                top: f.y * PX_PER_MM,
-                                width: (f.width ?? 25) * PX_PER_MM,
-                                height: (f.height ?? 15) * PX_PER_MM,
-                              }}
-                            />
-                          ) : (
-                            <div
-                              key={f.key}
-                              className="absolute bg-muted/50 border border-dashed border-muted-foreground/30 flex items-center justify-center text-[8px] text-muted-foreground"
-                              style={{
-                                left: f.x * PX_PER_MM,
-                                top: f.y * PX_PER_MM,
-                                width: (f.width ?? 25) * PX_PER_MM,
-                                height: (f.height ?? 15) * PX_PER_MM,
-                              }}
-                            >
-                              LOGO
-                            </div>
-                          );
-                        }
-                        const text = valueMap[f.key] ?? "";
-                        const isIngredients = f.key === "ingredients";
-                        return (
-                          <div key={f.key} className="absolute" style={{ left: f.x * PX_PER_MM, top: f.y * PX_PER_MM, maxWidth: (wMm - f.x - 2) * PX_PER_MM }}>
-                            {isIngredients && ingredientParts.length > 0 ? (
-                              <span
-                                className="text-black block"
-                                style={{
-                                  fontSize: f.fontSize * (PX_PER_MM / 2.835),
-                                  lineHeight: 1.3,
-                                  wordBreak: "break-word",
-                                }}
-                              >
-                                Ingr.:{" "}
-                                {ingredientParts.map((p, idx) => (
-                                  <span key={idx} style={{ fontWeight: p.bold ? 700 : 400 }}>
-                                    {p.text}{idx < ingredientParts.length - 1 ? ", " : ""}
-                                  </span>
-                                ))}
-                              </span>
-                            ) : (
-                              <span
-                                className="text-black block"
-                                style={{
-                                  fontSize: f.fontSize * (PX_PER_MM / 2.835),
-                                  fontWeight: f.bold ? 700 : 400,
-                                  lineHeight: 1.3,
-                                  wordBreak: "break-word",
-                                }}
-                              >
-                                {text}
-                              </span>
-                            )}
-                          </div>
-                        );
-                      })}
+                      {items.map((it, idx) => (
+                        <div
+                          key={idx}
+                          className="absolute text-black"
+                          style={{
+                            left: it.x * PX_PER_MM,
+                            top: it.y * PX_PER_MM,
+                            width: it.w * PX_PER_MM,
+                            fontSize: it.fontPt * ptToPx,
+                            lineHeight: it.lineHeight,
+                            textAlign: it.align,
+                            wordBreak: "break-word",
+                            overflow: "hidden",
+                            fontFamily: "Helvetica, Arial, sans-serif",
+                          }}
+                        >
+                          {it.segments.map((s, i) => (
+                            <span key={i} style={{ fontWeight: s.bold ? 700 : 400 }}>{s.text}</span>
+                          ))}
+                        </div>
+                      ))}
                     </div>
                   </div>
                   <p className="text-xs text-muted-foreground mt-1 text-center">
