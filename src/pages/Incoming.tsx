@@ -28,9 +28,11 @@ type ProductLine = {
   origin: string;
   internalLot: string;
   departmentId: string;
+  meatType: "fresh" | "preparato";
   bornIn: string;
   raisedIn: string;
   slaughteredIn: string;
+  slaughterMark: string;
 };
 
 function newProductLine(date?: string): ProductLine {
@@ -44,9 +46,11 @@ function newProductLine(date?: string): ProductLine {
     origin: "",
     internalLot: generateInternalLot("L", d),
     departmentId: "",
+    meatType: "fresh",
     bornIn: "",
     raisedIn: "",
     slaughteredIn: "",
+    slaughterMark: "",
   };
 }
 
@@ -121,9 +125,11 @@ export default function Incoming() {
             origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
             departmentId: bulkDepartmentId || "",
+            meatType: "fresh",
             bornIn: "",
             raisedIn: "",
             slaughteredIn: "",
+            slaughterMark: "",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
@@ -141,8 +147,11 @@ export default function Incoming() {
     const validLines = lines.filter((l) => l.productName.trim());
     if (validLines.length === 0) return toast.error("Almeno un prodotto obbligatorio");
     if (validLines.some((l) => !l.departmentId)) return toast.error("Seleziona un reparto per ogni prodotto");
-    if (validLines.some((l) => isMacelleria(l.departmentId) && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim()))) {
-      return toast.error("Per Macelleria: Nato, Allevato e Macellato sono obbligatori");
+    if (validLines.some((l) => isMacelleria(l.departmentId) && l.meatType === "fresh" && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim() || !l.slaughterMark.trim()))) {
+      return toast.error("Carne Fresca: Nato, Allevato, Macellato e Bollo CE sono obbligatori");
+    }
+    if (validLines.some((l) => isMacelleria(l.departmentId) && l.meatType === "preparato" && !l.origin.trim())) {
+      return toast.error("Preparato di Macelleria: il campo Origine è obbligatorio");
     }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
     const { data: { user } } = await supabase.auth.getUser();
@@ -166,9 +175,11 @@ export default function Incoming() {
       document_image_url: imageUrl,
       category: l.category,
       department_id: l.departmentId,
-      born_in: isMacelleria(l.departmentId) ? l.bornIn.trim() : null,
-      raised_in: isMacelleria(l.departmentId) ? l.raisedIn.trim() : null,
-      slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
+      meat_type: isMacelleria(l.departmentId) ? l.meatType : null,
+      born_in: isMacelleria(l.departmentId) && l.meatType === "fresh" ? l.bornIn.trim() : null,
+      raised_in: isMacelleria(l.departmentId) && l.meatType === "fresh" ? l.raisedIn.trim() : null,
+      slaughtered_in: isMacelleria(l.departmentId) && l.meatType === "fresh" ? l.slaughteredIn.trim() : null,
+      slaughter_mark: isMacelleria(l.departmentId) && l.meatType === "fresh" ? l.slaughterMark.trim() : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
@@ -340,20 +351,40 @@ export default function Incoming() {
               {isMacelleria(line.departmentId) && (
                 <div className="mt-3 p-3 rounded-md bg-orange-50 border border-orange-200 space-y-2">
                   <Label className="text-xs font-semibold text-orange-900">Tracciabilità carne (obbligatoria)</Label>
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-2">
-                    <div className="space-y-1">
-                      <Label className="text-xs">Nato in *</Label>
-                      <Input value={line.bornIn} onChange={(e) => updateLine(idx, { bornIn: e.target.value })} placeholder="Italia" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Allevato in *</Label>
-                      <Input value={line.raisedIn} onChange={(e) => updateLine(idx, { raisedIn: e.target.value })} placeholder="Italia" />
-                    </div>
-                    <div className="space-y-1">
-                      <Label className="text-xs">Macellato in *</Label>
-                      <Input value={line.slaughteredIn} onChange={(e) => updateLine(idx, { slaughteredIn: e.target.value })} placeholder="Italia" />
-                    </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Tipo prodotto *</Label>
+                    <Select value={line.meatType} onValueChange={(v: "fresh" | "preparato") => updateLine(idx, { meatType: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="fresh">Carne Fresca (Monocomponente)</SelectItem>
+                        <SelectItem value="preparato">Preparato / Trasformato (Multicomponente)</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
+                  {line.meatType === "fresh" ? (
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Nato in *</Label>
+                        <Input value={line.bornIn} onChange={(e) => updateLine(idx, { bornIn: e.target.value })} placeholder="Italia" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Allevato in *</Label>
+                        <Input value={line.raisedIn} onChange={(e) => updateLine(idx, { raisedIn: e.target.value })} placeholder="Italia" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Macellato in *</Label>
+                        <Input value={line.slaughteredIn} onChange={(e) => updateLine(idx, { slaughteredIn: e.target.value })} placeholder="Italia" />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Bollo CE *</Label>
+                        <Input value={line.slaughterMark} onChange={(e) => updateLine(idx, { slaughterMark: e.target.value })} placeholder="IT 1234 L CE" />
+                      </div>
+                    </div>
+                  ) : (
+                    <p className="text-xs text-orange-900/80">
+                      Per i preparati verrà stampato in etichetta solo il campo <strong>Origine</strong> (es. "Carni suine origine: UE").
+                    </p>
+                  )}
                 </div>
               )}
               {lines.length > 1 && (
