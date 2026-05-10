@@ -324,11 +324,13 @@ export type Database = {
           id: string
           internal_lot: string
           is_out_of_stock: boolean
+          meat_type: string | null
           operator_id: string | null
           origin: string | null
           product_name: string
           quantity: string | null
           raised_in: string | null
+          slaughter_mark: string | null
           slaughtered_in: string | null
           supplier_id: string | null
           supplier_lot: string | null
@@ -347,11 +349,13 @@ export type Database = {
           id?: string
           internal_lot: string
           is_out_of_stock?: boolean
+          meat_type?: string | null
           operator_id?: string | null
           origin?: string | null
           product_name: string
           quantity?: string | null
           raised_in?: string | null
+          slaughter_mark?: string | null
           slaughtered_in?: string | null
           supplier_id?: string | null
           supplier_lot?: string | null
@@ -370,11 +374,13 @@ export type Database = {
           id?: string
           internal_lot?: string
           is_out_of_stock?: boolean
+          meat_type?: string | null
           operator_id?: string | null
           origin?: string | null
           product_name?: string
           quantity?: string | null
           raised_in?: string | null
+          slaughter_mark?: string | null
           slaughtered_in?: string | null
           supplier_id?: string | null
           supplier_lot?: string | null
