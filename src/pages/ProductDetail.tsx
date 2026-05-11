@@ -13,11 +13,13 @@ import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDepartments } from "@/hooks/useDepartments";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { company } = useCompany();
+  const { departments } = useDepartments();
   const [product, setProduct] = useState<any>(null);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
