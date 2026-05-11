@@ -12,6 +12,8 @@ import { Link, useNavigate } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
+import { useAuth } from "@/hooks/useAuth";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
@@ -20,6 +22,9 @@ const CATEGORY_LABELS: Record<string, string> = {
 };
 
 export default function Production() {
+  const { session } = useAuth();
+  const { operator } = useOperatorSession();
+  const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
   const [name, setName] = useState("");
   const [prodDate, setProdDate] = useState(new Date().toISOString().slice(0, 10));
   const [lot, setLot] = useState(generateInternalLot("P", new Date()));
@@ -31,7 +36,9 @@ export default function Production() {
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rows, setRows] = useState<any[]>([]);
   const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({ "Questa settimana": true, "Settimana scorsa": false });
-  const { departments } = useDepartments();
+  const { departments: deptsFromHook } = useDepartments();
+  const [operatorDepts, setOperatorDepts] = useState<any[]>([]);
+  const departments = isOperatorAdmin ? operatorDepts : deptsFromHook;
   const navigate = useNavigate();
   const isMacelleria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
@@ -40,10 +47,28 @@ export default function Production() {
     const today = new Date().toISOString().slice(0, 10);
     const twoWeeksAgo = new Date();
     twoWeeksAgo.setDate(twoWeeksAgo.getDate() - 14);
-    const [{ data: m }, { data: p }] = await Promise.all([
-      supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at, department_id").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
-      supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").eq("production_date", today).order("created_at", { ascending: false }),
-    ]);
+    let m: any[] = [];
+    let p: any[] = [];
+    if (isOperatorAdmin && operator) {
+      const [rmRes, prRes, dpRes] = await Promise.all([
+        supabase.rpc("operator_admin_list", { p_operator_id: operator.id, p_pin: operator.pin!, p_table: "raw_materials" }),
+        supabase.rpc("operator_admin_list", { p_operator_id: operator.id, p_pin: operator.pin!, p_table: "products" }),
+        supabase.rpc("operator_admin_list", { p_operator_id: operator.id, p_pin: operator.pin!, p_table: "departments" }),
+      ]);
+      const rmJson: any = rmRes.data;
+      const prJson: any = prRes.data;
+      const dpJson: any = dpRes.data;
+      m = (rmJson?.rows ?? []).filter((r: any) => !r.is_out_of_stock);
+      p = (prJson?.rows ?? []).filter((r: any) => r.production_date === today);
+      setOperatorDepts(dpJson?.rows ?? []);
+    } else {
+      const [rmRes, prRes] = await Promise.all([
+        supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at, department_id").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
+        supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").eq("production_date", today).order("created_at", { ascending: false }),
+      ]);
+      m = rmRes.data ?? [];
+      p = prRes.data ?? [];
+    }
     // Hide raw materials older than 2 weeks (only for category materia_prima)
     const filtered = (m ?? []).filter((it: any) => {
       if ((it.category || "materia_prima") !== "materia_prima") return true;
@@ -52,7 +77,7 @@ export default function Production() {
     setMaterials(filtered);
     setRows(p ?? []);
   }
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); }, [isOperatorAdmin, operator?.id]);
 
   function toggle(id: string) {
     const s = new Set(selected);
@@ -62,6 +87,10 @@ export default function Production() {
 
   async function markOutOfStock(id: string, e: React.MouseEvent) {
     e.stopPropagation();
+    if (isOperatorAdmin) {
+      toast.error("Operazione non disponibile in modalità operatore");
+      return;
+    }
     await supabase.from("raw_materials").update({ is_out_of_stock: true }).eq("id", id);
     toast.success("Segnato come esaurito — aggiunto alla lista acquisti");
     const s = new Set(selected);
@@ -74,8 +103,28 @@ export default function Production() {
     if (!name) return toast.error("Nome prodotto richiesto");
     if (!productDeptId) return toast.error("Seleziona un reparto per il prodotto");
     if (selected.size === 0) return toast.error("Seleziona almeno un ingrediente");
-    const { data: { user } } = await supabase.auth.getUser();
     const meat_type = isMacelleria(productDeptId) ? meatType : null;
+    if (isOperatorAdmin && operator) {
+      const { data, error } = await supabase.rpc("operator_admin_insert_product", {
+        p_operator_id: operator.id,
+        p_pin: operator.pin!,
+        p_name: name,
+        p_production_date: prodDate,
+        p_internal_lot: lot,
+        p_notes: notes,
+        p_department_id: productDeptId,
+        p_meat_type: meat_type,
+        p_raw_material_ids: Array.from(selected),
+      });
+      const res: any = data;
+      if (error || !res?.ok) return toast.error(error?.message || res?.error || "Errore");
+      toast.success(`Prodotto creato • ${lot}`);
+      setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh");
+      setLot(generateInternalLot("P", new Date()));
+      load();
+      return;
+    }
+    const { data: { user } } = await supabase.auth.getUser();
     const { data: prod, error } = await supabase
       .from("products")
       .insert({ user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes, department_id: productDeptId, meat_type })
