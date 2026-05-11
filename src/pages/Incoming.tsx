@@ -22,6 +22,7 @@ const CATEGORIES = [
 ];
 
 type ProductLine = {
+  selected: boolean;
   productName: string;
   quantity: string;
   supplierLot: string;
@@ -40,6 +41,7 @@ type ProductLine = {
 function newProductLine(date?: string): ProductLine {
   const d = date ? new Date(date + "T00:00:00") : new Date();
   return {
+    selected: true,
     productName: "",
     quantity: "",
     supplierLot: "",
@@ -165,6 +167,7 @@ export default function Incoming() {
         const dateForLot = d.document_date || documentDate;
         setLines(
           d.products.map((p: any) => ({
+            selected: true,
             productName: p.product_name || "",
             quantity: p.quantity || "",
             supplierLot: p.supplier_lot || "",
@@ -192,8 +195,8 @@ export default function Incoming() {
   }
 
   async function save() {
-    const validLines = lines.filter((l) => l.productName.trim());
-    if (validLines.length === 0) return toast.error("Almeno un prodotto obbligatorio");
+    const validLines = lines.filter((l) => l.selected && l.productName.trim());
+    if (validLines.length === 0) return toast.error("Seleziona almeno un prodotto da importare");
     if (validLines.some((l) => !l.departmentId)) return toast.error("Seleziona un reparto per ogni prodotto");
     if (validLines.some((l) => isMacelleria(l.departmentId) && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim() || !l.slaughterMark.trim()))) {
       return toast.error("Macelleria: Nato, Allevato, Macellato e Bollo CE sono obbligatori");
