@@ -12,6 +12,8 @@ import { generateInternalLot } from "@/lib/lot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
+import { useAuth } from "@/hooks/useAuth";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
 
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
@@ -59,7 +61,31 @@ export default function Incoming() {
   const [ocrLoading, setOcrLoading] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [imageFile, setImageFile] = useState<File | null>(null);
-  const { departments, visibleDepartments } = useDepartments();
+  const { session } = useAuth();
+  const { operator } = useOperatorSession();
+  const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
+  const { departments: deptsFromHook, visibleDepartments: visibleFromHook } = useDepartments();
+  const [operatorDepts, setOperatorDepts] = useState<{ id: string; name: string; sort_order: number }[]>([]);
+  const departments = isOperatorAdmin ? operatorDepts : deptsFromHook;
+  const visibleDepartments = isOperatorAdmin ? operatorDepts : visibleFromHook;
+
+  useEffect(() => {
+    if (!isOperatorAdmin) return;
+    (async () => {
+      const { data, error } = await supabase.rpc("operator_admin_list" as any, {
+        p_operator_id: operator!.id,
+        p_pin: operator!.pin,
+        p_table: "departments",
+      });
+      const payload = data as { ok: boolean; rows?: any[]; error?: string } | null;
+      if (error || !payload?.ok) {
+        toast.error(payload?.error ?? error?.message ?? "Errore caricamento reparti");
+        return;
+      }
+      setOperatorDepts((payload.rows ?? []) as any);
+    })();
+  }, [isOperatorAdmin, operator?.id, operator?.pin]);
+
   const isMacelleria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
   const isOrtofrutta = (depId: string) =>
@@ -80,6 +106,18 @@ export default function Incoming() {
   }, [departmentId]);
 
   async function load() {
+    if (isOperatorAdmin) {
+      const { data } = await supabase.rpc("operator_admin_list" as any, {
+        p_operator_id: operator!.id,
+        p_pin: operator!.pin,
+        p_table: "raw_materials",
+      });
+      const payload = data as { ok: boolean; rows?: any[] } | null;
+      const today = new Date().toISOString().slice(0, 10);
+      const todays = (payload?.rows ?? []).filter((r: any) => (r.created_at ?? "").startsWith(today));
+      setRows(todays);
+      return;
+    }
     const today = new Date().toISOString().slice(0, 10);
     const { data } = await supabase
       .from("raw_materials")
@@ -92,7 +130,8 @@ export default function Incoming() {
   }
   useEffect(() => {
     load();
-  }, []);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [isOperatorAdmin]);
 
   function updateLine(idx: number, patch: Partial<ProductLine>) {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -160,6 +199,45 @@ export default function Incoming() {
       return toast.error("Macelleria: Nato, Allevato, Macellato e Bollo CE sono obbligatori");
     }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
+
+    if (isOperatorAdmin) {
+      const rowsToInsert = validLines.map((l) => ({
+        supplier_name: supplierName,
+        document_date: documentDate,
+        document_number: documentNumber,
+        product_name: l.productName,
+        supplier_lot: l.supplierLot,
+        internal_lot: l.internalLot,
+        quantity: l.quantity,
+        expiry_date: l.expiry,
+        origin: l.origin,
+        category: l.category,
+        department_id: l.departmentId,
+        born_in: isMacelleria(l.departmentId) ? l.bornIn.trim() : "",
+        raised_in: isMacelleria(l.departmentId) ? l.raisedIn.trim() : "",
+        slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : "",
+        slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : "",
+        ingredients: isSalumeria(l.departmentId) ? l.ingredients.trim() : "",
+      }));
+      const { data, error } = await supabase.rpc("operator_admin_insert_raw_materials" as any, {
+        p_operator_id: operator!.id,
+        p_pin: operator!.pin,
+        p_rows: rowsToInsert,
+      });
+      const payload = data as { ok: boolean; count?: number; error?: string } | null;
+      if (error || !payload?.ok) return toast.error(payload?.error ?? error?.message ?? "Errore");
+      toast.success(`${payload.count ?? validLines.length} prodott${(payload.count ?? validLines.length) === 1 ? "o registrato" : "i registrati"}`);
+      setLines([newProductLine()]);
+      setSupplierName("");
+      setDocumentDate(new Date().toISOString().slice(0, 10));
+      setDocumentNumber("");
+      setPreview(null);
+      setImageFile(null);
+      if (fileRef.current) fileRef.current.value = "";
+      load();
+      return;
+    }
+
     const { data: { user } } = await supabase.auth.getUser();
     let imageUrl: string | null = null;
     if (imageFile) {
