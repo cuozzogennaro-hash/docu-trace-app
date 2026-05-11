@@ -13,11 +13,13 @@ import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { useDepartments } from "@/hooks/useDepartments";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { company } = useCompany();
+  const { departments } = useDepartments();
   const [product, setProduct] = useState<any>(null);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -178,6 +180,17 @@ export default function ProductDetail() {
     // - "preparato": simplified "<nome> origine: <origin>"
     // - otherwise (fresh / default): Nato / Allevato / Macellato + Bollo CE
     const productMeatType: string | null = (product as any)?.meat_type ?? null;
+    const productDeptName = (departments.find((d) => d.id === (product as any)?.department_id)?.name || "").toLowerCase().trim();
+    const isSalumeria = productDeptName.startsWith("salum");
+    // Salumeria: scadenza automatica = data produzione + 30 giorni
+    let salumeriaExpiry = "";
+    if (isSalumeria && product?.production_date) {
+      const pd = new Date(String(product.production_date) + "T00:00:00");
+      if (!isNaN(pd.getTime())) {
+        pd.setDate(pd.getDate() + 30);
+        salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
+      }
+    }
     const freshMap = new Map<string, { born: Set<string>; raised: Set<string>; slaughter: Set<string>; marks: Set<string> }>();
     const prepCountries = new Set<string>();
     for (const m of ingredients as any[]) {
@@ -224,6 +237,7 @@ export default function ProductDetail() {
       freshLines,
       productionDate: formatDateDDMMYY(product?.production_date),
       internalLot: product?.internal_lot ?? "—",
+      salumeriaExpiry,
     };
 
     // Padding proporzionale (min 1.2mm)
@@ -354,6 +368,19 @@ export default function ProductDetail() {
       fontPt: footerPt, align: "right", lineHeight: lh,
       segments: [{ text: lotText, bold: true }],
     });
+
+    // Salumeria: riga scadenza (sopra la riga data/lotto)
+    if (data.salumeriaExpiry) {
+      const expiryText = `Da consumarsi entro: ${data.salumeriaExpiry}`;
+      const expiryPt = fitPt(expiryText, wMm - 2 * p - safetyR, footerPt, 6, true);
+      const expiryH = ptMm(expiryPt) * lh;
+      const expiryY = footerY - expiryH - 0.4;
+      items.push({
+        x: p, y: expiryY, w: wMm - 2 * p - safetyR,
+        fontPt: expiryPt, align: "right", lineHeight: lh,
+        segments: [{ text: expiryText, bold: true }],
+      });
+    }
 
     return items;
   }
