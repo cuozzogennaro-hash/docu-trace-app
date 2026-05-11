@@ -383,7 +383,17 @@ export default function Incoming() {
             </Button>
           </div>
           {lines.map((line, idx) => (
-            <Card key={idx} className="p-3 bg-muted/30 border-dashed">
+            <Card key={idx} className={`p-3 border-dashed transition ${line.selected ? "bg-muted/30" : "bg-muted/10 opacity-60"}`}>
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
+                <Checkbox
+                  id={`sel-${idx}`}
+                  checked={line.selected}
+                  onCheckedChange={(v) => updateLine(idx, { selected: !!v })}
+                />
+                <Label htmlFor={`sel-${idx}`} className="text-xs font-semibold cursor-pointer">
+                  Importa in archivio
+                </Label>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="space-y-1 md:col-span-2">
                   <Label className="text-xs">Prodotto *</Label>
