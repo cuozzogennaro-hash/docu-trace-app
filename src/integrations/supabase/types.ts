@@ -615,6 +615,10 @@ export type Database = {
         Args: { p_id: string; p_operator_id: string; p_pin: string }
         Returns: Json
       }
+      operator_admin_insert_raw_materials: {
+        Args: { p_operator_id: string; p_pin: string; p_rows: Json }
+        Returns: Json
+      }
       operator_admin_list: {
         Args: { p_operator_id: string; p_pin: string; p_table: string }
         Returns: Json
