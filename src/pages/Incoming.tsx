@@ -22,6 +22,7 @@ const CATEGORIES = [
 ];
 
 type ProductLine = {
+  selected: boolean;
   productName: string;
   quantity: string;
   supplierLot: string;
@@ -40,6 +41,7 @@ type ProductLine = {
 function newProductLine(date?: string): ProductLine {
   const d = date ? new Date(date + "T00:00:00") : new Date();
   return {
+    selected: true,
     productName: "",
     quantity: "",
     supplierLot: "",
@@ -165,6 +167,7 @@ export default function Incoming() {
         const dateForLot = d.document_date || documentDate;
         setLines(
           d.products.map((p: any) => ({
+            selected: true,
             productName: p.product_name || "",
             quantity: p.quantity || "",
             supplierLot: p.supplier_lot || "",
@@ -192,8 +195,8 @@ export default function Incoming() {
   }
 
   async function save() {
-    const validLines = lines.filter((l) => l.productName.trim());
-    if (validLines.length === 0) return toast.error("Almeno un prodotto obbligatorio");
+    const validLines = lines.filter((l) => l.selected && l.productName.trim());
+    if (validLines.length === 0) return toast.error("Seleziona almeno un prodotto da importare");
     if (validLines.some((l) => !l.departmentId)) return toast.error("Seleziona un reparto per ogni prodotto");
     if (validLines.some((l) => isMacelleria(l.departmentId) && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim() || !l.slaughterMark.trim()))) {
       return toast.error("Macelleria: Nato, Allevato, Macellato e Bollo CE sono obbligatori");
@@ -380,7 +383,17 @@ export default function Incoming() {
             </Button>
           </div>
           {lines.map((line, idx) => (
-            <Card key={idx} className="p-3 bg-muted/30 border-dashed">
+            <Card key={idx} className={`p-3 border-dashed transition ${line.selected ? "bg-muted/30" : "bg-muted/10 opacity-60"}`}>
+              <div className="flex items-center gap-2 mb-2 pb-2 border-b border-dashed">
+                <Checkbox
+                  id={`sel-${idx}`}
+                  checked={line.selected}
+                  onCheckedChange={(v) => updateLine(idx, { selected: !!v })}
+                />
+                <Label htmlFor={`sel-${idx}`} className="text-xs font-semibold cursor-pointer">
+                  Importa in archivio
+                </Label>
+              </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="space-y-1 md:col-span-2">
                   <Label className="text-xs">Prodotto *</Label>
