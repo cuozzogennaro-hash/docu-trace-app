@@ -280,6 +280,10 @@ export default function Incoming() {
   }
 
   async function toggleStock(id: string, value: boolean) {
+    if (isOperatorAdmin) {
+      toast.error("Operazione non disponibile in modalità operatore");
+      return;
+    }
     await supabase.from("raw_materials").update({ is_out_of_stock: value }).eq("id", id);
     load();
   }
