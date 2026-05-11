@@ -118,7 +118,13 @@ export default function ProductDetail() {
           if (meat) {
             meats.push({ text: `carne di ${meat} (${origin})`, bold: false });
           } else if (subIngredients) {
-            others.push({ text: `${m.product_name} (${subIngredients})`, bold: false });
+            // Materia prima già lavorata (es. Salumeria): in etichetta riportiamo
+            // SOLO la sua lista ingredienti, non il nome del prodotto.
+            subIngredients
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean)
+              .forEach((ing) => others.push({ text: ing, bold: false }));
           } else {
             others.push({ text: `${m.product_name} (${origin})`, bold: false });
           }
