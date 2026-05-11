@@ -749,7 +749,7 @@ ${labelsHtml}
       console.error("[BT print]", e);
       const name = e?.name ?? "";
       if (name === "NotFoundError") {
-        toast.error("Nessuna stampante selezionata: attiva Bluetooth e Posizione, poi scegli la CLABEL nella finestra di Chrome.");
+        toast.error("Stampante non selezionata in Chrome: l'associazione nelle impostazioni Android non basta. Tieni accesa la CLABEL vicino al telefono, attiva Bluetooth e Posizione, poi scegli la stampante nella finestra che si apre.");
       } else if (name === "NotAllowedError" || name === "SecurityError") {
         toast.error("Chrome ha bloccato la scelta dispositivo: abilita permessi Bluetooth/Posizione per questo sito e riprova.");
       } else {
