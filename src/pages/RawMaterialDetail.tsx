@@ -6,6 +6,8 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ArrowLeft, FileDown, Loader2 } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -13,6 +15,8 @@ export default function RawMaterialDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { company } = useCompany();
+  const { session } = useAuth();
+  const { operator } = useOperatorSession();
   const [material, setMaterial] = useState<any>(null);
   const [products, setProducts] = useState<any[]>([]);
   const [departmentName, setDepartmentName] = useState<string>("");
@@ -22,6 +26,21 @@ export default function RawMaterialDetail() {
     if (!id) return;
     (async () => {
       setLoading(true);
+      if (!session && operator?.is_admin && operator?.pin) {
+        const { data: res } = await supabase.rpc("operator_admin_get_raw_material" as any, {
+          p_operator_id: operator.id,
+          p_pin: operator.pin,
+          p_id: id,
+        });
+        const payload = res as { ok: boolean; material?: any; department_name?: string; products?: any[] } | null;
+        if (payload?.ok) {
+          setMaterial(payload.material);
+          setDepartmentName(payload.department_name ?? "");
+          setProducts(payload.products ?? []);
+        }
+        setLoading(false);
+        return;
+      }
       const { data: mat } = await supabase
         .from("raw_materials")
         .select("*")
@@ -55,7 +74,7 @@ export default function RawMaterialDetail() {
       }
       setLoading(false);
     })();
-  }, [id]);
+  }, [id, session?.user?.id, operator?.id]);
 
   function downloadPdf() {
     if (!material) return;
