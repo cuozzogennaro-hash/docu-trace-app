@@ -369,6 +369,19 @@ export default function ProductDetail() {
       segments: [{ text: lotText, bold: true }],
     });
 
+    // Salumeria: riga scadenza (sopra la riga data/lotto)
+    if (data.salumeriaExpiry) {
+      const expiryText = `Da consumarsi entro: ${data.salumeriaExpiry}`;
+      const expiryPt = fitPt(expiryText, wMm - 2 * p - safetyR, footerPt, 6, true);
+      const expiryH = ptMm(expiryPt) * lh;
+      const expiryY = footerY - expiryH - 0.4;
+      items.push({
+        x: p, y: expiryY, w: wMm - 2 * p - safetyR,
+        fontPt: expiryPt, align: "right", lineHeight: lh,
+        segments: [{ text: expiryText, bold: true }],
+      });
+    }
+
     return items;
   }
 
