@@ -7,6 +7,8 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { ArrowLeft, Bluetooth, FileDown, Loader2, Printer } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
+import { useAuth } from "@/hooks/useAuth";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { Label } from "@/components/ui/label";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
@@ -20,6 +22,8 @@ export default function ProductDetail() {
   const navigate = useNavigate();
   const { company } = useCompany();
   const { departments } = useDepartments();
+  const { session } = useAuth();
+  const { operator } = useOperatorSession();
   const [product, setProduct] = useState<any>(null);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -33,6 +37,25 @@ export default function ProductDetail() {
     if (!id) return;
     (async () => {
       setLoading(true);
+      if (!session && operator?.is_admin && operator?.pin) {
+        const { data: res } = await supabase.rpc("operator_admin_get_product" as any, {
+          p_operator_id: operator.id,
+          p_pin: operator.pin,
+          p_id: id,
+        });
+        const payload = res as { ok: boolean; product?: any; ingredients?: any[]; label_templates?: any[] } | null;
+        if (payload?.ok) {
+          setProduct(payload.product);
+          setIngredients(payload.ingredients ?? []);
+          const tpls = payload.label_templates ?? [];
+          setLabelTemplates(tpls);
+          const def = tpls.find((t: any) => t.is_default);
+          if (def) setSelectedTemplate(def.id);
+          else if (tpls.length > 0) setSelectedTemplate(tpls[0].id);
+        }
+        setLoading(false);
+        return;
+      }
       const { data: prod } = await supabase
         .from("products")
         .select("*")
@@ -59,7 +82,7 @@ export default function ProductDetail() {
 
       setLoading(false);
     })();
-  }, [id]);
+  }, [id, session?.user?.id, operator?.id]);
 
   const PX_PER_MM = 3.78;
 
