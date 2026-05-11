@@ -607,6 +607,10 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      operator_admin_list: {
+        Args: { p_operator_id: string; p_pin: string; p_table: string }
+        Returns: Json
+      }
       operator_company: { Args: { p_operator_id: string }; Returns: Json }
       operator_login: {
         Args: { p_handle: string; p_pin: string }
