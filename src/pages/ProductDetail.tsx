@@ -32,6 +32,7 @@ export default function ProductDetail() {
   const [showLabelDialog, setShowLabelDialog] = useState(false);
   const [labelQty, setLabelQty] = useState(1);
   const [btPrinting, setBtPrinting] = useState(false);
+  const [adminDeptName, setAdminDeptName] = useState<string>("");
 
   useEffect(() => {
     if (!id) return;
@@ -43,10 +44,11 @@ export default function ProductDetail() {
           p_pin: operator.pin,
           p_id: id,
         });
-        const payload = res as { ok: boolean; product?: any; ingredients?: any[]; label_templates?: any[] } | null;
+        const payload = res as { ok: boolean; product?: any; ingredients?: any[]; label_templates?: any[]; department_name?: string } | null;
         if (payload?.ok) {
           setProduct(payload.product);
           setIngredients(payload.ingredients ?? []);
+          setAdminDeptName(payload.department_name ?? "");
           const tpls = payload.label_templates ?? [];
           setLabelTemplates(tpls);
           const def = tpls.find((t: any) => t.is_default);
@@ -203,7 +205,11 @@ export default function ProductDetail() {
     // - "preparato": simplified "<nome> origine: <origin>"
     // - otherwise (fresh / default): Nato / Allevato / Macellato + Bollo CE
     const productMeatType: string | null = (product as any)?.meat_type ?? null;
-    const productDeptName = (departments.find((d) => d.id === (product as any)?.department_id)?.name || "").toLowerCase().trim();
+    const productDeptName = (
+      departments.find((d) => d.id === (product as any)?.department_id)?.name ||
+      adminDeptName ||
+      ""
+    ).toLowerCase().trim();
     const isSalumeria = productDeptName.startsWith("salum");
     // Salumeria: scadenza automatica = data produzione + 30 giorni
     let salumeriaExpiry = "";
