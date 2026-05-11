@@ -197,9 +197,22 @@ export default function Incoming() {
   async function save() {
     const validLines = lines.filter((l) => l.selected && l.productName.trim());
     if (validLines.length === 0) return toast.error("Seleziona almeno un prodotto da importare");
-    if (validLines.some((l) => !l.departmentId)) return toast.error("Seleziona un reparto per ogni prodotto");
-    if (validLines.some((l) => isMacelleria(l.departmentId) && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim() || !l.slaughterMark.trim()))) {
-      return toast.error("Macelleria: Nato, Allevato, Macellato e Bollo CE sono obbligatori");
+    const missingDept = validLines.findIndex((l) => !l.departmentId);
+    if (missingDept >= 0) {
+      return toast.error(`Seleziona un reparto per il prodotto "${validLines[missingDept].productName || `riga ${missingDept + 1}`}"`);
+    }
+    const missingTrace = validLines.findIndex(
+      (l) => isMacelleria(l.departmentId) && (!l.bornIn.trim() || !l.raisedIn.trim() || !l.slaughteredIn.trim() || !l.slaughterMark.trim()),
+    );
+    if (missingTrace >= 0) {
+      const l = validLines[missingTrace];
+      const missing = [
+        !l.bornIn.trim() && "Nato in",
+        !l.raisedIn.trim() && "Allevato in",
+        !l.slaughteredIn.trim() && "Macellato in",
+        !l.slaughterMark.trim() && "Bollo CE",
+      ].filter(Boolean).join(", ");
+      return toast.error(`Macelleria — "${l.productName}": manca ${missing}`);
     }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
 
