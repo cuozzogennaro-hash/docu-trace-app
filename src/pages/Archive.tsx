@@ -15,6 +15,8 @@ import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
+import { useAuth } from "@/hooks/useAuth";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -323,6 +325,8 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const [search, setSearch] = useState("");
   const { departments } = useDepartments();
   const [deptFilter, setDeptFilter] = useState<string>("all"); // "all" | "none" | dept id
+  const { session } = useAuth();
+  const { operator } = useOperatorSession();
 
   const supportsDept = tableKey === "raw_materials" || tableKey === "products";
 
@@ -335,14 +339,28 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   async function load() {
     setLoading(true);
-    const select = cfg.relation ? `*, ${cfg.relation}` : "*";
-    const orderCol = (tableKey === "temperatures" || tableKey === "sanitations") ? "recorded_at" : "created_at";
-    const { data, error } = await supabase
-      .from(tableKey)
-      .select(select)
-      .order(orderCol, { ascending: false })
-      .limit(500);
-    if (error) toast.error(error.message);
+    let data: any[] | null = null;
+    if (!session && operator?.is_admin && operator?.pin) {
+      // Operator-admin path: fetch via security-definer RPC (no Supabase session)
+      const { data: res, error } = await supabase.rpc("operator_admin_list" as any, {
+        p_operator_id: operator.id,
+        p_pin: operator.pin,
+        p_table: tableKey,
+      });
+      const payload = res as { ok: boolean; rows?: any[]; error?: string } | null;
+      if (error || !payload?.ok) toast.error(payload?.error ?? error?.message ?? "Errore");
+      data = payload?.rows ?? [];
+    } else {
+      const select = cfg.relation ? `*, ${cfg.relation}` : "*";
+      const orderCol = (tableKey === "temperatures" || tableKey === "sanitations") ? "recorded_at" : "created_at";
+      const { data: res, error } = await supabase
+        .from(tableKey)
+        .select(select)
+        .order(orderCol, { ascending: false })
+        .limit(500);
+      if (error) toast.error(error.message);
+      data = res ?? [];
+    }
     const flattened = (data ?? []).map((r: any) => ({
       ...r,
       asset_name: r.assets?.name ?? "—",
@@ -351,7 +369,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
     setLoading(false);
   }
 
-  useEffect(() => { load(); }, [tableKey]);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [tableKey, session?.user?.id, operator?.id]);
 
   const filteredRows = useMemo(() => {
     let base = rows;
