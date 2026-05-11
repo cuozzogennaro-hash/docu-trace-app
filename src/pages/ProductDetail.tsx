@@ -112,13 +112,16 @@ export default function ProductDetail() {
         // additivi e allergeni: in grassetto come da norma
         additives.push({ text: m.product_name, bold: true });
       } else {
-        const meat = detectMeat(m.product_name);
-        const origin = (m.origin && String(m.origin).trim()) || "UE";
-        if (meat) {
-          meats.push({ text: `carne di ${meat} (${origin})`, bold: false });
-        } else {
-          others.push({ text: `${m.product_name} (${origin})`, bold: false });
-        }
+          const meat = detectMeat(m.product_name);
+          const origin = (m.origin && String(m.origin).trim()) || "UE";
+          const subIngredients = (m.ingredients && String(m.ingredients).trim()) || "";
+          if (meat) {
+            meats.push({ text: `carne di ${meat} (${origin})`, bold: false });
+          } else if (subIngredients) {
+            others.push({ text: `${m.product_name} (${subIngredients})`, bold: false });
+          } else {
+            others.push({ text: `${m.product_name} (${origin})`, bold: false });
+          }
       }
     }
 

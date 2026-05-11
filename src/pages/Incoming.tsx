@@ -65,7 +65,7 @@ export default function Incoming() {
   const isOrtofrutta = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "ortofrutta";
   const isSalumeria = (depId: string) =>
-    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "salumeria";
+    (departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() ?? "").startsWith("salum");
 
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
