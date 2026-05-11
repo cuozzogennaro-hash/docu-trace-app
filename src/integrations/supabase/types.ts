@@ -325,6 +325,7 @@ export type Database = {
           document_number: string | null
           expiry_date: string | null
           id: string
+          ingredients: string | null
           internal_lot: string
           is_out_of_stock: boolean
           meat_type: string | null
@@ -350,6 +351,7 @@ export type Database = {
           document_number?: string | null
           expiry_date?: string | null
           id?: string
+          ingredients?: string | null
           internal_lot: string
           is_out_of_stock?: boolean
           meat_type?: string | null
@@ -375,6 +377,7 @@ export type Database = {
           document_number?: string | null
           expiry_date?: string | null
           id?: string
+          ingredients?: string | null
           internal_lot?: string
           is_out_of_stock?: boolean
           meat_type?: string | null

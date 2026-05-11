@@ -32,6 +32,7 @@ type ProductLine = {
   raisedIn: string;
   slaughteredIn: string;
   slaughterMark: string;
+  ingredients: string;
 };
 
 function newProductLine(date?: string): ProductLine {
@@ -49,6 +50,7 @@ function newProductLine(date?: string): ProductLine {
     raisedIn: "",
     slaughteredIn: "",
     slaughterMark: "",
+    ingredients: "",
   };
 }
 
@@ -62,6 +64,8 @@ export default function Incoming() {
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
   const isOrtofrutta = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "ortofrutta";
+  const isSalumeria = (depId: string) =>
+    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "salumeria";
 
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -134,6 +138,7 @@ export default function Incoming() {
             raisedIn: "",
             slaughteredIn: "",
             slaughterMark: "",
+            ingredients: p.ingredients || "",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
@@ -181,6 +186,7 @@ export default function Incoming() {
       raised_in: isMacelleria(l.departmentId) ? l.raisedIn.trim() : null,
       slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
       slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : null,
+      ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
@@ -332,6 +338,18 @@ export default function Incoming() {
                   </div>
                 )}
               </div>
+              {isSalumeria(line.departmentId) && (
+                <div className="mt-3 p-3 rounded-md bg-rose-50 border border-rose-200 space-y-2">
+                  <Label className="text-xs font-semibold text-rose-900">Ingredienti (prodotto lavorato)</Label>
+                  <textarea
+                    value={line.ingredients}
+                    onChange={(e) => updateLine(idx, { ingredients: e.target.value })}
+                    placeholder="Es. carne di suino, sale, spezie, aromi naturali, destrosio, antiossidante: E301…"
+                    className="w-full min-h-[80px] rounded-md border border-input bg-background px-3 py-2 text-sm focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring"
+                  />
+                  <p className="text-[11px] text-muted-foreground">Inserisci la lista ingredienti come riportata in etichetta. L'OCR estrae solo gli ingredienti in italiano.</p>
+                </div>
+              )}
               {isMacelleria(line.departmentId) && (
                 <div className="mt-3 p-3 rounded-md bg-orange-50 border border-orange-200 space-y-2">
                   <Label className="text-xs font-semibold text-orange-900">Tracciabilità carne (obbligatoria)</Label>

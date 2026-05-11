@@ -38,7 +38,7 @@ Deno.serve(async (req) => {
           {
             role: "user",
             content: [
-              { type: "text", text: "Estrai fornitore, data documento, numero documento e TUTTI i prodotti da questa fattura/DDT. Per ogni riga prodotto indica: nome, quantità con unità di misura, SOLO il codice lotto del fornitore (senza altri dati), e l'origine/provenienza del prodotto se indicata (es. Italia, UE, paese di origine della carne, ecc.)." },
+              { type: "text", text: "Estrai fornitore, data documento, numero documento e TUTTI i prodotti da questa fattura/DDT/etichetta. Per ogni riga prodotto indica: nome, quantità con unità di misura, SOLO il codice lotto del fornitore (senza altri dati), l'origine/provenienza se indicata, e la lista ingredienti SOLO se scritta in italiano (ignora liste in altre lingue come EN/FR/DE/ES). Se l'unica lista ingredienti presente è in lingua straniera, lascia il campo ingredients vuoto." },
               { type: "image_url", image_url: { url: dataUrl } },
             ],
           },
@@ -65,8 +65,9 @@ Deno.serve(async (req) => {
                         quantity: { type: "string", description: "Quantità con unità di misura (es. '5 kg', '10 pz', '2 lt')" },
                         supplier_lot: { type: "string", description: "Solo il codice/numero di lotto del fornitore, senza altre informazioni. Stringa vuota se non presente." },
                         origin: { type: "string", description: "Origine/provenienza del prodotto (es. Italia, UE, Allevato in Italia, ecc.). Stringa vuota se non indicata." },
+                        ingredients: { type: "string", description: "Lista ingredienti del prodotto SOLO se in lingua italiana, come riportata in etichetta (es. 'carne di suino, sale, spezie, destrosio'). Stringa vuota se non presente o se è in altra lingua." },
                       },
-                      required: ["product_name", "quantity", "supplier_lot", "origin"],
+                      required: ["product_name", "quantity", "supplier_lot", "origin", "ingredients"],
                     },
                   },
                 },
