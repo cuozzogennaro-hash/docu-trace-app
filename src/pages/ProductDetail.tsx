@@ -180,6 +180,17 @@ export default function ProductDetail() {
     // - "preparato": simplified "<nome> origine: <origin>"
     // - otherwise (fresh / default): Nato / Allevato / Macellato + Bollo CE
     const productMeatType: string | null = (product as any)?.meat_type ?? null;
+    const productDeptName = (departments.find((d) => d.id === (product as any)?.department_id)?.name || "").toLowerCase().trim();
+    const isSalumeria = productDeptName.startsWith("salum");
+    // Salumeria: scadenza automatica = data produzione + 30 giorni
+    let salumeriaExpiry = "";
+    if (isSalumeria && product?.production_date) {
+      const pd = new Date(String(product.production_date) + "T00:00:00");
+      if (!isNaN(pd.getTime())) {
+        pd.setDate(pd.getDate() + 30);
+        salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
+      }
+    }
     const freshMap = new Map<string, { born: Set<string>; raised: Set<string>; slaughter: Set<string>; marks: Set<string> }>();
     const prepCountries = new Set<string>();
     for (const m of ingredients as any[]) {
@@ -226,6 +237,7 @@ export default function ProductDetail() {
       freshLines,
       productionDate: formatDateDDMMYY(product?.production_date),
       internalLot: product?.internal_lot ?? "—",
+      salumeriaExpiry,
     };
 
     // Padding proporzionale (min 1.2mm)
