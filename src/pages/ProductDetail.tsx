@@ -708,7 +708,9 @@ ${labelsHtml}
         optionalServices: BT_SERVICE_UUIDS,
       });
       setBtPrinting(true);
-      if (!device.gatt) throw new Error("GATT non disponibile");
+      if (!device.gatt) {
+        throw new Error("La stampante è stata vista dal telefono ma non espone Bluetooth BLE/GATT: Chrome può stampare solo su dispositivi BLE, non tramite semplice associazione Android.");
+      }
       toast.message(`Connessione a ${device.name ?? "stampante"}…`);
       const server = await device.gatt.connect();
       const ch = await findWritableCharacteristic(server);
@@ -930,7 +932,7 @@ ${labelsHtml}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Il pulsante Bluetooth invia comandi TSPL alla CLABEL 221D. Richiede Chrome/Edge (desktop o Android).
+              Il pulsante Bluetooth richiede Chrome/Edge e la selezione della stampante nella finestra del browser: l'associazione nelle impostazioni Android non equivale a connessione per l'app.
             </p>
           </div>
         </DialogContent>
