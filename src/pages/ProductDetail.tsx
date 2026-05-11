@@ -689,14 +689,25 @@ ${labelsHtml}
       toast.error("Web Bluetooth non supportato. Usa Chrome/Edge su Android o desktop.");
       return;
     }
+    if (!window.isSecureContext) {
+      toast.error("Bluetooth bloccato: apri l'app dal link pubblicato HTTPS, non da una pagina incorporata.");
+      return;
+    }
+    if (document.visibilityState !== "visible") {
+      toast.error("Bluetooth bloccato: riapri la pagina in primo piano e premi di nuovo il pulsante.");
+      return;
+    }
+
+    let device: any;
     try {
-      setBtPrinting(true);
-      toast.message("Ricerca dispositivi Bluetooth…");
-      const device: any = await nav.bluetooth.requestDevice({
+      // Deve essere la prima operazione asincrona dopo il tap: su Android
+      // altrimenti Chrome può bloccare il selettore senza mostrarlo.
+      device = await nav.bluetooth.requestDevice({
         // Show all devices so any CLABEL 221D variant is selectable
         acceptAllDevices: true,
         optionalServices: BT_SERVICE_UUIDS,
       });
+      setBtPrinting(true);
       if (!device.gatt) throw new Error("GATT non disponibile");
       toast.message(`Connessione a ${device.name ?? "stampante"}…`);
       const server = await device.gatt.connect();
@@ -736,7 +747,14 @@ ${labelsHtml}
       setShowLabelDialog(false);
     } catch (e: any) {
       console.error("[BT print]", e);
-      toast.error(e?.message ?? "Errore stampa Bluetooth");
+      const name = e?.name ?? "";
+      if (name === "NotFoundError") {
+        toast.error("Nessuna stampante selezionata: attiva Bluetooth e Posizione, poi scegli la CLABEL nella finestra di Chrome.");
+      } else if (name === "NotAllowedError" || name === "SecurityError") {
+        toast.error("Chrome ha bloccato la scelta dispositivo: abilita permessi Bluetooth/Posizione per questo sito e riprova.");
+      } else {
+        toast.error(e?.message ?? "Errore stampa Bluetooth");
+      }
     } finally {
       setBtPrinting(false);
     }
