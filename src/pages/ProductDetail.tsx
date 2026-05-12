@@ -900,7 +900,20 @@ ${labelsHtml}
             </div>
             <div>
               <Label className="text-sm font-medium">Quantità etichette</Label>
-              <Input type="number" min={1} max={100} value={labelQty} onChange={(e) => setLabelQty(Math.max(1, +e.target.value))} />
+              <Input
+                type="number"
+                min={1}
+                max={100}
+                value={labelQty === 0 ? "" : labelQty}
+                onFocus={(e) => e.target.select()}
+                onChange={(e) => {
+                  const v = e.target.value;
+                  if (v === "") { setLabelQty(0); return; }
+                  const n = parseInt(v, 10);
+                  if (!isNaN(n)) setLabelQty(Math.min(100, Math.max(0, n)));
+                }}
+                onBlur={() => { if (!labelQty || labelQty < 1) setLabelQty(1); }}
+              />
             </div>
 
             {/* Live preview */}
