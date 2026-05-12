@@ -32,6 +32,7 @@ export default function Production() {
   const [productDeptId, setProductDeptId] = useState<string>("");
   const [meatType, setMeatType] = useState<"fresh" | "preparato">("fresh");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
+  const [searchQuery, setSearchQuery] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
   const [selected, setSelected] = useState<Set<string>>(new Set());
   const [rows, setRows] = useState<any[]>([]);
@@ -147,9 +148,17 @@ export default function Production() {
   }
 
   // Filter materials by selected department (when set)
-  const visibleMaterials = filterDeptId
-    ? materials.filter((m: any) => m.department_id === filterDeptId)
-    : materials;
+  const q = searchQuery.trim().toLowerCase();
+  const visibleMaterials = materials.filter((m: any) => {
+    if (filterDeptId && m.department_id !== filterDeptId) return false;
+    if (q) {
+      const name = (m.product_name || "").toLowerCase();
+      const lot = (m.internal_lot || "").toLowerCase();
+      const ing = (m.ingredients || "").toLowerCase();
+      if (!name.includes(q) && !lot.includes(q) && !ing.includes(q)) return false;
+    }
+    return true;
+  });
 
   return (
     <>
@@ -235,6 +244,15 @@ export default function Production() {
                 </button>
               ))}
             </div>
+          </div>
+          <div className="mb-2">
+            <Input
+              type="search"
+              value={searchQuery}
+              onChange={(e) => setSearchQuery(e.target.value)}
+              placeholder="Cerca ingrediente per nome, lotto o sigla..."
+              className="h-9"
+            />
           </div>
           <div className="max-h-80 overflow-auto rounded-lg border border-border p-2 space-y-3 bg-muted/30">
             {visibleMaterials.length === 0 && <p className="text-sm text-muted-foreground p-3">Nessun ingrediente disponibile{filterDeptId ? " per questo reparto" : ""}. Aggiungi dal registro merci o dalle impostazioni.</p>}
