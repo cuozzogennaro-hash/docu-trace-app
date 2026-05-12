@@ -21,6 +21,7 @@ type Item = {
   origin: string | null;
   is_out_of_stock: boolean;
   document_date: string | null;
+  ingredients: string | null;
 };
 
 interface Props {
@@ -42,12 +43,13 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
     expiry_date: "",
     origin: "",
     document_date: "",
+    ingredients: "",
   });
 
   async function load() {
     const { data } = await supabase
       .from("raw_materials")
-      .select("id, product_name, supplier_name, supplier_lot, internal_lot, quantity, expiry_date, origin, is_out_of_stock, document_date")
+      .select("id, product_name, supplier_name, supplier_lot, internal_lot, quantity, expiry_date, origin, is_out_of_stock, document_date, ingredients")
       .eq("category", category)
       .order("product_name");
     setList((data as Item[]) ?? []);
@@ -56,7 +58,7 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
 
   function reset() {
     setEditing(null);
-    setForm({ product_name: "", supplier_name: "", supplier_lot: "", internal_lot: generateInternalLot("L"), quantity: "", expiry_date: "", origin: "", document_date: "" });
+    setForm({ product_name: "", supplier_name: "", supplier_lot: "", internal_lot: generateInternalLot("L"), quantity: "", expiry_date: "", origin: "", document_date: "", ingredients: "" });
   }
 
   function startEdit(item: Item) {
@@ -70,6 +72,7 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
       expiry_date: item.expiry_date ?? "",
       origin: item.origin ?? "",
       document_date: item.document_date ?? "",
+      ingredients: item.ingredients ?? "",
     });
     setOpen(true);
   }
@@ -87,6 +90,7 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
       expiry_date: form.expiry_date || null,
       origin: form.origin.trim() || null,
       document_date: form.document_date || null,
+      ingredients: form.ingredients.trim() || null,
     };
     const res = editing
       ? await supabase.from("raw_materials").update(payload).eq("id", editing.id)
