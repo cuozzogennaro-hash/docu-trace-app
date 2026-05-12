@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -21,6 +22,7 @@ type Item = {
   origin: string | null;
   is_out_of_stock: boolean;
   document_date: string | null;
+  ingredients: string | null;
 };
 
 interface Props {
@@ -42,12 +44,13 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
     expiry_date: "",
     origin: "",
     document_date: "",
+    ingredients: "",
   });
 
   async function load() {
     const { data } = await supabase
       .from("raw_materials")
-      .select("id, product_name, supplier_name, supplier_lot, internal_lot, quantity, expiry_date, origin, is_out_of_stock, document_date")
+      .select("id, product_name, supplier_name, supplier_lot, internal_lot, quantity, expiry_date, origin, is_out_of_stock, document_date, ingredients")
       .eq("category", category)
       .order("product_name");
     setList((data as Item[]) ?? []);
@@ -56,7 +59,7 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
 
   function reset() {
     setEditing(null);
-    setForm({ product_name: "", supplier_name: "", supplier_lot: "", internal_lot: generateInternalLot("L"), quantity: "", expiry_date: "", origin: "", document_date: "" });
+    setForm({ product_name: "", supplier_name: "", supplier_lot: "", internal_lot: generateInternalLot("L"), quantity: "", expiry_date: "", origin: "", document_date: "", ingredients: "" });
   }
 
   function startEdit(item: Item) {
@@ -70,6 +73,7 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
       expiry_date: item.expiry_date ?? "",
       origin: item.origin ?? "",
       document_date: item.document_date ?? "",
+      ingredients: item.ingredients ?? "",
     });
     setOpen(true);
   }
@@ -87,6 +91,7 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
       expiry_date: form.expiry_date || null,
       origin: form.origin.trim() || null,
       document_date: form.document_date || null,
+      ingredients: form.ingredients.trim() || null,
     };
     const res = editing
       ? await supabase.from("raw_materials").update(payload).eq("id", editing.id)
@@ -164,6 +169,24 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
               <div className="space-y-1.5">
                 <Label>Provenienza / Origine</Label>
                 <Input value={form.origin} onChange={(e) => setForm({ ...form, origin: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  {category === "additivo_allergene"
+                    ? "Ingredienti / Sigle (es. E250, E300)"
+                    : "Ingredienti"}
+                </Label>
+                <Textarea
+                  value={form.ingredients}
+                  onChange={(e) => setForm({ ...form, ingredients: e.target.value })}
+                  placeholder={category === "additivo_allergene" ? "E250, E301, E450" : "Elenco ingredienti separati da virgola"}
+                  rows={2}
+                />
+                {category === "additivo_allergene" && (
+                  <p className="text-xs text-muted-foreground">
+                    In etichetta dei prodotti compariranno solo queste sigle (in grassetto), non il nome commerciale.
+                  </p>
+                )}
               </div>
             </div>
             <DialogFooter>

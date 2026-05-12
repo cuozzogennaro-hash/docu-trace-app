@@ -136,8 +136,18 @@ export default function ProductDetail() {
       if (cat === "aroma") {
         aromas.push({ text: m.product_name, bold: false });
       } else if (cat === "additivo_allergene") {
-        // additivi e allergeni: in grassetto come da norma
-        additives.push({ text: m.product_name, bold: true });
+        // additivi e allergeni: in etichetta riportiamo SOLO le sigle (E...)
+        // inserite nel campo "ingredienti", non il nome commerciale del prodotto.
+        const codes = (m.ingredients && String(m.ingredients).trim()) || "";
+        if (codes) {
+          codes
+            .split(",")
+            .map((s) => s.trim())
+            .filter(Boolean)
+            .forEach((c) => additives.push({ text: c, bold: true }));
+        } else {
+          additives.push({ text: m.product_name, bold: true });
+        }
       } else {
           const meat = detectMeat(m.product_name);
           const origin = (m.origin && String(m.origin).trim()) || "UE";
