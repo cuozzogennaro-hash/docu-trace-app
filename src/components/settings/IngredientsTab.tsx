@@ -4,6 +4,7 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2 } from "lucide-react";
@@ -168,6 +169,24 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
               <div className="space-y-1.5">
                 <Label>Provenienza / Origine</Label>
                 <Input value={form.origin} onChange={(e) => setForm({ ...form, origin: e.target.value })} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>
+                  {category === "additivo_allergene"
+                    ? "Ingredienti / Sigle (es. E250, E300)"
+                    : "Ingredienti"}
+                </Label>
+                <Textarea
+                  value={form.ingredients}
+                  onChange={(e) => setForm({ ...form, ingredients: e.target.value })}
+                  placeholder={category === "additivo_allergene" ? "E250, E301, E450" : "Elenco ingredienti separati da virgola"}
+                  rows={2}
+                />
+                {category === "additivo_allergene" && (
+                  <p className="text-xs text-muted-foreground">
+                    In etichetta dei prodotti compariranno solo queste sigle (in grassetto), non il nome commerciale.
+                  </p>
+                )}
               </div>
             </div>
             <DialogFooter>
