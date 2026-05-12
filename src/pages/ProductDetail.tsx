@@ -221,6 +221,17 @@ export default function ProductDetail() {
       ""
     ).toLowerCase().trim();
     const isSalumeria = productDeptName.startsWith("salum");
+    const isMacelleria = productDeptName.startsWith("macel");
+    // Macelleria + Carne Fresca (monocomponente): in etichetta il lotto stampato
+    // deve essere quello del produttore (supplier_lot) inserito in ingresso merce,
+    // non il lotto interno del prodotto.
+    let macelleriaFreshLot = "";
+    if (isMacelleria && productMeatType === "fresh") {
+      const lots = (ingredients as any[])
+        .map((m) => (m?.supplier_lot ? String(m.supplier_lot).trim() : ""))
+        .filter(Boolean);
+      macelleriaFreshLot = [...new Set(lots)].join(" / ");
+    }
     // Salumeria: scadenza automatica = data produzione + 30 giorni
     let salumeriaExpiry = "";
     if (isSalumeria && product?.production_date) {
@@ -275,7 +286,7 @@ export default function ProductDetail() {
       traceLines,
       freshLines,
       productionDate: formatDateDDMMYY(product?.production_date),
-      internalLot: product?.internal_lot ?? "—",
+      internalLot: macelleriaFreshLot || product?.internal_lot || "—",
       salumeriaExpiry,
     };
 
