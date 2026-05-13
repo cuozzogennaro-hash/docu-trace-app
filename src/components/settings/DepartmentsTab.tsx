@@ -10,7 +10,7 @@ import { useDepartments } from "@/hooks/useDepartments";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "sonner";
 
-const PROTECTED_NAMES = ["macelleria", "salumeria", "ortofrutta"];
+const PROTECTED_NAMES = ["macelleria", "salumeria", "salumenria", "ortofrutta"];
 const isProtected = (name: string) => PROTECTED_NAMES.includes(name.trim().toLowerCase());
 
 export default function DepartmentsTab() {
