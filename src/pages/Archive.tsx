@@ -155,6 +155,108 @@ function monthLabel(ym: string): string {
   return `${months[parseInt(m, 10) - 1]} ${y}`;
 }
 
+// ---------- PDF helpers (shared layout) ----------
+const PDF_PRIMARY: [number, number, number] = [30, 64, 175]; // deep indigo
+const PDF_ALT: [number, number, number] = [243, 244, 246];
+
+function cleanAddress(addr?: string | null): string[] {
+  if (!addr) return [];
+  const seen = new Set<string>();
+  const out: string[] = [];
+  addr.split(/[\n,;]+/).map((s) => s.trim()).filter(Boolean).forEach((line) => {
+    const k = line.toLowerCase().replace(/\s+/g, " ");
+    if (!seen.has(k)) { seen.add(k); out.push(line); }
+  });
+  return out;
+}
+
+function drawPdfHeader(doc: jsPDF, title: string, subtitle: string | null, company: any): number {
+  const pw = doc.internal.pageSize.getWidth();
+  // top accent bar
+  doc.setFillColor(...PDF_PRIMARY);
+  doc.rect(0, 0, pw, 14, "F");
+  doc.setTextColor(255, 255, 255);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(13);
+  doc.text(title, 14, 9.5);
+  if (company?.business_name) {
+    doc.setFontSize(10);
+    doc.setFont("helvetica", "normal");
+    doc.text(company.business_name, pw - 14, 9.5, { align: "right" });
+  }
+  doc.setTextColor(20, 20, 20);
+
+  let y = 22;
+  if (subtitle) {
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(subtitle, 14, y);
+    y += 5;
+  }
+  const addr = cleanAddress(company?.address);
+  if (addr.length) {
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(90, 90, 90);
+    doc.text(addr.join(" — "), 14, y);
+    doc.setTextColor(20, 20, 20);
+    y += 5;
+  }
+  // separator
+  doc.setDrawColor(220, 220, 220);
+  doc.line(14, y, pw - 14, y);
+  return y + 5;
+}
+
+function drawSignatureBlock(doc: jsPDF) {
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  const blockH = 38;
+  let y = ph - blockH - 14;
+  // if last table overlaps, push to new page
+  const lastY = (doc as any).lastAutoTable?.finalY ?? 0;
+  if (lastY > y - 6) {
+    doc.addPage();
+    y = ph - blockH - 14;
+  }
+  doc.setDrawColor(180, 180, 180);
+  doc.setFont("helvetica", "bold");
+  doc.setFontSize(10);
+  doc.setTextColor(60, 60, 60);
+  // Timbro
+  doc.rect(14, y, 80, blockH);
+  doc.text("Timbro", 18, y + 6);
+  // Firma
+  doc.rect(pw - 14 - 80, y, 80, blockH);
+  doc.text("Firma del responsabile", pw - 14 - 76, y + 6);
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8);
+  doc.setTextColor(120, 120, 120);
+  doc.text("Data: ____ / ____ / ________", pw - 14 - 76, y + blockH - 4);
+  doc.setTextColor(20, 20, 20);
+}
+
+function drawFooters(doc: jsPDF) {
+  const pageCount = doc.getNumberOfPages();
+  const pw = doc.internal.pageSize.getWidth();
+  const ph = doc.internal.pageSize.getHeight();
+  for (let i = 1; i <= pageCount; i++) {
+    doc.setPage(i);
+    doc.setFontSize(8);
+    doc.setTextColor(130, 130, 130);
+    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")}`, 14, ph - 6);
+    doc.text(`Pagina ${i} di ${pageCount}`, pw - 14, ph - 6, { align: "right" });
+    doc.setTextColor(20, 20, 20);
+  }
+}
+
+const TABLE_BASE: any = {
+  styles: { fontSize: 9, cellPadding: 2.4, lineColor: [220, 220, 220], lineWidth: 0.1, textColor: [30, 30, 30] },
+  headStyles: { fillColor: PDF_PRIMARY, textColor: 255, fontStyle: "bold", halign: "left" },
+  alternateRowStyles: { fillColor: PDF_ALT },
+  margin: { left: 14, right: 14 },
+};
+
 function generateDailyPdf(
   date: string,
   deptGroups: { key: string; name: string; items: any[] }[],
@@ -163,20 +265,17 @@ function generateDailyPdf(
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const title = type === "temperatures" ? "Registro Temperature" : "Registro Sanificazioni";
+  let startY = drawPdfHeader(doc, title, dayLabel(date), company);
 
-  doc.setFontSize(16);
-  doc.text(title, 14, 20);
-  doc.setFontSize(10);
-  doc.text(`Data: ${dayLabel(date)}`, 14, 28);
-  if (company?.business_name) doc.text(company.business_name, 14, 34);
-  if (company?.address) doc.text(company.address, 14, 39);
-
-  let startY = company?.address ? 46 : company?.business_name ? 41 : 35;
   deptGroups.forEach((dg) => {
-    doc.setFontSize(11);
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...PDF_PRIMARY);
     doc.text(dg.name, 14, startY);
+    doc.setTextColor(20, 20, 20);
     autoTable(doc, {
-      startY: startY + 3,
+      ...TABLE_BASE,
+      startY: startY + 2.5,
       head: type === "temperatures"
         ? [["Attrezzatura", "°C", "Ora", "Note"]]
         : [["Attrezzatura", "Prodotto usato", "Ora", "Note"]],
@@ -194,20 +293,16 @@ function generateDailyPdf(
             r.notes ?? "",
           ]
       ),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [59, 130, 246] },
+      columnStyles: type === "temperatures"
+        ? { 1: { halign: "center", cellWidth: 18 }, 2: { halign: "center", cellWidth: 22 } }
+        : { 2: { halign: "center", cellWidth: 22 } },
     });
     startY = (doc as any).lastAutoTable.finalY + 8;
-    if (startY > 270) { doc.addPage(); startY = 20; }
+    if (startY > 250) { doc.addPage(); startY = 20; }
   });
 
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
-  }
-
+  drawSignatureBlock(doc);
+  drawFooters(doc);
   doc.save(`${type === "temperatures" ? "temperature" : "sanificazioni"}_${date}.pdf`);
 }
 
@@ -217,25 +312,28 @@ function generateMonthlyPdf(
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const title = type === "temperatures" ? "Registro Temperature" : "Registro Sanificazioni";
-  doc.setFontSize(16);
-  doc.text(`${title} — ${monthLabel(month)}`, 14, 20);
-  doc.setFontSize(10);
-  if (company?.business_name) doc.text(company.business_name, 14, 28);
-  if (company?.address) doc.text(company.address, 14, 33);
-  let startY = company?.address ? 40 : company?.business_name ? 35 : 28;
-  // Group by day, then by department within day
+  let startY = drawPdfHeader(doc, title, monthLabel(month), company);
   const byDay = groupByDay(rows);
   const days = Object.keys(byDay).sort();
   days.forEach((day) => {
-    doc.setFontSize(12);
+    if (startY > 250) { doc.addPage(); startY = 20; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.setTextColor(20, 20, 20);
     doc.text(dayLabel(day), 14, startY);
     startY += 4;
     const deptGroups = groupByDepartment(byDay[day], departments);
     deptGroups.forEach((dg) => {
-      doc.setFontSize(10);
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(9.5);
+      doc.setTextColor(...PDF_PRIMARY);
       doc.text(dg.name, 16, startY);
+      doc.setTextColor(20, 20, 20);
       autoTable(doc, {
+        ...TABLE_BASE,
         startY: startY + 2,
+        margin: { left: 16, right: 14 },
+        styles: { ...TABLE_BASE.styles, fontSize: 8.5 },
         head: type === "temperatures"
           ? [["Attrezzatura", "°C", "Ora", "Note"]]
           : [["Attrezzatura", "Prodotto usato", "Ora", "Note"]],
@@ -253,21 +351,17 @@ function generateMonthlyPdf(
               r.notes ?? "",
             ]
         ),
-        styles: { fontSize: 8 },
-        headStyles: { fillColor: [59, 130, 246] },
-        margin: { left: 16 },
+        columnStyles: type === "temperatures"
+          ? { 1: { halign: "center", cellWidth: 16 }, 2: { halign: "center", cellWidth: 20 } }
+          : { 2: { halign: "center", cellWidth: 20 } },
       });
       startY = (doc as any).lastAutoTable.finalY + 5;
-      if (startY > 270) { doc.addPage(); startY = 20; }
+      if (startY > 250) { doc.addPage(); startY = 20; }
     });
     startY += 3;
   });
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
-  }
+  drawSignatureBlock(doc);
+  drawFooters(doc);
   doc.save(`${type === "temperatures" ? "temperature" : "sanificazioni"}_${month}.pdf`);
 }
 
@@ -278,17 +372,18 @@ function generateRawMaterialsMonthlyPdf(
   company: any,
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  doc.setFontSize(16);
-  doc.text(`Registro Materie Prime — ${monthLbl}`, 14, 20);
-  doc.setFontSize(10);
-  if (company?.business_name) doc.text(company.business_name, 14, 28);
-  if (company?.address) doc.text(company.address, 14, 33);
-  let startY = company?.address ? 40 : company?.business_name ? 35 : 28;
+  let startY = drawPdfHeader(doc, "Registro Materie Prime", monthLbl, company);
   weeks.forEach((w) => {
-    doc.setFontSize(11);
+    if (startY > 250) { doc.addPage(); startY = 20; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...PDF_PRIMARY);
     doc.text(w.label, 14, startY);
+    doc.setTextColor(20, 20, 20);
     autoTable(doc, {
-      startY: startY + 3,
+      ...TABLE_BASE,
+      startY: startY + 2.5,
+      styles: { ...TABLE_BASE.styles, fontSize: 8 },
       head: [["Prodotto", "Fornitore", "Lotto int.", "Lotto forn.", "Quantità", "Data doc.", "Scadenza"]],
       body: w.items.map((r) => [
         r.product_name ?? "—",
@@ -299,21 +394,11 @@ function generateRawMaterialsMonthlyPdf(
         r.document_date ?? "—",
         r.expiry_date ?? "—",
       ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] },
     });
     startY = (doc as any).lastAutoTable.finalY + 8;
-    if (startY > 270) {
-      doc.addPage();
-      startY = 20;
-    }
   });
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
-  }
+  drawSignatureBlock(doc);
+  drawFooters(doc);
   doc.save(`materie_prime_${monthKey}.pdf`);
 }
 
@@ -324,17 +409,18 @@ function generateProductsMonthlyPdf(
   company: any,
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  doc.setFontSize(16);
-  doc.text(`Registro Prodotti — ${monthLbl}`, 14, 20);
-  doc.setFontSize(10);
-  if (company?.business_name) doc.text(company.business_name, 14, 28);
-  if (company?.address) doc.text(company.address, 14, 33);
-  let startY = company?.address ? 40 : company?.business_name ? 35 : 28;
+  let startY = drawPdfHeader(doc, "Registro Prodotti", monthLbl, company);
   weeks.forEach((w) => {
-    doc.setFontSize(11);
+    if (startY > 250) { doc.addPage(); startY = 20; }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10.5);
+    doc.setTextColor(...PDF_PRIMARY);
     doc.text(w.label, 14, startY);
+    doc.setTextColor(20, 20, 20);
     autoTable(doc, {
-      startY: startY + 3,
+      ...TABLE_BASE,
+      startY: startY + 2.5,
+      styles: { ...TABLE_BASE.styles, fontSize: 8.5 },
       head: [["Nome", "Lotto", "Produzione", "Note"]],
       body: w.items.map((r) => [
         r.name ?? "—",
@@ -342,21 +428,11 @@ function generateProductsMonthlyPdf(
         r.production_date ?? "—",
         r.notes ?? "",
       ]),
-      styles: { fontSize: 8 },
-      headStyles: { fillColor: [59, 130, 246] },
     });
     startY = (doc as any).lastAutoTable.finalY + 8;
-    if (startY > 270) {
-      doc.addPage();
-      startY = 20;
-    }
   });
-  const pageCount = doc.getNumberOfPages();
-  for (let i = 1; i <= pageCount; i++) {
-    doc.setPage(i);
-    doc.setFontSize(8);
-    doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
-  }
+  drawSignatureBlock(doc);
+  drawFooters(doc);
   doc.save(`prodotti_${monthKey}.pdf`);
 }
 
