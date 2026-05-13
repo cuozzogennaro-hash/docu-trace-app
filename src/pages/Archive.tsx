@@ -372,7 +372,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const { session } = useAuth();
   const { operator } = useOperatorSession();
 
-  const supportsDept = tableKey === "raw_materials" || tableKey === "products";
+  const supportsDept = tableKey === "raw_materials" || tableKey === "products" || tableKey === "temperatures" || tableKey === "sanitations";
 
   function onRowClick(r: any) {
     if (tableKey === "raw_materials") navigate(`/archivio/materia-prima/${r.id}`);
