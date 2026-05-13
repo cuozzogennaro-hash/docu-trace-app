@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon } from "lucide-react";
+import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon, Star, Repeat, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { generateInternalLot } from "@/lib/lot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
@@ -101,6 +102,10 @@ export default function Incoming() {
   const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
   const [departmentId, setDepartmentId] = useState<string>("");
+  const [recurring, setRecurring] = useState<any[]>([]);
+  const [recurringOpen, setRecurringOpen] = useState(false);
+  const [recurringPicked, setRecurringPicked] = useState<Set<string>>(new Set());
+  const [recurringSearch, setRecurringSearch] = useState("");
 
   // Keep all product lines in sync with the top-level department
   useEffect(() => {
@@ -134,6 +139,92 @@ export default function Incoming() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOperatorAdmin]);
+
+  // Load recurring templates (logged-in admin only)
+  useEffect(() => {
+    if (isOperatorAdmin) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("recurring_raw_materials")
+        .select("*")
+        .order("last_used_at", { ascending: false, nullsFirst: false })
+        .order("product_name");
+      setRecurring(data ?? []);
+    })();
+  }, [isOperatorAdmin]);
+
+  function recurringToLine(r: any): ProductLine {
+    const d = documentDate ? new Date(documentDate + "T00:00:00") : new Date();
+    return {
+      selected: true,
+      productName: r.product_name ?? "",
+      quantity: r.quantity ?? "",
+      supplierLot: "",
+      category: r.category ?? "materia_prima",
+      expiry: "",
+      origin: r.origin ?? "",
+      internalLot: generateInternalLot("L", d),
+      departmentId: r.department_id ?? departmentId ?? "",
+      bornIn: r.born_in ?? "",
+      raisedIn: r.raised_in ?? "",
+      slaughteredIn: r.slaughtered_in ?? "",
+      slaughterMark: r.slaughter_mark ?? "",
+      ingredients: r.ingredients ?? "",
+    };
+  }
+
+  async function loadFromRecurring() {
+    const picks = recurring.filter((r) => recurringPicked.has(r.id));
+    if (picks.length === 0) { setRecurringOpen(false); return; }
+    if (picks[0].supplier_name && !supplierName) setSupplierName(picks[0].supplier_name);
+    const newLines = picks.map(recurringToLine);
+    // Replace lines if the only existing one is empty, otherwise append
+    setLines((prev) => {
+      const onlyEmpty = prev.length === 1 && !prev[0].productName.trim();
+      return onlyEmpty ? newLines : [...prev, ...newLines];
+    });
+    // Bump usage counters
+    await Promise.all(
+      picks.map((r) =>
+        (supabase as any)
+          .from("recurring_raw_materials")
+          .update({ use_count: (r.use_count ?? 0) + 1, last_used_at: new Date().toISOString() })
+          .eq("id", r.id),
+      ),
+    );
+    toast.success(`${picks.length} prodott${picks.length === 1 ? "o" : "i"} caricat${picks.length === 1 ? "o" : "i"} dai ricorrenti`);
+    setRecurringPicked(new Set());
+    setRecurringSearch("");
+    setRecurringOpen(false);
+  }
+
+  async function saveLineAsRecurring(line: ProductLine) {
+    if (!line.productName.trim()) return toast.error("Inserisci prima il nome prodotto");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const payload: any = {
+      user_id: user.id,
+      product_name: line.productName.trim(),
+      supplier_name: supplierName.trim() || null,
+      category: line.category,
+      department_id: line.departmentId || null,
+      quantity: line.quantity.trim() || null,
+      origin: line.origin.trim() || null,
+      ingredients: line.ingredients.trim() || null,
+      born_in: line.bornIn.trim() || null,
+      raised_in: line.raisedIn.trim() || null,
+      slaughtered_in: line.slaughteredIn.trim() || null,
+      slaughter_mark: line.slaughterMark.trim() || null,
+    };
+    const { data, error } = await (supabase as any)
+      .from("recurring_raw_materials")
+      .insert(payload)
+      .select()
+      .single();
+    if (error) return toast.error(error.message);
+    setRecurring((prev) => [data, ...prev]);
+    toast.success("Salvato come ricorrente");
+  }
 
   function updateLine(idx: number, patch: Partial<ProductLine>) {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
