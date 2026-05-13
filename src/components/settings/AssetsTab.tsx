@@ -8,6 +8,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Plus, Pencil, Trash2, Refrigerator, Snowflake, Wrench, Layers, Users } from "lucide-react";
 import { toast } from "sonner";
+import { useDepartments } from "@/hooks/useDepartments";
 
 type Asset = {
   id: string;
@@ -16,6 +17,7 @@ type Asset = {
   cleaning_product: string | null;
   target_temp_min: number | null;
   target_temp_max: number | null;
+  department_id: string | null;
 };
 
 const TYPE_META: Record<string, { label: string; icon: any }> = {
@@ -36,12 +38,15 @@ export default function AssetsTab() {
     cleaning_product: "",
     target_temp_min: "",
     target_temp_max: "",
+    department_id: "",
   });
+  const { departments } = useDepartments();
+  const deptName = (id: string | null) => departments.find((d) => d.id === id)?.name ?? null;
 
   async function load() {
     const { data } = await supabase
       .from("assets")
-      .select("id, name, asset_type, cleaning_product, target_temp_min, target_temp_max")
+      .select("id, name, asset_type, cleaning_product, target_temp_min, target_temp_max, department_id")
       .order("name");
     setList((data as Asset[]) ?? []);
 
@@ -68,7 +73,7 @@ export default function AssetsTab() {
 
   function reset() {
     setEditing(null);
-    setForm({ name: "", asset_type: "equipment", cleaning_product: "", target_temp_min: "", target_temp_max: "" });
+    setForm({ name: "", asset_type: "equipment", cleaning_product: "", target_temp_min: "", target_temp_max: "", department_id: "" });
   }
 
   function startEdit(a: Asset) {
@@ -79,6 +84,7 @@ export default function AssetsTab() {
       cleaning_product: a.cleaning_product ?? "",
       target_temp_min: a.target_temp_min?.toString() ?? "",
       target_temp_max: a.target_temp_max?.toString() ?? "",
+      department_id: a.department_id ?? "",
     });
     setOpen(true);
   }
@@ -93,6 +99,7 @@ export default function AssetsTab() {
       cleaning_product: form.cleaning_product.trim() || null,
       target_temp_min: form.target_temp_min ? Number(form.target_temp_min) : null,
       target_temp_max: form.target_temp_max ? Number(form.target_temp_max) : null,
+      department_id: form.department_id || null,
     };
     const res = editing
       ? await supabase.from("assets").update(payload).eq("id", editing.id)
@@ -144,6 +151,21 @@ export default function AssetsTab() {
                 </Select>
               </div>
               <div className="space-y-1.5">
+                <Label>Reparto</Label>
+                <Select
+                  value={form.department_id || "__none__"}
+                  onValueChange={(v) => setForm({ ...form, department_id: v === "__none__" ? "" : v })}
+                >
+                  <SelectTrigger><SelectValue placeholder="Seleziona reparto" /></SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="__none__">Senza reparto</SelectItem>
+                    {departments.map((d) => (
+                      <SelectItem key={d.id} value={d.id}>{d.name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="space-y-1.5">
                 <Label>Detergente / Sanificante predefinito</Label>
                 <Input
                   value={form.cleaning_product}
@@ -189,7 +211,10 @@ export default function AssetsTab() {
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="font-semibold truncate">{a.name}</div>
-                  <div className="text-xs text-muted-foreground">{meta.label}</div>
+                  <div className="text-xs text-muted-foreground">
+                    {meta.label}
+                    {deptName(a.department_id) && <> · <span className="text-foreground/70">{deptName(a.department_id)}</span></>}
+                  </div>
                   {a.cleaning_product && (
                     <div className="text-xs mt-1 text-foreground/70 truncate">🧴 {a.cleaning_product}</div>
                   )}

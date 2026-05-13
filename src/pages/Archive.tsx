@@ -48,7 +48,7 @@ const CONFIGS: Record<TableKey, { label: string; columns: ColumnDef[]; relation?
   },
   temperatures: {
     label: "Temperature",
-    relation: "assets(name)",
+    relation: "assets(name, department_id)",
     columns: [
       { key: "asset_name", label: "Asset", readOnly: true },
       { key: "temperature", label: "°C", type: "number" },
@@ -59,7 +59,7 @@ const CONFIGS: Record<TableKey, { label: string; columns: ColumnDef[]; relation?
   },
   sanitations: {
     label: "Sanificazioni",
-    relation: "assets(name)",
+    relation: "assets(name, department_id)",
     columns: [
       { key: "asset_name", label: "Asset", readOnly: true },
       { key: "event_date", label: "Data", type: "date" },
@@ -116,6 +116,38 @@ function groupByMonth(rows: any[]): Record<string, any[]> {
   return map;
 }
 
+function groupByDay(rows: any[]): Record<string, any[]> {
+  const map: Record<string, any[]> = {};
+  for (const r of rows) {
+    const d = r.event_date ? r.event_date.slice(0, 10) : "senza-data";
+    (map[d] ??= []).push(r);
+  }
+  return map;
+}
+
+function dayLabel(d: string): string {
+  if (d === "senza-data") return "Senza data";
+  try {
+    return new Date(d + "T00:00:00").toLocaleDateString("it-IT", {
+      weekday: "long", day: "2-digit", month: "long", year: "numeric",
+    });
+  } catch { return d; }
+}
+
+function groupByDepartment(rows: any[], departments: { id: string; name: string }[]): { key: string; name: string; items: any[] }[] {
+  const byDept: Record<string, any[]> = {};
+  for (const r of rows) {
+    const k = r.department_id || "__none__";
+    (byDept[k] ??= []).push(r);
+  }
+  const out: { key: string; name: string; items: any[] }[] = [];
+  for (const d of departments) {
+    if (byDept[d.id]) out.push({ key: d.id, name: d.name, items: byDept[d.id] });
+  }
+  if (byDept["__none__"]) out.push({ key: "__none__", name: "Senza reparto", items: byDept["__none__"] });
+  return out;
+}
+
 function monthLabel(ym: string): string {
   if (ym === "senza-data") return "Senza data";
   const [y, m] = ym.split("-");
@@ -125,54 +157,50 @@ function monthLabel(ym: string): string {
 
 function generateDailyPdf(
   date: string,
-  rows: any[],
+  deptGroups: { key: string; name: string; items: any[] }[],
   type: "temperatures" | "sanitations",
   company: any
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const title = type === "temperatures" ? "Registro Temperature" : "Registro Sanificazioni";
 
-  // Header
   doc.setFontSize(16);
   doc.text(title, 14, 20);
   doc.setFontSize(10);
-  doc.text(`Data: ${date}`, 14, 28);
+  doc.text(`Data: ${dayLabel(date)}`, 14, 28);
   if (company?.business_name) doc.text(company.business_name, 14, 34);
   if (company?.address) doc.text(company.address, 14, 39);
 
-  const startY = company?.address ? 46 : company?.business_name ? 41 : 35;
-
-  if (type === "temperatures") {
+  let startY = company?.address ? 46 : company?.business_name ? 41 : 35;
+  deptGroups.forEach((dg) => {
+    doc.setFontSize(11);
+    doc.text(dg.name, 14, startY);
     autoTable(doc, {
-      startY,
-      head: [["Attrezzatura", "°C", "Operatore", "Ora", "Note"]],
-      body: rows.map((r) => [
-        r.asset_name ?? "—",
-        r.temperature ?? "—",
-        r.operator ?? "—",
-        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
-        r.notes ?? "",
-      ]),
+      startY: startY + 3,
+      head: type === "temperatures"
+        ? [["Attrezzatura", "°C", "Ora", "Note"]]
+        : [["Attrezzatura", "Prodotto usato", "Ora", "Note"]],
+      body: dg.items.map((r) => type === "temperatures"
+        ? [
+            r.asset_name ?? "—",
+            r.temperature ?? "—",
+            r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+            r.notes ?? "",
+          ]
+        : [
+            r.asset_name ?? "—",
+            r.product_used ?? "—",
+            r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+            r.notes ?? "",
+          ]
+      ),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [59, 130, 246] },
     });
-  } else {
-    autoTable(doc, {
-      startY,
-      head: [["Attrezzatura", "Operatore", "Prodotto usato", "Ora", "Note"]],
-      body: rows.map((r) => [
-        r.asset_name ?? "—",
-        r.operator ?? "—",
-        r.product_used ?? "—",
-        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
-        r.notes ?? "",
-      ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [59, 130, 246] },
-    });
-  }
+    startY = (doc as any).lastAutoTable.finalY + 8;
+    if (startY > 270) { doc.addPage(); startY = 20; }
+  });
 
-  // Footer
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -184,40 +212,56 @@ function generateDailyPdf(
 }
 
 function generateMonthlyPdf(
-  month: string, rows: any[], type: "temperatures" | "sanitations", company: any
+  month: string, rows: any[], type: "temperatures" | "sanitations", company: any,
+  departments: { id: string; name: string }[],
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const title = type === "temperatures" ? "Registro Temperature" : "Registro Sanificazioni";
-  const sorted = [...rows].sort((a, b) => (a.event_date ?? "").localeCompare(b.event_date ?? ""));
   doc.setFontSize(16);
   doc.text(`${title} — ${monthLabel(month)}`, 14, 20);
   doc.setFontSize(10);
   if (company?.business_name) doc.text(company.business_name, 14, 28);
   if (company?.address) doc.text(company.address, 14, 33);
-  const startY = company?.address ? 40 : company?.business_name ? 35 : 28;
-  if (type === "temperatures") {
-    autoTable(doc, {
-      startY,
-      head: [["Data", "Attrezzatura", "°C", "Operatore", "Ora", "Note"]],
-      body: sorted.map((r) => [
-        r.event_date ?? "—", r.asset_name ?? "—", r.temperature ?? "—", r.operator ?? "—",
-        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
-        r.notes ?? "",
-      ]),
-      styles: { fontSize: 9 }, headStyles: { fillColor: [59, 130, 246] },
+  let startY = company?.address ? 40 : company?.business_name ? 35 : 28;
+  // Group by day, then by department within day
+  const byDay = groupByDay(rows);
+  const days = Object.keys(byDay).sort();
+  days.forEach((day) => {
+    doc.setFontSize(12);
+    doc.text(dayLabel(day), 14, startY);
+    startY += 4;
+    const deptGroups = groupByDepartment(byDay[day], departments);
+    deptGroups.forEach((dg) => {
+      doc.setFontSize(10);
+      doc.text(dg.name, 16, startY);
+      autoTable(doc, {
+        startY: startY + 2,
+        head: type === "temperatures"
+          ? [["Attrezzatura", "°C", "Ora", "Note"]]
+          : [["Attrezzatura", "Prodotto usato", "Ora", "Note"]],
+        body: dg.items.map((r) => type === "temperatures"
+          ? [
+              r.asset_name ?? "—",
+              r.temperature ?? "—",
+              r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+              r.notes ?? "",
+            ]
+          : [
+              r.asset_name ?? "—",
+              r.product_used ?? "—",
+              r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+              r.notes ?? "",
+            ]
+        ),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 16 },
+      });
+      startY = (doc as any).lastAutoTable.finalY + 5;
+      if (startY > 270) { doc.addPage(); startY = 20; }
     });
-  } else {
-    autoTable(doc, {
-      startY,
-      head: [["Data", "Attrezzatura", "Operatore", "Prodotto usato", "Ora", "Note"]],
-      body: sorted.map((r) => [
-        r.event_date ?? "—", r.asset_name ?? "—", r.operator ?? "—", r.product_used ?? "—",
-        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
-        r.notes ?? "",
-      ]),
-      styles: { fontSize: 9 }, headStyles: { fillColor: [59, 130, 246] },
-    });
-  }
+    startY += 3;
+  });
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -328,7 +372,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   const { session } = useAuth();
   const { operator } = useOperatorSession();
 
-  const supportsDept = tableKey === "raw_materials" || tableKey === "products";
+  const supportsDept = tableKey === "raw_materials" || tableKey === "products" || tableKey === "temperatures" || tableKey === "sanitations";
 
   function onRowClick(r: any) {
     if (tableKey === "raw_materials") navigate(`/archivio/materia-prima/${r.id}`);
@@ -364,6 +408,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
     const flattened = (data ?? []).map((r: any) => ({
       ...r,
       asset_name: r.assets?.name ?? "—",
+      department_id: r.assets?.department_id ?? r.department_id ?? null,
     }));
     setRows(flattened);
     setLoading(false);
@@ -456,7 +501,17 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
         setOpenWeeks((prev) => (prev[firstWeek.key] === undefined ? { ...prev, [firstWeek.key]: true } : prev));
       }
     }
-  }, [monthlyGroups, tableKey]);
+    if ((tableKey === "temperatures" || tableKey === "sanitations") && sortedMonths.length > 0) {
+      const firstMonth = sortedMonths[0];
+      setOpenMonths((prev) => (prev[firstMonth] === undefined ? { ...prev, [firstMonth]: true } : prev));
+      const firstDay = (grouped[firstMonth] ?? [])
+        .map((r: any) => r.event_date ? r.event_date.slice(0, 10) : "senza-data")
+        .sort((a: string, b: string) => b.localeCompare(a))[0];
+      if (firstDay) {
+        setOpenWeeks((prev) => (prev[firstDay] === undefined ? { ...prev, [firstDay]: true } : prev));
+      }
+    }
+  }, [monthlyGroups, sortedMonths, grouped, tableKey]);
 
   async function save(updated: any) {
     const payload: any = {};
@@ -577,64 +632,128 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   }
 
   if (isGroupable) {
+    // Build month → days → departments structure
+    const monthDays: Record<string, string[]> = {};
+    sortedMonths.forEach((m) => {
+      const days = Array.from(new Set(grouped[m].map((r: any) => r.event_date ? r.event_date.slice(0, 10) : "senza-data"))) as string[];
+      monthDays[m] = days.sort((a, b) => b.localeCompare(a));
+    });
+    const dayMap: Record<string, any[]> = groupByDay(filteredRows);
     return (
       <>
+        {DeptTabs}
         <div className="space-y-4">
           {sortedMonths.map((month) => (
-            <Card key={month} className="overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-                <h3 className="font-display font-bold text-sm">{monthLabel(month)}</h3>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => generateMonthlyPdf(month, grouped[month], tableKey as "temperatures" | "sanitations", company)}
-                >
-                  <FileDown size={14} /> PDF
-                </Button>
-              </div>
-              {/* Desktop table */}
-              <div className="overflow-x-auto hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {cfg.columns.map((c) => (
-                        <TableHead key={c.key}>{c.label}</TableHead>
-                      ))}
-                      <TableHead className="text-right">Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {grouped[month].sort((a: any, b: any) => (a.event_date ?? "").localeCompare(b.event_date ?? "")).map((r: any) => (
-                      <TableRow key={r.id}>
-                        {cfg.columns.map((c) => (
-                          <TableCell key={c.key} className="text-sm">
-                            {r[c.key] ?? "—"}
-                          </TableCell>
-                        ))}
-                        <TableCell className="text-right whitespace-nowrap">
-                          <Button size="icon" variant="ghost" onClick={() => setEditing(r)}>
-                            <Pencil size={14} />
-                          </Button>
-                          <Button size="icon" variant="ghost" onClick={() => remove(r.id)}>
-                            <Trash2 size={14} className="text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              {/* Mobile cards */}
-              <div className="md:hidden divide-y">
-                {grouped[month].sort((a: any, b: any) => (a.event_date ?? "").localeCompare(b.event_date ?? "")).map((r: any) => (
-                  <div key={r.id} className="p-3">
-                    <MobileCard r={r} />
+            <Collapsible
+              key={month}
+              open={openMonths[month] ?? false}
+              onOpenChange={(o) => setOpenMonths((prev) => ({ ...prev, [month]: o }))}
+            >
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-muted/40">
+                  <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left hover:opacity-80 transition">
+                    <ChevronDown size={18} className={`text-muted-foreground transition-transform shrink-0 ${openMonths[month] ? "rotate-180" : ""}`} />
+                    <h3 className="font-display font-bold text-base truncate">
+                      {monthLabel(month)} <span className="text-muted-foreground font-normal text-sm">({grouped[month].length})</span>
+                    </h3>
+                  </CollapsibleTrigger>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 shrink-0"
+                    onClick={() => generateMonthlyPdf(month, grouped[month], tableKey as "temperatures" | "sanitations", company, departments)}
+                  >
+                    <FileDown size={14} /> PDF
+                  </Button>
+                </div>
+                <CollapsibleContent>
+                  <div className="p-3 space-y-2 bg-muted/10">
+                    {monthDays[month].map((day) => {
+                      const dayItems = dayMap[day] ?? [];
+                      const deptGroups = groupByDepartment(dayItems, departments);
+                      return (
+                        <Collapsible
+                          key={day}
+                          open={openWeeks[day] ?? false}
+                          onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [day]: o }))}
+                        >
+                          <Card className="overflow-hidden">
+                            <div className="w-full flex items-center justify-between gap-2 px-3 py-2 border-b bg-card">
+                              <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left hover:bg-muted/40 transition rounded -mx-1 px-1">
+                                <ChevronDown size={14} className={`text-muted-foreground transition-transform shrink-0 ${openWeeks[day] ? "rotate-180" : ""}`} />
+                                <span className="font-medium text-sm capitalize">
+                                  {dayLabel(day)} <span className="text-muted-foreground font-normal">({dayItems.length})</span>
+                                </span>
+                              </CollapsibleTrigger>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1.5 shrink-0 h-7"
+                                onClick={() => generateDailyPdf(day, deptGroups, tableKey as "temperatures" | "sanitations", company)}
+                              >
+                                <FileDown size={13} /> PDF
+                              </Button>
+                            </div>
+                            <CollapsibleContent>
+                              <div className="divide-y">
+                                {deptGroups.map((dg) => (
+                                  <div key={dg.key} className="p-3">
+                                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                      {dg.name} <span className="font-normal normal-case">({dg.items.length})</span>
+                                    </div>
+                                    {/* Desktop */}
+                                    <div className="overflow-x-auto hidden md:block">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow>
+                                            {cfg.columns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
+                                            <TableHead className="text-right">Azioni</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {dg.items.map((r: any) => (
+                                            <TableRow key={r.id}>
+                                              {cfg.columns.map((c) => (
+                                                <TableCell key={c.key} className="text-sm">{r[c.key] ?? "—"}</TableCell>
+                                              ))}
+                                              <TableCell className="text-right whitespace-nowrap">
+                                                <Button size="icon" variant="ghost" onClick={() => setEditing(r)}>
+                                                  <Pencil size={14} />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" onClick={() => remove(r.id)}>
+                                                  <Trash2 size={14} className="text-destructive" />
+                                                </Button>
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                    {/* Mobile */}
+                                    <div className="md:hidden space-y-2">
+                                      {dg.items.map((r: any) => (
+                                        <MobileCard key={r.id} r={r} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                                {deptGroups.length === 0 && (
+                                  <div className="p-4 text-center text-sm text-muted-foreground">Nessun dato.</div>
+                                )}
+                              </div>
+                            </CollapsibleContent>
+                          </Card>
+                        </Collapsible>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            </Card>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           ))}
+          {sortedMonths.length === 0 && (
+            <Card className="p-12 text-center text-muted-foreground">Nessun risultato.</Card>
+          )}
         </div>
 
         <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>

@@ -19,6 +19,7 @@ export type Database = {
           asset_type: string
           cleaning_product: string | null
           created_at: string
+          department_id: string | null
           id: string
           name: string
           target_temp_max: number | null
@@ -29,6 +30,7 @@ export type Database = {
           asset_type?: string
           cleaning_product?: string | null
           created_at?: string
+          department_id?: string | null
           id?: string
           name: string
           target_temp_max?: number | null
@@ -39,6 +41,7 @@ export type Database = {
           asset_type?: string
           cleaning_product?: string | null
           created_at?: string
+          department_id?: string | null
           id?: string
           name?: string
           target_temp_max?: number | null
