@@ -2,6 +2,7 @@ import { createClient } from "https://esm.sh/@supabase/supabase-js@2.49.4";
 
 type TaskAssignment = {
   id: string;
+  user_id: string;
   operator_id: string;
   asset_id: string;
   task_type: string;
@@ -51,16 +52,17 @@ Deno.serve(async (req) => {
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
-    // Get current time as HH:MM
+    // Compare in Europe/Rome timezone; only flag tasks overdue by 30+ minutes
     const now = new Date();
-    const currentTime = now.toTimeString().slice(0, 5);
+    const romeNow = new Date(now.toLocaleString("en-US", { timeZone: "Europe/Rome" }));
+    const thresholdDate = new Date(romeNow.getTime() - 30 * 60 * 1000);
+    const thresholdTime = thresholdDate.toTimeString().slice(0, 5);
 
-    // Find task assignments with a due_time set
     const { data: allTasks, error: taskError } = await supabase
       .from("task_assignments")
-      .select("id, operator_id, asset_id, task_type, due_time, frequency")
+      .select("id, user_id, operator_id, asset_id, task_type, due_time, frequency")
       .not("due_time", "is", null)
-      .lte("due_time", currentTime);
+      .lte("due_time", thresholdTime);
 
     if (taskError) {
       console.error("Error fetching tasks:", taskError);
@@ -142,6 +144,28 @@ Deno.serve(async (req) => {
       if (p.push_token) tokenMap.set(p.id, p.push_token);
     }
 
+    // Admin push tokens
+    const adminUserIds = [...new Set(overdueTasks.map((t) => t.user_id).filter(Boolean))];
+    const adminTokenMap = new Map<string, any>();
+    if (adminUserIds.length > 0) {
+      const { data: profiles } = await supabase
+        .from("profiles")
+        .select("id, push_token")
+        .in("id", adminUserIds)
+        .not("push_token", "is", null);
+      for (const p of profiles || []) {
+        if (p.push_token) adminTokenMap.set(p.id, p.push_token);
+      }
+    }
+
+    // Operator names for admin messages
+    const { data: opNames } = await supabase
+      .from("operators")
+      .select("id, name")
+      .in("id", operatorIds);
+    const opNameMap = new Map<string, string>();
+    for (const o of opNames || []) opNameMap.set(o.id, o.name);
+
     // Get asset names for the notifications
     const assetIds = [...new Set(overdueTasks.map((t) => t.asset_id))];
     const { data: assets } = await supabase
@@ -156,23 +180,38 @@ Deno.serve(async (req) => {
 
     let sent = 0;
     for (const task of overdueTasks) {
-      const sub = tokenMap.get(task.operator_id);
-      if (!sub) continue;
-
       const assetName = assetMap.get(task.asset_id) || "Attrezzatura";
       const taskLabel = task.task_type === "sanitation" ? "Sanificazione" : "Rilevazione temperatura";
+      const opName = opNameMap.get(task.operator_id) || "Operatore";
 
-      const payload = JSON.stringify({
-        title: "DocuTrace HACCP",
-        body: `⚠️ ${taskLabel} scaduta per ${assetName} (ore ${task.due_time})`,
-        url: "/",
-      });
+      const sub = tokenMap.get(task.operator_id);
+      if (sub) {
+        const payload = JSON.stringify({
+          title: "DocuTrace HACCP",
+          body: `⚠️ ${taskLabel} scaduta per ${assetName} (ore ${task.due_time})`,
+          url: "/",
+        });
+        try {
+          await sendWebPush(sub, payload, vapidPrivateKey, vapidPublicKey);
+          sent++;
+        } catch (pushErr: any) {
+          console.error("Push send error (operator):", pushErr?.message || pushErr);
+        }
+      }
 
-      try {
-        await sendWebPush(sub, payload, vapidPrivateKey, vapidPublicKey);
-        sent++;
-      } catch (pushErr: any) {
-        console.error("Push send error:", pushErr?.message || pushErr);
+      const adminSub = adminTokenMap.get(task.user_id);
+      if (adminSub) {
+        const adminPayload = JSON.stringify({
+          title: "DocuTrace HACCP",
+          body: `⚠️ ${opName} non ha eseguito ${taskLabel.toLowerCase()} per ${assetName} (ore ${task.due_time})`,
+          url: "/",
+        });
+        try {
+          await sendWebPush(adminSub, adminPayload, vapidPrivateKey, vapidPublicKey);
+          sent++;
+        } catch (pushErr: any) {
+          console.error("Push send error (admin):", pushErr?.message || pushErr);
+        }
       }
     }
 

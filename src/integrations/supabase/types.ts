@@ -607,6 +607,7 @@ export type Database = {
       [_ in never]: never
     }
     Functions: {
+      admin_overdue_tasks: { Args: { p_user_id: string }; Returns: Json }
       operator_admin_get_product: {
         Args: { p_id: string; p_operator_id: string; p_pin: string }
         Returns: Json
