@@ -116,6 +116,38 @@ function groupByMonth(rows: any[]): Record<string, any[]> {
   return map;
 }
 
+function groupByDay(rows: any[]): Record<string, any[]> {
+  const map: Record<string, any[]> = {};
+  for (const r of rows) {
+    const d = r.event_date ? r.event_date.slice(0, 10) : "senza-data";
+    (map[d] ??= []).push(r);
+  }
+  return map;
+}
+
+function dayLabel(d: string): string {
+  if (d === "senza-data") return "Senza data";
+  try {
+    return new Date(d + "T00:00:00").toLocaleDateString("it-IT", {
+      weekday: "long", day: "2-digit", month: "long", year: "numeric",
+    });
+  } catch { return d; }
+}
+
+function groupByDepartment(rows: any[], departments: { id: string; name: string }[]): { key: string; name: string; items: any[] }[] {
+  const byDept: Record<string, any[]> = {};
+  for (const r of rows) {
+    const k = r.department_id || "__none__";
+    (byDept[k] ??= []).push(r);
+  }
+  const out: { key: string; name: string; items: any[] }[] = [];
+  for (const d of departments) {
+    if (byDept[d.id]) out.push({ key: d.id, name: d.name, items: byDept[d.id] });
+  }
+  if (byDept["__none__"]) out.push({ key: "__none__", name: "Senza reparto", items: byDept["__none__"] });
+  return out;
+}
+
 function monthLabel(ym: string): string {
   if (ym === "senza-data") return "Senza data";
   const [y, m] = ym.split("-");
