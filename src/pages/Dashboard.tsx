@@ -5,8 +5,18 @@ import PageHeader from "@/components/PageHeader";
 import CompanyHeader from "@/components/CompanyHeader";
 import { Sparkles, Thermometer, Package, Factory, AlertTriangle, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useAuth } from "@/hooks/useAuth";
+
+type OverdueTask = {
+  assignment_id: string;
+  operator_name: string;
+  asset_name: string;
+  task_type: string;
+  due_time: string;
+};
 
 export default function Dashboard() {
+  const { user } = useAuth();
   const [stats, setStats] = useState({
     sanitToday: 0,
     tempToday: 0,
@@ -15,6 +25,21 @@ export default function Dashboard() {
     outOfStock: 0,
     missingToday: false,
   });
+  const [overdue, setOverdue] = useState<OverdueTask[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+    async function load() {
+      const { data } = await supabase.rpc("admin_overdue_tasks", { p_user_id: user!.id });
+      if (cancelled) return;
+      const tasks = (data as any)?.tasks ?? [];
+      setOverdue(tasks);
+    }
+    load();
+    const id = setInterval(load, 60_000);
+    return () => { cancelled = true; clearInterval(id); };
+  }, [user]);
 
   useEffect(() => {
     (async () => {
@@ -68,6 +93,31 @@ export default function Dashboard() {
             <div className="font-semibold text-foreground">Registri incompleti oggi</div>
             <p className="text-muted-foreground">Ricordati di compilare sanificazioni e rilevazioni temperature.</p>
           </div>
+        </Card>
+      )}
+
+      {overdue.length > 0 && (
+        <Card className="p-4 mb-6 border-destructive/40 bg-destructive/5">
+          <div className="flex items-start gap-3 mb-3">
+            <AlertTriangle className="text-destructive shrink-0 mt-0.5" />
+            <div className="text-sm">
+              <div className="font-semibold text-foreground">Compiti operatore in ritardo</div>
+              <p className="text-muted-foreground">Questi compiti non sono stati eseguiti entro 30 minuti dall'orario previsto.</p>
+            </div>
+          </div>
+          <ul className="space-y-2 text-sm">
+            {overdue.map((t) => (
+              <li key={t.assignment_id} className="flex items-center justify-between gap-3 rounded-md bg-background/60 px-3 py-2">
+                <div>
+                  <div className="font-medium">{t.operator_name}</div>
+                  <div className="text-muted-foreground text-xs">
+                    {t.task_type === "sanitation" ? "Sanificazione" : "Rilevazione temperatura"} • {t.asset_name}
+                  </div>
+                </div>
+                <div className="text-xs font-mono text-destructive shrink-0">ore {t.due_time?.slice(0, 5)}</div>
+              </li>
+            ))}
+          </ul>
         </Card>
       )}
 
