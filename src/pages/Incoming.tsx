@@ -7,7 +7,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon } from "lucide-react";
+import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon, Star, Repeat, Check } from "lucide-react";
+import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { generateInternalLot } from "@/lib/lot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Link } from "react-router-dom";
@@ -101,6 +102,10 @@ export default function Incoming() {
   const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
   const [departmentId, setDepartmentId] = useState<string>("");
+  const [recurring, setRecurring] = useState<any[]>([]);
+  const [recurringOpen, setRecurringOpen] = useState(false);
+  const [recurringPicked, setRecurringPicked] = useState<Set<string>>(new Set());
+  const [recurringSearch, setRecurringSearch] = useState("");
 
   // Keep all product lines in sync with the top-level department
   useEffect(() => {
@@ -134,6 +139,92 @@ export default function Incoming() {
     load();
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [isOperatorAdmin]);
+
+  // Load recurring templates (logged-in admin only)
+  useEffect(() => {
+    if (isOperatorAdmin) return;
+    (async () => {
+      const { data } = await (supabase as any)
+        .from("recurring_raw_materials")
+        .select("*")
+        .order("last_used_at", { ascending: false, nullsFirst: false })
+        .order("product_name");
+      setRecurring(data ?? []);
+    })();
+  }, [isOperatorAdmin]);
+
+  function recurringToLine(r: any): ProductLine {
+    const d = documentDate ? new Date(documentDate + "T00:00:00") : new Date();
+    return {
+      selected: true,
+      productName: r.product_name ?? "",
+      quantity: r.quantity ?? "",
+      supplierLot: "",
+      category: r.category ?? "materia_prima",
+      expiry: "",
+      origin: r.origin ?? "",
+      internalLot: generateInternalLot("L", d),
+      departmentId: r.department_id ?? departmentId ?? "",
+      bornIn: r.born_in ?? "",
+      raisedIn: r.raised_in ?? "",
+      slaughteredIn: r.slaughtered_in ?? "",
+      slaughterMark: r.slaughter_mark ?? "",
+      ingredients: r.ingredients ?? "",
+    };
+  }
+
+  async function loadFromRecurring() {
+    const picks = recurring.filter((r) => recurringPicked.has(r.id));
+    if (picks.length === 0) { setRecurringOpen(false); return; }
+    if (picks[0].supplier_name && !supplierName) setSupplierName(picks[0].supplier_name);
+    const newLines = picks.map(recurringToLine);
+    // Replace lines if the only existing one is empty, otherwise append
+    setLines((prev) => {
+      const onlyEmpty = prev.length === 1 && !prev[0].productName.trim();
+      return onlyEmpty ? newLines : [...prev, ...newLines];
+    });
+    // Bump usage counters
+    await Promise.all(
+      picks.map((r) =>
+        (supabase as any)
+          .from("recurring_raw_materials")
+          .update({ use_count: (r.use_count ?? 0) + 1, last_used_at: new Date().toISOString() })
+          .eq("id", r.id),
+      ),
+    );
+    toast.success(`${picks.length} prodott${picks.length === 1 ? "o" : "i"} caricat${picks.length === 1 ? "o" : "i"} dai ricorrenti`);
+    setRecurringPicked(new Set());
+    setRecurringSearch("");
+    setRecurringOpen(false);
+  }
+
+  async function saveLineAsRecurring(line: ProductLine) {
+    if (!line.productName.trim()) return toast.error("Inserisci prima il nome prodotto");
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return;
+    const payload: any = {
+      user_id: user.id,
+      product_name: line.productName.trim(),
+      supplier_name: supplierName.trim() || null,
+      category: line.category,
+      department_id: line.departmentId || null,
+      quantity: line.quantity.trim() || null,
+      origin: line.origin.trim() || null,
+      ingredients: line.ingredients.trim() || null,
+      born_in: line.bornIn.trim() || null,
+      raised_in: line.raisedIn.trim() || null,
+      slaughtered_in: line.slaughteredIn.trim() || null,
+      slaughter_mark: line.slaughterMark.trim() || null,
+    };
+    const { data, error } = await (supabase as any)
+      .from("recurring_raw_materials")
+      .insert(payload)
+      .select()
+      .single();
+    if (error) return toast.error(error.message);
+    setRecurring((prev) => [data, ...prev]);
+    toast.success("Salvato come ricorrente");
+  }
 
   function updateLine(idx: number, patch: Partial<ProductLine>) {
     setLines((prev) => prev.map((l, i) => (i === idx ? { ...l, ...patch } : l)));
@@ -311,9 +402,79 @@ export default function Incoming() {
       <PageHeader title="Ingresso Merci" subtitle="Scatta una foto del documento: l'AI compila il resto." />
 
       <div className="mb-4">
-        <Button asChild variant="outline" className="gap-2">
-          <Link to="/archivio"><ArchiveIcon size={16} /> Archivio Materie Prime</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/archivio"><ArchiveIcon size={16} /> Archivio Materie Prime</Link>
+          </Button>
+          {!isOperatorAdmin && (
+            <Popover open={recurringOpen} onOpenChange={setRecurringOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Repeat size={16} /> Carica da ricorrente
+                  {recurring.length > 0 && <span className="text-xs text-muted-foreground">({recurring.length})</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[340px] p-2" align="start">
+                {recurring.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    Nessun prodotto ricorrente. Crealo in Impostazioni → Ricorrenti, oppure salva una riga con la stella.
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      autoFocus
+                      placeholder="Cerca prodotto…"
+                      value={recurringSearch}
+                      onChange={(e) => setRecurringSearch(e.target.value)}
+                      className="h-9 mb-2"
+                    />
+                    <div className="max-h-64 overflow-auto space-y-1">
+                      {recurring
+                        .filter((r) => {
+                          const q = recurringSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return (r.product_name || "").toLowerCase().includes(q)
+                            || (r.supplier_name || "").toLowerCase().includes(q);
+                        })
+                        .map((r) => {
+                          const on = recurringPicked.has(r.id);
+                          return (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => {
+                                const s = new Set(recurringPicked);
+                                on ? s.delete(r.id) : s.add(r.id);
+                                setRecurringPicked(s);
+                              }}
+                              className={`w-full text-left px-2 py-2 rounded-md flex items-center gap-2 transition ${on ? "bg-primary/10 border border-primary/30" : "hover:bg-muted"}`}
+                            >
+                              <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${on ? "bg-primary border-primary" : "border-border"}`}>
+                                {on && <Check size={12} className="text-primary-foreground" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium truncate">{r.product_name}</div>
+                                <div className="text-[11px] text-muted-foreground truncate">
+                                  {r.supplier_name || "—"}
+                                  {r.use_count > 0 && <> • {r.use_count}×</>}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                    </div>
+                    <div className="flex gap-2 mt-2 pt-2 border-t">
+                      <Button variant="ghost" size="sm" className="flex-1" onClick={() => { setRecurringPicked(new Set()); setRecurringOpen(false); }}>Annulla</Button>
+                      <Button size="sm" className="flex-1 bg-gradient-primary" disabled={recurringPicked.size === 0} onClick={loadFromRecurring}>
+                        Carica {recurringPicked.size > 0 ? `(${recurringPicked.size})` : ""}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
 
       <Card className="p-5 mb-6 shadow-soft">
@@ -405,9 +566,21 @@ export default function Incoming() {
                   checked={line.selected}
                   onCheckedChange={(v) => updateLine(idx, { selected: !!v })}
                 />
-                <Label htmlFor={`sel-${idx}`} className="text-xs font-semibold cursor-pointer">
+                <Label htmlFor={`sel-${idx}`} className="text-xs font-semibold cursor-pointer flex-1">
                   Importa in archivio
                 </Label>
+                {!isOperatorAdmin && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                    onClick={() => saveLineAsRecurring(line)}
+                    title="Salva come prodotto ricorrente"
+                  >
+                    <Star size={14} /> Ricorrente
+                  </Button>
+                )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="space-y-1 md:col-span-2">

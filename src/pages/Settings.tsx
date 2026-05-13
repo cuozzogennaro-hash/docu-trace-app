@@ -6,7 +6,8 @@ import AssetsTab from "@/components/settings/AssetsTab";
 import IngredientsTab from "@/components/settings/IngredientsTab";
 import LabelEditorTab from "@/components/settings/LabelEditorTab";
 import DepartmentsTab from "@/components/settings/DepartmentsTab";
-import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building } from "lucide-react";
+import RecurringTab from "@/components/settings/RecurringTab";
+import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building, Repeat } from "lucide-react";
 
 export default function Settings() {
   return (
@@ -20,6 +21,7 @@ export default function Settings() {
           <TabsTrigger value="assets" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Wrench size={14} className="hidden sm:inline" /> Attrezz.</TabsTrigger>
           <TabsTrigger value="aromi" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Leaf size={14} className="hidden sm:inline" /> Aromi</TabsTrigger>
           <TabsTrigger value="additivi" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><FlaskConical size={14} className="hidden sm:inline" /> Additivi</TabsTrigger>
+          <TabsTrigger value="recurring" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Repeat size={14} className="hidden sm:inline" /> Ricorrenti</TabsTrigger>
           <TabsTrigger value="etichette" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Tag size={14} className="hidden sm:inline" /> Etichette</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanyTab /></TabsContent>
@@ -28,6 +30,7 @@ export default function Settings() {
         <TabsContent value="assets"><AssetsTab /></TabsContent>
         <TabsContent value="aromi"><IngredientsTab category="aroma" title="Aromi" subtitle="Gestisci gli aromi utilizzati nelle produzioni" /></TabsContent>
         <TabsContent value="additivi"><IngredientsTab category="additivo_allergene" title="Additivi ed Allergeni" subtitle="Gestisci additivi e allergeni utilizzati nelle produzioni" /></TabsContent>
+        <TabsContent value="recurring"><RecurringTab /></TabsContent>
         <TabsContent value="etichette"><LabelEditorTab /></TabsContent>
       </Tabs>
     </>

@@ -406,6 +406,66 @@ export type Database = {
           },
         ]
       }
+      recurring_raw_materials: {
+        Row: {
+          born_in: string | null
+          category: string
+          created_at: string
+          department_id: string | null
+          id: string
+          ingredients: string | null
+          last_used_at: string | null
+          origin: string | null
+          product_name: string
+          quantity: string | null
+          raised_in: string | null
+          slaughter_mark: string | null
+          slaughtered_in: string | null
+          supplier_name: string | null
+          updated_at: string
+          use_count: number
+          user_id: string
+        }
+        Insert: {
+          born_in?: string | null
+          category?: string
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          ingredients?: string | null
+          last_used_at?: string | null
+          origin?: string | null
+          product_name: string
+          quantity?: string | null
+          raised_in?: string | null
+          slaughter_mark?: string | null
+          slaughtered_in?: string | null
+          supplier_name?: string | null
+          updated_at?: string
+          use_count?: number
+          user_id: string
+        }
+        Update: {
+          born_in?: string | null
+          category?: string
+          created_at?: string
+          department_id?: string | null
+          id?: string
+          ingredients?: string | null
+          last_used_at?: string | null
+          origin?: string | null
+          product_name?: string
+          quantity?: string | null
+          raised_in?: string | null
+          slaughter_mark?: string | null
+          slaughtered_in?: string | null
+          supplier_name?: string | null
+          updated_at?: string
+          use_count?: number
+          user_id?: string
+        }
+        Relationships: []
+      }
       sales: {
         Row: {
           client_id: string

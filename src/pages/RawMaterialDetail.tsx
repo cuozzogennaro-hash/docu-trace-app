@@ -4,7 +4,8 @@ import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { ArrowLeft, FileDown, Loader2 } from "lucide-react";
+import { ArrowLeft, FileDown, Loader2, Star } from "lucide-react";
+import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
@@ -21,6 +22,7 @@ export default function RawMaterialDetail() {
   const [products, setProducts] = useState<any[]>([]);
   const [departmentName, setDepartmentName] = useState<string>("");
   const [loading, setLoading] = useState(true);
+  const [savingRecurring, setSavingRecurring] = useState(false);
 
   useEffect(() => {
     if (!id) return;
@@ -150,6 +152,31 @@ export default function RawMaterialDetail() {
     doc.save(`materia_prima_${material.internal_lot}.pdf`);
   }
 
+  async function saveAsRecurring() {
+    if (!material) return;
+    setSavingRecurring(true);
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) { setSavingRecurring(false); return; }
+    const payload: any = {
+      user_id: user.id,
+      product_name: material.product_name,
+      supplier_name: material.supplier_name || null,
+      category: material.category || "materia_prima",
+      department_id: material.department_id || null,
+      quantity: material.quantity || null,
+      origin: material.origin || null,
+      ingredients: material.ingredients || null,
+      born_in: material.born_in || null,
+      raised_in: material.raised_in || null,
+      slaughtered_in: material.slaughtered_in || null,
+      slaughter_mark: material.slaughter_mark || null,
+    };
+    const { error } = await (supabase as any).from("recurring_raw_materials").insert(payload);
+    setSavingRecurring(false);
+    if (error) return toast.error(error.message);
+    toast.success("Salvato come prodotto ricorrente");
+  }
+
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (!material) return <div className="py-12 text-center text-muted-foreground">Materia prima non trovata.</div>;
 
@@ -188,6 +215,11 @@ export default function RawMaterialDetail() {
         <Button onClick={downloadPdf} className="mt-5 gap-2 bg-gradient-primary">
           <FileDown size={16} /> Scarica PDF
         </Button>
+        {session && (
+          <Button onClick={saveAsRecurring} variant="outline" disabled={savingRecurring} className="mt-5 ml-2 gap-2">
+            <Star size={16} className="text-amber-500" /> {savingRecurring ? "Salvataggio…" : "Salva come ricorrente"}
+          </Button>
+        )}
       </Card>
 
       <h2 className="font-display font-bold text-lg mb-3">
