@@ -566,9 +566,21 @@ export default function Incoming() {
                   checked={line.selected}
                   onCheckedChange={(v) => updateLine(idx, { selected: !!v })}
                 />
-                <Label htmlFor={`sel-${idx}`} className="text-xs font-semibold cursor-pointer">
+                <Label htmlFor={`sel-${idx}`} className="text-xs font-semibold cursor-pointer flex-1">
                   Importa in archivio
                 </Label>
+                {!isOperatorAdmin && (
+                  <Button
+                    type="button"
+                    variant="ghost"
+                    size="sm"
+                    className="h-7 gap-1 text-amber-600 hover:text-amber-700 hover:bg-amber-50"
+                    onClick={() => saveLineAsRecurring(line)}
+                    title="Salva come prodotto ricorrente"
+                  >
+                    <Star size={14} /> Ricorrente
+                  </Button>
+                )}
               </div>
               <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
                 <div className="space-y-1 md:col-span-2">
