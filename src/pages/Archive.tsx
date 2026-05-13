@@ -179,27 +179,38 @@ function drawPdfHeader(doc: jsPDF, title: string, subtitle: string | null, compa
   doc.setFont("helvetica", "bold");
   doc.setFontSize(13);
   doc.text(title, 14, 9.5);
+  doc.setTextColor(20, 20, 20);
+
+  // Full company header block (right column, under top bar)
+  let headerY = 20;
   if (company?.business_name) {
-    doc.setFontSize(10);
-    doc.setFont("helvetica", "normal");
-    doc.text(company.business_name, pw - 14, 9.5, { align: "right" });
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text(String(company.business_name), pw - 14, headerY, { align: "right" });
+    headerY += 4.5;
+  }
+  doc.setFont("helvetica", "normal");
+  doc.setFontSize(8.5);
+  doc.setTextColor(90, 90, 90);
+  const addrLines = cleanAddress(company?.address);
+  for (const line of addrLines) {
+    doc.text(line, pw - 14, headerY, { align: "right" });
+    headerY += 4;
+  }
+  const contact = [company?.vat ? `P.IVA ${company.vat}` : null, company?.phone, company?.email]
+    .filter(Boolean)
+    .join(" • ");
+  if (contact) {
+    doc.text(contact, pw - 14, headerY, { align: "right" });
+    headerY += 4;
   }
   doc.setTextColor(20, 20, 20);
 
-  let y = 22;
+  let y = Math.max(22, headerY + 2);
   if (subtitle) {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(11);
     doc.text(subtitle, 14, y);
-    y += 5;
-  }
-  const addr = cleanAddress(company?.address);
-  if (addr.length) {
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(9);
-    doc.setTextColor(90, 90, 90);
-    doc.text(addr.join(" — "), 14, y);
-    doc.setTextColor(20, 20, 20);
     y += 5;
   }
   // separator
