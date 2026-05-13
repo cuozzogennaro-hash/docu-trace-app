@@ -19,6 +19,14 @@ import {
   AlertDialogTitle,
   AlertDialogTrigger,
 } from "@/components/ui/alert-dialog";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
 
 export default function CompanyTab() {
   const { company, reload, loading } = useCompany();
@@ -26,6 +34,10 @@ export default function CompanyTab() {
   const [saving, setSaving] = useState(false);
   const [uploading, setUploading] = useState(false);
   const [resetting, setResetting] = useState(false);
+  const [confirmOpen, setConfirmOpen] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
+  const [adminPwd, setAdminPwd] = useState("");
+  const [verifying, setVerifying] = useState(false);
 
   useEffect(() => setForm(company), [company]);
 
@@ -62,6 +74,30 @@ export default function CompanyTab() {
       toast.error(err.message ?? "Errore durante l'azzeramento");
     } finally {
       setResetting(false);
+    }
+  }
+
+  async function verifyAndReset() {
+    setVerifying(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        toast.error("Sessione non valida");
+        return;
+      }
+      const { error } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: adminPwd,
+      });
+      if (error) {
+        toast.error("Password amministratore errata");
+        return;
+      }
+      setPwdOpen(false);
+      setAdminPwd("");
+      await resetAllData();
+    } finally {
+      setVerifying(false);
     }
   }
 
@@ -162,7 +198,7 @@ export default function CompanyTab() {
           Salva impostazioni
         </Button>
 
-        <AlertDialog>
+        <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogTrigger asChild>
             <Button variant="destructive" disabled={resetting} className="gap-2">
               {resetting ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
@@ -176,26 +212,75 @@ export default function CompanyTab() {
                 Azzerare tutti i dati?
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Verranno eliminati definitivamente: anagrafica azienda, reparti, attrezzature,
-                materie prime, prodotti, ingredienti, vendite, clienti, fornitori, rilevazioni di
-                temperatura e sanificazione, etichette e attività assegnate.
+                Stai per <strong>eliminare definitivamente tutti i dati dell'app</strong>:
+                anagrafica azienda, reparti, attrezzature, materie prime, prodotti, ingredienti,
+                vendite, clienti, fornitori, rilevazioni di temperatura e sanificazione, etichette
+                e attività assegnate.
                 <br /><br />
                 <strong>Gli operatori e i loro PIN verranno mantenuti.</strong>
                 <br /><br />
-                L'app tornerà come al primo accesso. Questa azione non può essere annullata.
+                L'app tornerà come al primo accesso. Questa azione <strong>non può essere annullata</strong>.
+                <br /><br />
+                Per procedere ti verrà richiesta la <strong>password amministratore</strong>.
+                Puoi annullare in qualsiasi momento.
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
               <AlertDialogCancel>Annulla</AlertDialogCancel>
               <AlertDialogAction
-                onClick={resetAllData}
+                onClick={(e) => {
+                  e.preventDefault();
+                  setConfirmOpen(false);
+                  setAdminPwd("");
+                  setPwdOpen(true);
+                }}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Sì, azzera tutto
+                Procedi
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
         </AlertDialog>
+
+        <Dialog open={pwdOpen} onOpenChange={(v) => { setPwdOpen(v); if (!v) setAdminPwd(""); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="text-destructive" size={20} />
+                Conferma password amministratore
+              </DialogTitle>
+              <DialogDescription>
+                Inserisci la password del tuo account amministratore per confermare
+                l'azzeramento di tutti i dati.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                autoFocus
+                value={adminPwd}
+                onChange={(e) => setAdminPwd(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && adminPwd && !verifying && verifyAndReset()}
+                placeholder="••••••••"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setPwdOpen(false); setAdminPwd(""); }}>
+                Annulla
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!adminPwd || verifying || resetting}
+                onClick={verifyAndReset}
+                className="gap-2"
+              >
+                {(verifying || resetting) ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
+                Conferma e azzera
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
       </div>
     </Card>
   );
