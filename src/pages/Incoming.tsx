@@ -402,9 +402,79 @@ export default function Incoming() {
       <PageHeader title="Ingresso Merci" subtitle="Scatta una foto del documento: l'AI compila il resto." />
 
       <div className="mb-4">
-        <Button asChild variant="outline" className="gap-2">
-          <Link to="/archivio"><ArchiveIcon size={16} /> Archivio Materie Prime</Link>
-        </Button>
+        <div className="flex flex-wrap gap-2">
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/archivio"><ArchiveIcon size={16} /> Archivio Materie Prime</Link>
+          </Button>
+          {!isOperatorAdmin && (
+            <Popover open={recurringOpen} onOpenChange={setRecurringOpen}>
+              <PopoverTrigger asChild>
+                <Button variant="outline" className="gap-2">
+                  <Repeat size={16} /> Carica da ricorrente
+                  {recurring.length > 0 && <span className="text-xs text-muted-foreground">({recurring.length})</span>}
+                </Button>
+              </PopoverTrigger>
+              <PopoverContent className="w-[340px] p-2" align="start">
+                {recurring.length === 0 ? (
+                  <div className="p-4 text-sm text-muted-foreground text-center">
+                    Nessun prodotto ricorrente. Crealo in Impostazioni → Ricorrenti, oppure salva una riga con la stella.
+                  </div>
+                ) : (
+                  <>
+                    <Input
+                      autoFocus
+                      placeholder="Cerca prodotto…"
+                      value={recurringSearch}
+                      onChange={(e) => setRecurringSearch(e.target.value)}
+                      className="h-9 mb-2"
+                    />
+                    <div className="max-h-64 overflow-auto space-y-1">
+                      {recurring
+                        .filter((r) => {
+                          const q = recurringSearch.trim().toLowerCase();
+                          if (!q) return true;
+                          return (r.product_name || "").toLowerCase().includes(q)
+                            || (r.supplier_name || "").toLowerCase().includes(q);
+                        })
+                        .map((r) => {
+                          const on = recurringPicked.has(r.id);
+                          return (
+                            <button
+                              key={r.id}
+                              type="button"
+                              onClick={() => {
+                                const s = new Set(recurringPicked);
+                                on ? s.delete(r.id) : s.add(r.id);
+                                setRecurringPicked(s);
+                              }}
+                              className={`w-full text-left px-2 py-2 rounded-md flex items-center gap-2 transition ${on ? "bg-primary/10 border border-primary/30" : "hover:bg-muted"}`}
+                            >
+                              <div className={`h-4 w-4 rounded border flex items-center justify-center shrink-0 ${on ? "bg-primary border-primary" : "border-border"}`}>
+                                {on && <Check size={12} className="text-primary-foreground" />}
+                              </div>
+                              <div className="min-w-0 flex-1">
+                                <div className="text-sm font-medium truncate">{r.product_name}</div>
+                                <div className="text-[11px] text-muted-foreground truncate">
+                                  {r.supplier_name || "—"}
+                                  {r.use_count > 0 && <> • {r.use_count}×</>}
+                                </div>
+                              </div>
+                            </button>
+                          );
+                        })}
+                    </div>
+                    <div className="flex gap-2 mt-2 pt-2 border-t">
+                      <Button variant="ghost" size="sm" className="flex-1" onClick={() => { setRecurringPicked(new Set()); setRecurringOpen(false); }}>Annulla</Button>
+                      <Button size="sm" className="flex-1 bg-gradient-primary" disabled={recurringPicked.size === 0} onClick={loadFromRecurring}>
+                        Carica {recurringPicked.size > 0 ? `(${recurringPicked.size})` : ""}
+                      </Button>
+                    </div>
+                  </>
+                )}
+              </PopoverContent>
+            </Popover>
+          )}
+        </div>
       </div>
 
       <Card className="p-5 mb-6 shadow-soft">
