@@ -622,64 +622,128 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   }
 
   if (isGroupable) {
+    // Build month → days → departments structure
+    const monthDays: Record<string, string[]> = {};
+    sortedMonths.forEach((m) => {
+      const days = Array.from(new Set(grouped[m].map((r: any) => r.event_date ? r.event_date.slice(0, 10) : "senza-data"))) as string[];
+      monthDays[m] = days.sort((a, b) => b.localeCompare(a));
+    });
+    const dayMap: Record<string, any[]> = groupByDay(filteredRows);
     return (
       <>
+        {DeptTabs}
         <div className="space-y-4">
           {sortedMonths.map((month) => (
-            <Card key={month} className="overflow-hidden">
-              <div className="flex items-center justify-between px-4 py-3 border-b bg-muted/30">
-                <h3 className="font-display font-bold text-sm">{monthLabel(month)}</h3>
-                <Button
-                  size="sm"
-                  variant="outline"
-                  className="gap-1.5"
-                  onClick={() => generateMonthlyPdf(month, grouped[month], tableKey as "temperatures" | "sanitations", company)}
-                >
-                  <FileDown size={14} /> PDF
-                </Button>
-              </div>
-              {/* Desktop table */}
-              <div className="overflow-x-auto hidden md:block">
-                <Table>
-                  <TableHeader>
-                    <TableRow>
-                      {cfg.columns.map((c) => (
-                        <TableHead key={c.key}>{c.label}</TableHead>
-                      ))}
-                      <TableHead className="text-right">Azioni</TableHead>
-                    </TableRow>
-                  </TableHeader>
-                  <TableBody>
-                    {grouped[month].sort((a: any, b: any) => (a.event_date ?? "").localeCompare(b.event_date ?? "")).map((r: any) => (
-                      <TableRow key={r.id}>
-                        {cfg.columns.map((c) => (
-                          <TableCell key={c.key} className="text-sm">
-                            {r[c.key] ?? "—"}
-                          </TableCell>
-                        ))}
-                        <TableCell className="text-right whitespace-nowrap">
-                          <Button size="icon" variant="ghost" onClick={() => setEditing(r)}>
-                            <Pencil size={14} />
-                          </Button>
-                          <Button size="icon" variant="ghost" onClick={() => remove(r.id)}>
-                            <Trash2 size={14} className="text-destructive" />
-                          </Button>
-                        </TableCell>
-                      </TableRow>
-                    ))}
-                  </TableBody>
-                </Table>
-              </div>
-              {/* Mobile cards */}
-              <div className="md:hidden divide-y">
-                {grouped[month].sort((a: any, b: any) => (a.event_date ?? "").localeCompare(b.event_date ?? "")).map((r: any) => (
-                  <div key={r.id} className="p-3">
-                    <MobileCard r={r} />
+            <Collapsible
+              key={month}
+              open={openMonths[month] ?? false}
+              onOpenChange={(o) => setOpenMonths((prev) => ({ ...prev, [month]: o }))}
+            >
+              <Card className="overflow-hidden">
+                <div className="flex items-center justify-between gap-2 px-4 py-3 border-b bg-muted/40">
+                  <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left hover:opacity-80 transition">
+                    <ChevronDown size={18} className={`text-muted-foreground transition-transform shrink-0 ${openMonths[month] ? "rotate-180" : ""}`} />
+                    <h3 className="font-display font-bold text-base truncate">
+                      {monthLabel(month)} <span className="text-muted-foreground font-normal text-sm">({grouped[month].length})</span>
+                    </h3>
+                  </CollapsibleTrigger>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    className="gap-1.5 shrink-0"
+                    onClick={() => generateMonthlyPdf(month, grouped[month], tableKey as "temperatures" | "sanitations", company, departments)}
+                  >
+                    <FileDown size={14} /> PDF
+                  </Button>
+                </div>
+                <CollapsibleContent>
+                  <div className="p-3 space-y-2 bg-muted/10">
+                    {monthDays[month].map((day) => {
+                      const dayItems = dayMap[day] ?? [];
+                      const deptGroups = groupByDepartment(dayItems, departments);
+                      return (
+                        <Collapsible
+                          key={day}
+                          open={openWeeks[day] ?? false}
+                          onOpenChange={(o) => setOpenWeeks((prev) => ({ ...prev, [day]: o }))}
+                        >
+                          <Card className="overflow-hidden">
+                            <div className="w-full flex items-center justify-between gap-2 px-3 py-2 border-b bg-card">
+                              <CollapsibleTrigger className="flex items-center gap-2 flex-1 min-w-0 text-left hover:bg-muted/40 transition rounded -mx-1 px-1">
+                                <ChevronDown size={14} className={`text-muted-foreground transition-transform shrink-0 ${openWeeks[day] ? "rotate-180" : ""}`} />
+                                <span className="font-medium text-sm capitalize">
+                                  {dayLabel(day)} <span className="text-muted-foreground font-normal">({dayItems.length})</span>
+                                </span>
+                              </CollapsibleTrigger>
+                              <Button
+                                size="sm"
+                                variant="ghost"
+                                className="gap-1.5 shrink-0 h-7"
+                                onClick={() => generateDailyPdf(day, deptGroups, tableKey as "temperatures" | "sanitations", company)}
+                              >
+                                <FileDown size={13} /> PDF
+                              </Button>
+                            </div>
+                            <CollapsibleContent>
+                              <div className="divide-y">
+                                {deptGroups.map((dg) => (
+                                  <div key={dg.key} className="p-3">
+                                    <div className="text-xs font-semibold uppercase tracking-wide text-muted-foreground mb-2">
+                                      {dg.name} <span className="font-normal normal-case">({dg.items.length})</span>
+                                    </div>
+                                    {/* Desktop */}
+                                    <div className="overflow-x-auto hidden md:block">
+                                      <Table>
+                                        <TableHeader>
+                                          <TableRow>
+                                            {cfg.columns.map((c) => <TableHead key={c.key}>{c.label}</TableHead>)}
+                                            <TableHead className="text-right">Azioni</TableHead>
+                                          </TableRow>
+                                        </TableHeader>
+                                        <TableBody>
+                                          {dg.items.map((r: any) => (
+                                            <TableRow key={r.id}>
+                                              {cfg.columns.map((c) => (
+                                                <TableCell key={c.key} className="text-sm">{r[c.key] ?? "—"}</TableCell>
+                                              ))}
+                                              <TableCell className="text-right whitespace-nowrap">
+                                                <Button size="icon" variant="ghost" onClick={() => setEditing(r)}>
+                                                  <Pencil size={14} />
+                                                </Button>
+                                                <Button size="icon" variant="ghost" onClick={() => remove(r.id)}>
+                                                  <Trash2 size={14} className="text-destructive" />
+                                                </Button>
+                                              </TableCell>
+                                            </TableRow>
+                                          ))}
+                                        </TableBody>
+                                      </Table>
+                                    </div>
+                                    {/* Mobile */}
+                                    <div className="md:hidden space-y-2">
+                                      {dg.items.map((r: any) => (
+                                        <MobileCard key={r.id} r={r} />
+                                      ))}
+                                    </div>
+                                  </div>
+                                ))}
+                                {deptGroups.length === 0 && (
+                                  <div className="p-4 text-center text-sm text-muted-foreground">Nessun dato.</div>
+                                )}
+                              </div>
+                            </CollapsibleContent>
+                          </Card>
+                        </Collapsible>
+                      );
+                    })}
                   </div>
-                ))}
-              </div>
-            </Card>
+                </CollapsibleContent>
+              </Card>
+            </Collapsible>
           ))}
+          {sortedMonths.length === 0 && (
+            <Card className="p-12 text-center text-muted-foreground">Nessun risultato.</Card>
+          )}
         </div>
 
         <Dialog open={!!editing} onOpenChange={(o) => !o && setEditing(null)}>
