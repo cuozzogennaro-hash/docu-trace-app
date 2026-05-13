@@ -396,6 +396,7 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
     const flattened = (data ?? []).map((r: any) => ({
       ...r,
       asset_name: r.assets?.name ?? "—",
+      department_id: r.assets?.department_id ?? r.department_id ?? null,
     }));
     setRows(flattened);
     setLoading(false);
