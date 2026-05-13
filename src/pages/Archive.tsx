@@ -48,7 +48,7 @@ const CONFIGS: Record<TableKey, { label: string; columns: ColumnDef[]; relation?
   },
   temperatures: {
     label: "Temperature",
-    relation: "assets(name)",
+    relation: "assets(name, department_id)",
     columns: [
       { key: "asset_name", label: "Asset", readOnly: true },
       { key: "temperature", label: "°C", type: "number" },
@@ -59,7 +59,7 @@ const CONFIGS: Record<TableKey, { label: string; columns: ColumnDef[]; relation?
   },
   sanitations: {
     label: "Sanificazioni",
-    relation: "assets(name)",
+    relation: "assets(name, department_id)",
     columns: [
       { key: "asset_name", label: "Asset", readOnly: true },
       { key: "event_date", label: "Data", type: "date" },
