@@ -157,54 +157,50 @@ function monthLabel(ym: string): string {
 
 function generateDailyPdf(
   date: string,
-  rows: any[],
+  deptGroups: { key: string; name: string; items: any[] }[],
   type: "temperatures" | "sanitations",
   company: any
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const title = type === "temperatures" ? "Registro Temperature" : "Registro Sanificazioni";
 
-  // Header
   doc.setFontSize(16);
   doc.text(title, 14, 20);
   doc.setFontSize(10);
-  doc.text(`Data: ${date}`, 14, 28);
+  doc.text(`Data: ${dayLabel(date)}`, 14, 28);
   if (company?.business_name) doc.text(company.business_name, 14, 34);
   if (company?.address) doc.text(company.address, 14, 39);
 
-  const startY = company?.address ? 46 : company?.business_name ? 41 : 35;
-
-  if (type === "temperatures") {
+  let startY = company?.address ? 46 : company?.business_name ? 41 : 35;
+  deptGroups.forEach((dg) => {
+    doc.setFontSize(11);
+    doc.text(dg.name, 14, startY);
     autoTable(doc, {
-      startY,
-      head: [["Attrezzatura", "°C", "Operatore", "Ora", "Note"]],
-      body: rows.map((r) => [
-        r.asset_name ?? "—",
-        r.temperature ?? "—",
-        r.operator ?? "—",
-        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
-        r.notes ?? "",
-      ]),
+      startY: startY + 3,
+      head: type === "temperatures"
+        ? [["Attrezzatura", "°C", "Ora", "Note"]]
+        : [["Attrezzatura", "Prodotto usato", "Ora", "Note"]],
+      body: dg.items.map((r) => type === "temperatures"
+        ? [
+            r.asset_name ?? "—",
+            r.temperature ?? "—",
+            r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+            r.notes ?? "",
+          ]
+        : [
+            r.asset_name ?? "—",
+            r.product_used ?? "—",
+            r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+            r.notes ?? "",
+          ]
+      ),
       styles: { fontSize: 9 },
       headStyles: { fillColor: [59, 130, 246] },
     });
-  } else {
-    autoTable(doc, {
-      startY,
-      head: [["Attrezzatura", "Operatore", "Prodotto usato", "Ora", "Note"]],
-      body: rows.map((r) => [
-        r.asset_name ?? "—",
-        r.operator ?? "—",
-        r.product_used ?? "—",
-        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
-        r.notes ?? "",
-      ]),
-      styles: { fontSize: 9 },
-      headStyles: { fillColor: [59, 130, 246] },
-    });
-  }
+    startY = (doc as any).lastAutoTable.finalY + 8;
+    if (startY > 270) { doc.addPage(); startY = 20; }
+  });
 
-  // Footer
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
@@ -216,40 +212,56 @@ function generateDailyPdf(
 }
 
 function generateMonthlyPdf(
-  month: string, rows: any[], type: "temperatures" | "sanitations", company: any
+  month: string, rows: any[], type: "temperatures" | "sanitations", company: any,
+  departments: { id: string; name: string }[],
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const title = type === "temperatures" ? "Registro Temperature" : "Registro Sanificazioni";
-  const sorted = [...rows].sort((a, b) => (a.event_date ?? "").localeCompare(b.event_date ?? ""));
   doc.setFontSize(16);
   doc.text(`${title} — ${monthLabel(month)}`, 14, 20);
   doc.setFontSize(10);
   if (company?.business_name) doc.text(company.business_name, 14, 28);
   if (company?.address) doc.text(company.address, 14, 33);
-  const startY = company?.address ? 40 : company?.business_name ? 35 : 28;
-  if (type === "temperatures") {
-    autoTable(doc, {
-      startY,
-      head: [["Data", "Attrezzatura", "°C", "Operatore", "Ora", "Note"]],
-      body: sorted.map((r) => [
-        r.event_date ?? "—", r.asset_name ?? "—", r.temperature ?? "—", r.operator ?? "—",
-        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
-        r.notes ?? "",
-      ]),
-      styles: { fontSize: 9 }, headStyles: { fillColor: [59, 130, 246] },
+  let startY = company?.address ? 40 : company?.business_name ? 35 : 28;
+  // Group by day, then by department within day
+  const byDay = groupByDay(rows);
+  const days = Object.keys(byDay).sort();
+  days.forEach((day) => {
+    doc.setFontSize(12);
+    doc.text(dayLabel(day), 14, startY);
+    startY += 4;
+    const deptGroups = groupByDepartment(byDay[day], departments);
+    deptGroups.forEach((dg) => {
+      doc.setFontSize(10);
+      doc.text(dg.name, 16, startY);
+      autoTable(doc, {
+        startY: startY + 2,
+        head: type === "temperatures"
+          ? [["Attrezzatura", "°C", "Ora", "Note"]]
+          : [["Attrezzatura", "Prodotto usato", "Ora", "Note"]],
+        body: dg.items.map((r) => type === "temperatures"
+          ? [
+              r.asset_name ?? "—",
+              r.temperature ?? "—",
+              r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+              r.notes ?? "",
+            ]
+          : [
+              r.asset_name ?? "—",
+              r.product_used ?? "—",
+              r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
+              r.notes ?? "",
+            ]
+        ),
+        styles: { fontSize: 8 },
+        headStyles: { fillColor: [59, 130, 246] },
+        margin: { left: 16 },
+      });
+      startY = (doc as any).lastAutoTable.finalY + 5;
+      if (startY > 270) { doc.addPage(); startY = 20; }
     });
-  } else {
-    autoTable(doc, {
-      startY,
-      head: [["Data", "Attrezzatura", "Operatore", "Prodotto usato", "Ora", "Note"]],
-      body: sorted.map((r) => [
-        r.event_date ?? "—", r.asset_name ?? "—", r.operator ?? "—", r.product_used ?? "—",
-        r.recorded_at ? new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" }) : "—",
-        r.notes ?? "",
-      ]),
-      styles: { fontSize: 9 }, headStyles: { fillColor: [59, 130, 246] },
-    });
-  }
+    startY += 3;
+  });
   const pageCount = doc.getNumberOfPages();
   for (let i = 1; i <= pageCount; i++) {
     doc.setPage(i);
