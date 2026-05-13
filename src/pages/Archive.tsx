@@ -501,7 +501,17 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
         setOpenWeeks((prev) => (prev[firstWeek.key] === undefined ? { ...prev, [firstWeek.key]: true } : prev));
       }
     }
-  }, [monthlyGroups, tableKey]);
+    if ((tableKey === "temperatures" || tableKey === "sanitations") && sortedMonths.length > 0) {
+      const firstMonth = sortedMonths[0];
+      setOpenMonths((prev) => (prev[firstMonth] === undefined ? { ...prev, [firstMonth]: true } : prev));
+      const firstDay = (grouped[firstMonth] ?? [])
+        .map((r: any) => r.event_date ? r.event_date.slice(0, 10) : "senza-data")
+        .sort((a: string, b: string) => b.localeCompare(a))[0];
+      if (firstDay) {
+        setOpenWeeks((prev) => (prev[firstDay] === undefined ? { ...prev, [firstDay]: true } : prev));
+      }
+    }
+  }, [monthlyGroups, sortedMonths, grouped, tableKey]);
 
   async function save(updated: any) {
     const payload: any = {};
