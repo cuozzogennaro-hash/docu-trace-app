@@ -126,3 +126,12 @@ All colors MUST be HSL.
   -ms-overflow-style: none;
   scrollbar-width: none;
 }
+
+/* Prevent inputs from being hidden behind the sticky mobile header
+   when the on-screen keyboard scrolls them into view (tablet/mobile). */
+input,
+textarea,
+select {
+  scroll-margin-top: 80px;
+  scroll-margin-bottom: 80px;
+}
