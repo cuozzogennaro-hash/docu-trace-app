@@ -243,10 +243,11 @@ export default function Incoming() {
       const payload = data as { ok: boolean; count?: number; error?: string } | null;
       if (error || !payload?.ok) return toast.error(payload?.error ?? error?.message ?? "Errore");
       toast.success(`${payload.count ?? validLines.length} prodott${(payload.count ?? validLines.length) === 1 ? "o registrato" : "i registrati"}`);
-      setLines([newProductLine()]);
       setSupplierName("");
       setDocumentDate(new Date().toISOString().slice(0, 10));
       setDocumentNumber("");
+      setDepartmentId("");
+      setLines([newProductLine()]);
       setPreview(null);
       setImageFile(null);
       if (fileRef.current) fileRef.current.value = "";
@@ -285,10 +286,11 @@ export default function Incoming() {
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
     toast.success(`${validLines.length} prodott${validLines.length === 1 ? "o registrato" : "i registrati"}`);
-    setLines([newProductLine()]);
     setSupplierName("");
     setDocumentDate(new Date().toISOString().slice(0, 10));
     setDocumentNumber("");
+    setDepartmentId("");
+    setLines([newProductLine()]);
     setPreview(null);
     setImageFile(null);
     if (fileRef.current) fileRef.current.value = "";
