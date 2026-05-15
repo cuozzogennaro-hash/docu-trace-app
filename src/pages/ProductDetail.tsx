@@ -131,6 +131,17 @@ export default function ProductDetail() {
     const additives: IngPart[] = [];
     const others: IngPart[] = [];
 
+    // Reparto del prodotto: per la Salumeria vogliamo elencare TUTTI gli
+    // ingredienti selezionati per nome (eventualmente con i loro sotto-
+    // ingredienti tra parentesi), senza sostituire il nome del prodotto
+    // composto con la sua sola lista interna.
+    const _deptName = (
+      departments.find((d) => d.id === (product as any)?.department_id)?.name ||
+      adminDeptName ||
+      ""
+    ).toLowerCase().trim();
+    const _isSalumeria = _deptName.startsWith("salum");
+
     for (const m of ingredients as any[]) {
       const cat = m.category || "materia_prima";
       if (cat === "aroma") {
@@ -152,7 +163,14 @@ export default function ProductDetail() {
           const meat = detectMeat(m.product_name);
           const origin = (m.origin && String(m.origin).trim()) || "UE";
           const subIngredients = (m.ingredients && String(m.ingredients).trim()) || "";
-          if (meat) {
+          if (_isSalumeria) {
+            // Salumeria: mostra SEMPRE il nome del prodotto; se ha una
+            // sotto-lista di ingredienti, la accodiamo tra parentesi.
+            const label = subIngredients
+              ? `${m.product_name} (${subIngredients})`
+              : m.product_name;
+            others.push({ text: label, bold: false });
+          } else if (meat) {
             meats.push({ text: `carne di ${meat} (${origin})`, bold: false });
           } else if (subIngredients) {
             // Materia prima già lavorata (es. Salumeria): in etichetta riportiamo
