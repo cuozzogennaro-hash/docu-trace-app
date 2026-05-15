@@ -366,13 +366,16 @@ export default function ProductDetail() {
 
     // Indirizzo società (sotto il nome)
     if (data.companyAddress) {
-      const addrPt = fitPt(data.companyAddress, titleMaxMm, addressPt, 4.5, false);
+      // Permetti il wrap su 2 righe per indirizzi lunghi (via + città)
+      const addrPt = addressPt;
       items.push({
         x: p, y, w: wMm - 2 * p - safetyR,
         fontPt: addrPt, align: "center", lineHeight: lh,
         segments: [{ text: data.companyAddress, bold: false }],
       });
-      y += ptMm(addrPt) * lh + 0.4;
+      // Stima righe per avanzare y correttamente
+      const addrLines = Math.max(1, Math.ceil(measureWidthMm(data.companyAddress, addrPt, false) / titleMaxMm));
+      y += ptMm(addrPt) * lh * Math.min(addrLines, 2) + 0.4;
     }
 
     // Nome prodotto (stesso formato)
