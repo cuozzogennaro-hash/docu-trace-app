@@ -479,16 +479,53 @@ export default function ProductDetail() {
     }
 
     const fields: any[] = (tpl.layout_config?.fields ?? []).filter((f: any) => f.visible);
+
+    // Misuratore per auto-shrink (stessa tecnica del layout TSPL)
+    const measureCanvas = document.createElement("canvas");
+    const measureCtx = measureCanvas.getContext("2d")!;
+    const estimateLines = (text: string, pt: number, bold: boolean, widthMm: number) => {
+      const px = pt * 4;
+      measureCtx.font = `${bold ? "bold " : ""}${px}px Helvetica, Arial, sans-serif`;
+      const widthPx = widthMm * (px / pt) / 0.3528;
+      const words = text.split(/\s+/);
+      let lines = 1;
+      let cur = "";
+      for (const w of words) {
+        const test = cur ? cur + " " + w : w;
+        if (measureCtx.measureText(test).width > widthPx && cur) {
+          lines++; cur = w;
+        } else cur = test;
+      }
+      return lines;
+    };
+
     const renderField = (f: any) => {
       if (f.key === "logo") {
         if (!company?.logo_url) return "";
         const w = f.width ?? 25;
         const h = f.height ?? 15;
-        return `<img src="${escapeHtml(company.logo_url)}" style="position:absolute;left:${f.x}mm;top:${f.y}mm;width:${w}mm;height:${h}mm;object-fit:contain;" />`;
+        const yClamp = Math.min(f.y, Math.max(0, hMm - h));
+        return `<img src="${escapeHtml(company.logo_url)}" style="position:absolute;left:${f.x}mm;top:${yClamp}mm;width:${w}mm;height:${h}mm;object-fit:contain;" />`;
       }
       const text = valueMap[f.key] ?? "";
       const remainingW = Math.max(5, wMm - f.x - 1);
-      const style = `position:absolute;left:${f.x}mm;top:${f.y}mm;width:${remainingW}mm;font-size:${f.fontSize}pt;font-weight:${f.bold ? 700 : 400};line-height:1.2;word-break:break-word;white-space:normal;overflow:hidden;`;
+      // Cap font for long fields (ingredients/address) so non rimangano enormi
+      // su etichette piccole. L'utente può comunque ridurre dal template.
+      let pt = f.fontSize;
+      if (f.key === "ingredients" || f.key === "company_address") {
+        const cap = Math.max(5, Math.round(hMm * 0.14));
+        pt = Math.min(pt, cap);
+        // Auto-shrink se occupa più di ~45% dell'altezza etichetta
+        const maxHmm = Math.max(6, hMm * 0.45);
+        let lines = estimateLines(text, pt, f.bold, remainingW);
+        while (pt > 5 && lines * (pt * 0.3528 * 1.2) > maxHmm) {
+          pt -= 0.5;
+          lines = estimateLines(text, pt, f.bold, remainingW);
+        }
+      }
+      // Clamp Y dentro l'etichetta (in caso di template default oversize)
+      const yClamp = Math.min(f.y, Math.max(0, hMm - pt * 0.3528 * 1.3));
+      const style = `position:absolute;left:${f.x}mm;top:${yClamp}mm;width:${remainingW}mm;font-size:${pt}pt;font-weight:${f.bold ? 700 : 400};line-height:1.2;word-break:break-word;white-space:normal;overflow:hidden;`;
       return `<div style="${style}">${escapeHtml(text)}</div>`;
     };
     const labelHtml = fields.map(renderField).join("");
