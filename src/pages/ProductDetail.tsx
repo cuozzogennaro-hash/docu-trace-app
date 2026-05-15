@@ -292,6 +292,7 @@ export default function ProductDetail() {
     }
     const data = {
       companyName: company?.business_name ?? "",
+      companyAddress: company?.address ?? "",
       productName: product?.name ?? "",
       ingredients: ingredientParts,
       traceLines,
@@ -311,7 +312,8 @@ export default function ProductDetail() {
     // Dimensioni font in pt — scalano con altezza etichetta
     const titlePtBase = Math.max(10, Math.round(hMm * 0.34));
     const companyPtBase = Math.max(9, Math.round(hMm * 0.28));
-    const ingrPt = Math.max(7, Math.round(hMm * 0.22));
+    const ingrPt = Math.max(6, Math.round(hMm * 0.15));
+    const addressPt = Math.max(5, Math.round(hMm * 0.11));
     const footerPtBase = Math.max(7, Math.round(hMm * 0.22));
     const lh = 1.2;
     const ptMm = (pt: number) => pt * 0.3528;
@@ -361,6 +363,17 @@ export default function ProductDetail() {
       segments: [{ text: data.companyName, bold: true }],
     });
     y += ptMm(companyPt) * lh + 0.5;
+
+    // Indirizzo società (sotto il nome)
+    if (data.companyAddress) {
+      const addrPt = fitPt(data.companyAddress, titleMaxMm, addressPt, 4.5, false);
+      items.push({
+        x: p, y, w: wMm - 2 * p - safetyR,
+        fontPt: addrPt, align: "center", lineHeight: lh,
+        segments: [{ text: data.companyAddress, bold: false }],
+      });
+      y += ptMm(addrPt) * lh + 0.4;
+    }
 
     // Nome prodotto (stesso formato)
     items.push({
