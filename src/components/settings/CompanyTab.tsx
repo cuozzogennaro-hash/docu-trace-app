@@ -113,6 +113,7 @@ export default function CompanyTab() {
           business_name: form.business_name,
           vat: form.vat,
           address: form.address,
+          city: form.city,
           email: form.email,
           phone: form.phone,
           logo_url: form.logo_url,
@@ -188,6 +189,14 @@ export default function CompanyTab() {
           <div className="space-y-1.5 md:col-span-2">
             <Label>Indirizzo</Label>
             <Textarea rows={2} value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} />
+          </div>
+          <div className="space-y-1.5 md:col-span-2">
+            <Label>Città</Label>
+            <Input
+              value={form.city ?? ""}
+              onChange={(e) => setForm({ ...form, city: e.target.value })}
+              placeholder="Es. 80100 Napoli (NA)"
+            />
           </div>
         </div>
       </div>
