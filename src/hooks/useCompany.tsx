@@ -6,6 +6,7 @@ export type Company = {
   business_name: string | null;
   vat: string | null;
   address: string | null;
+  city: string | null;
   logo_url: string | null;
   email: string | null;
   phone: string | null;
@@ -15,6 +16,7 @@ const empty: Company = {
   business_name: null,
   vat: null,
   address: null,
+  city: null,
   logo_url: null,
   email: null,
   phone: null,
