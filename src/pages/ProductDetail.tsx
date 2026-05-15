@@ -442,20 +442,56 @@ export default function ProductDetail() {
 
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
-    const items = computeLabelLayout(wMm, hMm);
 
-    // Build HTML for one label
+    // Build HTML based on the template configured in Settings → Etichette.
+    // This honours visibility, position, size and font choices the user made.
     const escapeHtml = (s: string) =>
       s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 
-    const renderItem = (it: LabelItem) => {
-      const segHtml = it.segments
-        .map((s) => `<span style="font-weight:${s.bold ? 700 : 400}">${escapeHtml(s.text)}</span>`)
-        .join("");
-      const style = `position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;white-space:${it.align === "left" ? "normal" : "nowrap"};overflow:hidden;`;
-      return `<div style="${style}">${segHtml}</div>`;
+    const { valueMap } = getValueMap();
+    // Override formatted values with the rich logic used for bluetooth/auto layout
+    const productMeatType: string | null = (product as any)?.meat_type ?? null;
+    const productDeptName = (
+      departments.find((d) => d.id === (product as any)?.department_id)?.name ||
+      adminDeptName ||
+      ""
+    ).toLowerCase().trim();
+    const isSalumeria = productDeptName.startsWith("salum");
+    let salumeriaExpiry = "";
+    if (isSalumeria && product?.production_date) {
+      const pd = new Date(String(product.production_date) + "T00:00:00");
+      if (!isNaN(pd.getTime())) {
+        pd.setDate(pd.getDate() + 30);
+        salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
+      }
+    }
+    valueMap.production_date = `Data prod.: ${formatDateDDMMYY(product?.production_date)}`;
+    const expiry = salumeriaExpiry || (ingredients[0]?.expiry_date ? formatDateDDMMYY(ingredients[0].expiry_date) : "—");
+    valueMap.expiry_date = `Scadenza: ${expiry}`;
+    if (productMeatType === "fresh") {
+      const lots = (ingredients as any[])
+        .map((m) => (m?.supplier_lot ? String(m.supplier_lot).trim() : ""))
+        .filter(Boolean);
+      const lot = [...new Set(lots)].join(" / ") || product?.internal_lot || "—";
+      valueMap.internal_lot = `Lotto: ${lot}`;
+    } else {
+      valueMap.internal_lot = `Lotto: ${product?.internal_lot ?? "—"}`;
+    }
+
+    const fields: any[] = (tpl.layout_config?.fields ?? []).filter((f: any) => f.visible);
+    const renderField = (f: any) => {
+      if (f.key === "logo") {
+        if (!company?.logo_url) return "";
+        const w = f.width ?? 25;
+        const h = f.height ?? 15;
+        return `<img src="${escapeHtml(company.logo_url)}" style="position:absolute;left:${f.x}mm;top:${f.y}mm;width:${w}mm;height:${h}mm;object-fit:contain;" />`;
+      }
+      const text = valueMap[f.key] ?? "";
+      const remainingW = Math.max(5, wMm - f.x - 1);
+      const style = `position:absolute;left:${f.x}mm;top:${f.y}mm;width:${remainingW}mm;font-size:${f.fontSize}pt;font-weight:${f.bold ? 700 : 400};line-height:1.2;word-break:break-word;white-space:normal;overflow:hidden;`;
+      return `<div style="${style}">${escapeHtml(text)}</div>`;
     };
-    const labelHtml = items.map(renderItem).join("");
+    const labelHtml = fields.map(renderField).join("");
     const labelsHtml = Array.from({ length: labelQty })
       .map(
         () =>
