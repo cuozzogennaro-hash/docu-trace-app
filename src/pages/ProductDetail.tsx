@@ -292,7 +292,10 @@ export default function ProductDetail() {
     }
     const data = {
       companyName: company?.business_name ?? "",
-      companyAddress: company?.address ?? "",
+      companyAddress: [company?.address, (company as any)?.city]
+        .map((s) => (s ?? "").toString().trim())
+        .filter(Boolean)
+        .join(" — "),
       productName: product?.name ?? "",
       ingredients: ingredientParts,
       traceLines,
