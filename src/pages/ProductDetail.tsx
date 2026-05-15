@@ -208,6 +208,17 @@ export default function ProductDetail() {
     segments: LabelSeg[];
     lineHeight: number;
   };
+  type PrintLabelField = {
+    key: string;
+    label?: string;
+    visible?: boolean;
+    x: number;
+    y: number;
+    fontSize: number;
+    bold?: boolean;
+    width?: number;
+    height?: number;
+  };
 
   function computeLabelLayout(wMm: number, hMm: number) {
     const { ingredientParts } = getValueMap();
@@ -478,11 +489,11 @@ export default function ProductDetail() {
       valueMap.internal_lot = `Lotto: ${product?.internal_lot ?? "—"}`;
     }
 
-    const rawFields: any[] = tpl.layout_config?.fields ?? [];
-    const visibleFields: any[] = rawFields.filter((f: any) => f.visible);
-    const companyField = visibleFields.find((f: any) => f.key === "company_name");
-    const addressField = visibleFields.find((f: any) => f.key === "company_address");
-    const fields: any[] = company?.address && companyField && !addressField
+    const rawFields: PrintLabelField[] = tpl.layout_config?.fields ?? [];
+    const visibleFields = rawFields.filter((f) => f.visible);
+    const companyField = visibleFields.find((f) => f.key === "company_name");
+    const addressField = rawFields.find((f) => f.key === "company_address");
+    const fields: PrintLabelField[] = company?.address && companyField && !addressField
       ? [
           ...visibleFields,
           {
@@ -516,7 +527,7 @@ export default function ProductDetail() {
       return lines;
     };
 
-    const renderField = (f: any) => {
+    const renderField = (f: PrintLabelField) => {
       if (f.key === "logo") {
         if (!company?.logo_url) return "";
         const w = f.width ?? 25;
