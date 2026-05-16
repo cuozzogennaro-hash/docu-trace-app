@@ -161,7 +161,19 @@ export default function ProductDetail() {
         }
       } else {
           const meat = detectMeat(m.product_name);
-          const origin = (m.origin && String(m.origin).trim()) || "UE";
+          // Per Macelleria l'origine non è in `origin` ma nei campi di
+          // tracciabilità (nato/allevato/macellato). Deriviamo l'origine
+          // dalla prima fonte disponibile, normalizzando "Italia" -> "Italia".
+          const traceCountries = [m.born_in, m.raised_in, m.slaughtered_in]
+            .map((v) => (v ? String(v).trim() : ""))
+            .filter(Boolean);
+          const rawOrigin = (m.origin && String(m.origin).trim()) || traceCountries[0] || "";
+          let origin = rawOrigin || "UE";
+          if (traceCountries.length > 0) {
+            const norm = traceCountries.map((c) => c.toLowerCase());
+            const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
+            origin = allItaly ? "Italia" : "UE";
+          }
           const subIngredients = (m.ingredients && String(m.ingredients).trim()) || "";
           if (_isSalumeria) {
             // Salumeria: mostra SEMPRE il nome del prodotto; se ha una
