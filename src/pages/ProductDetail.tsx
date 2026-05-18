@@ -36,6 +36,7 @@ export default function ProductDetail() {
   const [btPrinting, setBtPrinting] = useState(false);
   const [adminDeptName, setAdminDeptName] = useState<string>("");
   const [preservationOverride, setPreservationOverride] = useState<"fresh" | "vacuum" | "">("");
+  const [allergenKeywordsDb, setAllergenKeywordsDb] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -88,6 +89,23 @@ export default function ProductDetail() {
       setLoading(false);
     })();
   }, [id, session?.user?.id, operator?.id]);
+
+  // Carica le keyword degli allergeni dalla scheda dedicata (solo se autenticati).
+  // Quando il flusso è admin-operator senza sessione, ricadiamo sull'elenco di legge.
+  useEffect(() => {
+    if (!session?.user) { setAllergenKeywordsDb(null); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("allergens" as any)
+        .select("keywords")
+        .eq("user_id", session.user.id);
+      const all = (((data as any[]) ?? [])
+        .flatMap((r) => (r.keywords as string[]) || []))
+        .map((k) => (k || "").toLowerCase().trim())
+        .filter(Boolean);
+      setAllergenKeywordsDb(Array.from(new Set(all)));
+    })();
+  }, [session?.user?.id]);
 
   const PX_PER_MM = 3.78;
 
