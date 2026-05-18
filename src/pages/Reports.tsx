@@ -307,7 +307,7 @@ export default function Reports() {
 
   return (
     <div>
-      <PageHeader title="Report HACCP" subtitle="Esporta i registri mensili pronti per il controllo ASL" icon={FileText} />
+      <PageHeader title="Report HACCP" subtitle="Esporta i registri mensili pronti per il controllo ASL" />
 
       <Card className="p-4 mb-6 shadow-soft">
         <div className="flex flex-col sm:flex-row sm:items-end gap-4">
