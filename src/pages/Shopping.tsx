@@ -31,7 +31,7 @@ export default function Shopping() {
               <div className="text-xs text-muted-foreground">
                 {r.supplier_name || "—"}
                 {r.category && r.category !== "materia_prima" && (
-                  <> • {r.category === "aroma" ? "Aroma" : "Additivo"}</>
+                  <> • {r.category === "aroma" ? "Aroma" : "Additivo/Allergene"}</>
                 )}
               </div>
             </div>
