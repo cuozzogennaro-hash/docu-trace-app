@@ -16,12 +16,14 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
+import { useLabelRules } from "@/hooks/useLabelRules";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { company } = useCompany();
   const { departments } = useDepartments();
+  const { param: ruleParam } = useLabelRules();
   const { session } = useAuth();
   const { operator } = useOperatorSession();
   const [product, setProduct] = useState<any>(null);
@@ -128,7 +130,7 @@ export default function ProductDetail() {
   // Allergeni di legge (Reg. UE 1169/2011, All. II) e relativi derivati comuni.
   // Qualsiasi occorrenza (case-insensitive, parola intera) verrà evidenziata
   // in grassetto nel testo degli ingredienti dell'etichetta, in tutti i reparti.
-  const ALLERGEN_KEYWORDS: string[] = [
+  const ALLERGEN_KEYWORDS_DEFAULT: string[] = [
     // 1. Glutine
     "glutine","grano","frumento","segale","orzo","avena","farro","kamut","khorasan","spelta","seitan","malto",
     // 2. Crostacei
@@ -160,9 +162,18 @@ export default function ProductDetail() {
     "mollusco","molluschi","vongola","vongole","cozza","cozze","calamaro","calamari","polpo","polpi","seppia","seppie","ostrica","ostriche","lumaca","lumache",
   ];
 
+  // Lista effettiva: se l'admin ha personalizzato le parole nelle Logiche
+  // etichette, usiamo quelle; altrimenti torniamo al default di legge.
+  const _allergenEnabled = ruleParam<boolean>("common", "allergens", "enabled", true);
+  const _allergenKeywordsCustom = ruleParam<string[]>("common", "allergens", "keywords", []);
+  const ALLERGEN_KEYWORDS: string[] = _allergenEnabled
+    ? (_allergenKeywordsCustom && _allergenKeywordsCustom.length > 0 ? _allergenKeywordsCustom : ALLERGEN_KEYWORDS_DEFAULT)
+    : [];
+
   // Pattern unico per il matching: parole intere, case-insensitive.
   // Le parole più lunghe per prime così che "anidride solforosa" vinca su "anidride".
-  const ALLERGEN_REGEX: RegExp = (() => {
+  const ALLERGEN_REGEX: RegExp | null = (() => {
+    if (!ALLERGEN_KEYWORDS || ALLERGEN_KEYWORDS.length === 0) return null;
     const sorted = [...new Set(ALLERGEN_KEYWORDS)].sort((a, b) => b.length - a.length);
     const escaped = sorted.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     return new RegExp(`\\b(${escaped.join("|")})\\b`, "gi");
@@ -172,6 +183,7 @@ export default function ProductDetail() {
   function splitAllergenSegments(text: string, baseBold: boolean): { text: string; bold: boolean }[] {
     if (!text) return [{ text: "", bold: baseBold }];
     if (baseBold) return [{ text, bold: true }];
+    if (!ALLERGEN_REGEX) return [{ text, bold: false }];
     const out: { text: string; bold: boolean }[] = [];
     let last = 0;
     const re = new RegExp(ALLERGEN_REGEX.source, ALLERGEN_REGEX.flags);
@@ -339,7 +351,8 @@ export default function ProductDetail() {
     if (isSalumeria && product?.production_date) {
       const pd = new Date(String(product.production_date) + "T00:00:00");
       if (!isNaN(pd.getTime())) {
-        pd.setDate(pd.getDate() + 30);
+        const _shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", "days", 30)) || 30);
+        pd.setDate(pd.getDate() + _shelf);
         salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
       }
     }
@@ -519,7 +532,8 @@ export default function ProductDetail() {
     // Data produzione (in basso a sinistra)
     // Avvisi macelleria (sopra la riga data/lotto), su una sola riga senza wrap
     if (productMeatType) {
-      const noticeText = "Conservare da 0° e +4° — Consumare previa cottura";
+      const _noticeKey = productMeatType === "preparato" ? "macelleria_preparato" : "macelleria_fresh";
+      const noticeText = ruleParam<string>(_noticeKey, "notice", "text", "Conservare da 0° e +4° — Consumare previa cottura");
       const noticePt = fitPt(noticeText, wMm - 2 * p - safetyR, Math.max(5, footerPt * 0.82), 4, false);
       const noticeH = ptMm(noticePt) * lh;
       const noticeY = footerY - noticeH - 0.6;
@@ -584,7 +598,8 @@ export default function ProductDetail() {
     if (isSalumeria && product?.production_date) {
       const pd = new Date(String(product.production_date) + "T00:00:00");
       if (!isNaN(pd.getTime())) {
-        pd.setDate(pd.getDate() + 30);
+        const _shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", "days", 30)) || 30);
+        pd.setDate(pd.getDate() + _shelf);
         salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
       }
     }

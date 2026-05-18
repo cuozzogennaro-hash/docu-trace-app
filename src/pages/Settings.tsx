@@ -7,7 +7,8 @@ import IngredientsTab from "@/components/settings/IngredientsTab";
 import LabelEditorTab from "@/components/settings/LabelEditorTab";
 import DepartmentsTab from "@/components/settings/DepartmentsTab";
 import RecurringTab from "@/components/settings/RecurringTab";
-import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building, Repeat } from "lucide-react";
+import LabelRulesTab from "@/components/settings/LabelRulesTab";
+import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building, Repeat, BookOpen } from "lucide-react";
 
 export default function Settings() {
   return (
@@ -23,6 +24,7 @@ export default function Settings() {
           <TabsTrigger value="additivi" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><FlaskConical size={14} className="hidden sm:inline" /> Additivi</TabsTrigger>
           <TabsTrigger value="recurring" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Repeat size={14} className="hidden sm:inline" /> Ricorrenti</TabsTrigger>
           <TabsTrigger value="etichette" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Tag size={14} className="hidden sm:inline" /> Etichette</TabsTrigger>
+          <TabsTrigger value="logiche" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><BookOpen size={14} className="hidden sm:inline" /> Logiche</TabsTrigger>
         </TabsList>
         <TabsContent value="company"><CompanyTab /></TabsContent>
         <TabsContent value="departments"><DepartmentsTab /></TabsContent>
@@ -32,6 +34,7 @@ export default function Settings() {
         <TabsContent value="additivi"><IngredientsTab category="additivo_allergene" title="Additivi ed Allergeni" subtitle="Gestisci additivi e allergeni utilizzati nelle produzioni" /></TabsContent>
         <TabsContent value="recurring"><RecurringTab /></TabsContent>
         <TabsContent value="etichette"><LabelEditorTab /></TabsContent>
+        <TabsContent value="logiche"><LabelRulesTab /></TabsContent>
       </Tabs>
     </>
   );

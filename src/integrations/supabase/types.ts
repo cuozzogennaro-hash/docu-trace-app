@@ -146,6 +146,45 @@ export type Database = {
         }
         Relationships: []
       }
+      label_rules: {
+        Row: {
+          created_at: string
+          department_key: string
+          description: string
+          id: string
+          params: Json
+          rule_key: string
+          sort_order: number
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          department_key: string
+          description?: string
+          id?: string
+          params?: Json
+          rule_key: string
+          sort_order?: number
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          department_key?: string
+          description?: string
+          id?: string
+          params?: Json
+          rule_key?: string
+          sort_order?: number
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       label_templates: {
         Row: {
           created_at: string
@@ -733,6 +772,10 @@ export type Database = {
       save_operator_push_token: {
         Args: { p_operator_id: string; p_pin: string; p_push_token: Json }
         Returns: Json
+      }
+      seed_label_rules_for_user: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       slugify: { Args: { input: string }; Returns: string }
       unaccent_safe: { Args: { input: string }; Returns: string }
