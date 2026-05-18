@@ -1,54 +1,45 @@
-# Sezione "Logiche etichette" per reparto
+# Salumeria: shelf-life differenziata Fresco vs Sottovuoto
 
 ## Obiettivo
-Una nuova scheda in **Impostazioni → Logiche etichette** che raccoglie, raggruppate per reparto, tutte le regole oggi applicate alle etichette. L'admin può consultarle e modificare i parametri principali (testi avvisi, giorni di scadenza, elenco allergeni, ecc.). Le modifiche vengono lette in tempo reale dalla pagina di stampa etichetta.
+Permettere di gestire due tempi di scadenza per i prodotti di Salumeria:
+- **Sottovuoto** (default oggi: 30 giorni)
+- **Fresco** (default: 5 giorni)
 
-## Struttura della scheda
-Layout a sezioni (una per reparto) con card editabili. Ogni card mostra: **titolo della regola**, **descrizione** (cosa fa) e — se previsto — **parametri** modificabili.
+Il tipo si imposta sulla scheda prodotto in fase di produzione e può essere modificato al volo al momento della stampa per la singola etichetta.
 
-### Comuni (tutti i reparti)
-- **Allergeni evidenziati** — interruttore on/off + elenco parole chiave (chip modificabili). Default: i 14 allergeni di legge.
-- **Additivi (sigle E…)** — in etichetta vengono stampate solo le sigle (es. E250) in grassetto, non il nome commerciale.
-- **Intestazione azienda** — Ragione sociale + Indirizzo (via — città) sempre in alto.
+## Modifiche per area
 
-### Macelleria – Carne Fresca
-- **Avviso conservazione** — testo modificabile (default: "Conservare da 0° e +4° — Consumare previa cottura").
-- **Lotto stampato** — usa il lotto del fornitore, non il lotto interno.
-- **Tracciabilità** — righe Nato / Allevato / Macellato + Bollo CE, prese dalla materia prima.
-- **Ingredienti** — non stampati (carne fresca monocomponente).
+### 1. Database
+Aggiunta colonna `preservation_type` (text, valori: `fresh` | `vacuum`, default `vacuum`) sulla tabella `products`.
+Aggiornata la RPC `operator_admin_insert_product` per accettare il nuovo parametro.
 
-### Macelleria – Preparato
-- **Avviso conservazione** — testo modificabile.
-- **Origine carne** — formula "Carne origine: IT" se tutte le materie prime italiane, altrimenti "UE".
-- **Ingredienti** — elenco con "carne di <specie> (origine)" + altri.
+### 2. Logiche etichette → Salumeria
+La regola **Scadenza automatica** passa da un solo parametro (`days`) a due:
+- `days_fresh` (default 5)
+- `days_vacuum` (default 30)
 
-### Salumeria
-- **Scadenza automatica** — giorni da data produzione (default 30, modificabile).
-- **Composizione ingredienti** — nome del prodotto seguito dai suoi sotto-ingredienti tra parentesi.
+Migrazione automatica: per le regole già esistenti, il vecchio valore `days` viene copiato in `days_vacuum`. L'editor della scheda mostra due campi numerici affiancati.
 
-### Ortofrutta / Default
-- **Formato standard** — intestazione + prodotto + ingredienti + data produzione + lotto + scadenza.
+### 3. Schermata Produzione
+Quando il reparto del prodotto è Salumeria, compare un selettore "Conservazione":
+- Sottovuoto (default)
+- Fresco
 
-## Modello dati
-Nuova tabella `label_rules` (per utente):
-- `department_key` (common / macelleria_fresh / macelleria_preparato / salumeria / ortofrutta)
-- `rule_key`, `title`, `description`, `params jsonb`, `sort_order`
-- RLS: ognuno vede e modifica solo le proprie regole
-- Trigger che pre-popola le regole standard alla creazione del profilo
-- Seed immediato per gli utenti già esistenti
+Valore salvato in `products.preservation_type`.
 
-## Lettura runtime
-In `ProductDetail.tsx` (e nelle altre pagine di stampa) i valori hardcoded oggi presenti vengono sostituiti dalla lettura dei parametri:
-- giorni shelf-life Salumeria → `salumeria.shelf_life.days`
-- testo avvisi Macelleria → `macelleria_*.notice.text`
-- elenco allergeni evidenziati → `common.allergens.keywords` (fallback alla lista attuale se vuoto)
+### 4. Schermata Stampa etichetta
+Nel dialog "Stampa etichetta", per i prodotti Salumeria, compare un selettore "Conservazione per questa stampa" che mostra come default il valore del prodotto, ma può essere cambiato (override solo per quella stampa). La scadenza viene ricalcolata in tempo reale e mostrata nell'anteprima.
 
-Le regole strutturali (es. "in Macelleria Fresca si stampa il lotto fornitore") restano nel codice ma sono **descritte e documentate** nella card, così l'utente sa esattamente cosa fa il sistema in ogni reparto.
+### 5. Calcolo scadenza
+Nel rendering etichetta (`computeLabelLayout` + valueMap):
+```
+type = override || product.preservation_type || 'vacuum'
+giorni = (type === 'fresh') ? rule.days_fresh : rule.days_vacuum
+scadenza = production_date + giorni
+```
 
 ## File modificati / nuovi
-- `supabase/migrations/...` — tabella `label_rules` + RLS + trigger di seed
-- seed via insert per gli utenti esistenti
-- `src/hooks/useLabelRules.tsx` — nuovo hook di lettura
-- `src/components/settings/LabelRulesTab.tsx` — nuovo tab
-- `src/pages/Settings.tsx` — registrazione del tab
-- `src/pages/ProductDetail.tsx` — consumo dei parametri configurabili
+- Migrazione Supabase: nuova colonna + aggiornamento RPC + migrazione dati `salumeria.shelf_life`
+- `src/pages/Production.tsx` — selettore Conservazione per Salumeria
+- `src/components/settings/LabelRulesTab.tsx` — editor `days_fresh` + `days_vacuum`
+- `src/pages/ProductDetail.tsx` — selettore override nel dialog stampa + calcolo scadenza in base al tipo
