@@ -2,7 +2,7 @@ import { useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
-import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat } from "lucide-react";
+import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
@@ -18,6 +18,7 @@ const adminNav = [
   { to: "/acquisti", icon: ShoppingCart, label: "Lista acquisti" },
   { to: "/archivio", icon: Archive, label: "Archivio" },
   { to: "/ricorrenti", icon: Repeat, label: "Prodotti ricorrenti" },
+  { to: "/report", icon: FileText, label: "Report HACCP" },
   { to: "/impostazioni", icon: Settings, label: "Impostazioni" },
 ];
 
@@ -33,7 +34,7 @@ export default function AppShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
 
   const isAdminOperator = operator?.is_admin === true;
-  const adminOperatorRestricted = ["/impostazioni", "/acquisti", "/clienti", "/sanificazione", "/temperature"];
+  const adminOperatorRestricted = ["/impostazioni", "/acquisti", "/clienti", "/sanificazione", "/temperature", "/report"];
   const nav = !operator
     ? adminNav
     : isAdminOperator
