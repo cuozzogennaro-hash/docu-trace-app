@@ -19,7 +19,7 @@ import { useOperatorSession } from "@/hooks/useOperatorSession";
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
   { value: "aroma", label: "Aroma" },
-  { value: "additivo_allergene", label: "Additivo / Allergene" },
+  { value: "additivo_allergene", label: "Additivo" },
 ];
 
 type ProductLine = {
