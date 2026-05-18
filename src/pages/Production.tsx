@@ -148,6 +148,7 @@ export default function Production() {
     setNotes("");
     setSelected(new Set());
     setMeatType("fresh");
+    setPreservationType("vacuum");
     setLot(generateInternalLot("P", new Date()));
     load();
   }
