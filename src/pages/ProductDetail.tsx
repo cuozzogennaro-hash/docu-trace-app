@@ -1126,6 +1126,30 @@ ${labelsHtml}
             <DialogDescription>Seleziona template e quantità, verifica l'anteprima e stampa.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {(() => {
+              const deptName = (
+                departments.find((d) => d.id === (product as any)?.department_id)?.name ||
+                adminDeptName || ""
+              ).toLowerCase().trim();
+              const isSalumeria = deptName.startsWith("salum");
+              if (!isSalumeria) return null;
+              const current = preservationOverride || ((product as any)?.preservation_type as string) || "vacuum";
+              return (
+                <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 space-y-1.5">
+                  <Label className="text-xs font-semibold text-emerald-900">Tipo conservazione per questa stampa</Label>
+                  <Select value={current} onValueChange={(v: "fresh" | "vacuum") => setPreservationOverride(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vacuum">Sottovuoto</SelectItem>
+                      <SelectItem value="fresh">Fresco</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-emerald-900/80">
+                    La scadenza viene ricalcolata in tempo reale nell'anteprima qui sotto.
+                  </p>
+                </div>
+              );
+            })()}
             <div>
               <Label className="text-sm font-medium">Template etichetta</Label>
               <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
