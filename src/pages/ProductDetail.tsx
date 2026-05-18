@@ -504,7 +504,9 @@ export default function ProductDetail() {
       const ingrSegs: LabelSeg[] = [{ text: "Ingr.: ", bold: true }];
       data.ingredients.forEach((ing, i) => {
         const sep = i < data.ingredients.length - 1 ? ", " : "";
-        ingrSegs.push({ text: ing.text + sep, bold: ing.bold });
+        const parts = splitAllergenSegments(ing.text, ing.bold);
+        parts.forEach((p) => ingrSegs.push({ text: p.text, bold: p.bold }));
+        if (sep) ingrSegs.push({ text: sep, bold: false });
       });
       if (data.ingredients.length === 0) ingrSegs.push({ text: "—", bold: false });
       items.push({
