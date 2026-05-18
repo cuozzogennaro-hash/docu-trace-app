@@ -36,6 +36,7 @@ export default function ProductDetail() {
   const [btPrinting, setBtPrinting] = useState(false);
   const [adminDeptName, setAdminDeptName] = useState<string>("");
   const [preservationOverride, setPreservationOverride] = useState<"fresh" | "vacuum" | "">("");
+  const [allergenKeywordsDb, setAllergenKeywordsDb] = useState<string[] | null>(null);
 
   useEffect(() => {
     if (!id) return;
@@ -88,6 +89,23 @@ export default function ProductDetail() {
       setLoading(false);
     })();
   }, [id, session?.user?.id, operator?.id]);
+
+  // Carica le keyword degli allergeni dalla scheda dedicata (solo se autenticati).
+  // Quando il flusso è admin-operator senza sessione, ricadiamo sull'elenco di legge.
+  useEffect(() => {
+    if (!session?.user) { setAllergenKeywordsDb(null); return; }
+    (async () => {
+      const { data } = await supabase
+        .from("allergens" as any)
+        .select("keywords")
+        .eq("user_id", session.user.id);
+      const all = (((data as any[]) ?? [])
+        .flatMap((r) => (r.keywords as string[]) || []))
+        .map((k) => (k || "").toLowerCase().trim())
+        .filter(Boolean);
+      setAllergenKeywordsDb(Array.from(new Set(all)));
+    })();
+  }, [session?.user?.id]);
 
   const PX_PER_MM = 3.78;
 
@@ -163,12 +181,13 @@ export default function ProductDetail() {
     "mollusco","molluschi","vongola","vongole","cozza","cozze","calamaro","calamari","polpo","polpi","seppia","seppie","ostrica","ostriche","lumaca","lumache",
   ];
 
-  // Lista effettiva: se l'admin ha personalizzato le parole nelle Logiche
-  // etichette, usiamo quelle; altrimenti torniamo al default di legge.
+  // Lista effettiva: l'evidenziazione può essere disattivata dalla regola
+  // "Evidenziazione allergeni" (Logiche etichette). Le parole arrivano dalla
+  // scheda Allergeni (tabella dedicata); se non disponibile, fallback alla
+  // lista di legge.
   const _allergenEnabled = ruleParam<boolean>("common", "allergens", "enabled", true);
-  const _allergenKeywordsCustom = ruleParam<string[]>("common", "allergens", "keywords", []);
   const ALLERGEN_KEYWORDS: string[] = _allergenEnabled
-    ? (_allergenKeywordsCustom && _allergenKeywordsCustom.length > 0 ? _allergenKeywordsCustom : ALLERGEN_KEYWORDS_DEFAULT)
+    ? ((allergenKeywordsDb && allergenKeywordsDb.length > 0) ? allergenKeywordsDb : ALLERGEN_KEYWORDS_DEFAULT)
     : [];
 
   // Pattern unico per il matching: parole intere, case-insensitive.

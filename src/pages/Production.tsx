@@ -18,7 +18,7 @@ import { useOperatorSession } from "@/hooks/useOperatorSession";
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
   aroma: "Aromi",
-  additivo_allergene: "Additivi / Allergeni",
+  additivo_allergene: "Additivi",
 };
 
 export default function Production() {

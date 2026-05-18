@@ -6,9 +6,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
-import { Badge } from "@/components/ui/badge";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { Save, X, Plus, Beef, Sandwich, Apple, Sparkles } from "lucide-react";
+import { Save, X, Beef, Sandwich, Apple, Sparkles } from "lucide-react";
 import { toast } from "sonner";
 import { useLabelRules, type LabelRule } from "@/hooks/useLabelRules";
 
@@ -205,51 +204,15 @@ function AllergensEditor({
   setParam: (r: LabelRule, k: string, v: any) => void;
 }) {
   const enabled = paramValue<boolean>(rule, "enabled", true);
-  const keywords = paramValue<string[]>(rule, "keywords", []);
-  const [draft, setDraft] = useState("");
-
-  function add() {
-    const v = draft.trim().toLowerCase();
-    if (!v) return;
-    if (keywords.map((x) => x.toLowerCase()).includes(v)) { setDraft(""); return; }
-    setParam(rule, "keywords", [...keywords, v]);
-    setDraft("");
-  }
-  function remove(w: string) {
-    setParam(rule, "keywords", keywords.filter((x) => x !== w));
-  }
-
   return (
-    <div className="space-y-3">
+    <div className="space-y-2">
       <div className="flex items-center justify-between">
         <Label className="text-xs">Evidenziazione attiva</Label>
         <Switch checked={enabled} onCheckedChange={(v) => setParam(rule, "enabled", v)} />
       </div>
-      <div className="space-y-1.5">
-        <Label className="text-xs">Parole evidenziate in grassetto ({keywords.length})</Label>
-        <div className="flex flex-wrap gap-1.5 p-2 rounded-md bg-muted/40 border min-h-[60px]">
-          {keywords.map((w) => (
-            <Badge key={w} variant="secondary" className="gap-1 pr-1">
-              <span>{w}</span>
-              <button onClick={() => remove(w)} className="hover:text-destructive rounded">
-                <X size={12} />
-              </button>
-            </Badge>
-          ))}
-          {keywords.length === 0 && (
-            <span className="text-xs text-muted-foreground">Nessuna parola configurata.</span>
-          )}
-        </div>
-        <div className="flex gap-2">
-          <Input
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => { if (e.key === "Enter") { e.preventDefault(); add(); } }}
-            placeholder="Aggiungi una parola e premi Invio"
-          />
-          <Button type="button" variant="outline" onClick={add}><Plus size={14} /></Button>
-        </div>
-      </div>
+      <p className="text-[11px] text-muted-foreground">
+        L'elenco delle parole evidenziate si gestisce nella scheda <b>Allergeni</b> in Impostazioni.
+      </p>
     </div>
   );
 }

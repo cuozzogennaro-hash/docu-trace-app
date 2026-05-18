@@ -14,6 +14,39 @@ export type Database = {
   }
   public: {
     Tables: {
+      allergens: {
+        Row: {
+          created_at: string
+          id: string
+          keywords: string[]
+          name: string
+          notes: string | null
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          keywords?: string[]
+          name: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          keywords?: string[]
+          name?: string
+          notes?: string | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       assets: {
         Row: {
           asset_type: string
@@ -791,6 +824,10 @@ export type Database = {
       save_operator_push_token: {
         Args: { p_operator_id: string; p_pin: string; p_push_token: Json }
         Returns: Json
+      }
+      seed_allergens_for_user: {
+        Args: { p_user_id: string }
+        Returns: undefined
       }
       seed_label_rules_for_user: {
         Args: { p_user_id: string }

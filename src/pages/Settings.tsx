@@ -8,7 +8,8 @@ import LabelEditorTab from "@/components/settings/LabelEditorTab";
 import DepartmentsTab from "@/components/settings/DepartmentsTab";
 import RecurringTab from "@/components/settings/RecurringTab";
 import LabelRulesTab from "@/components/settings/LabelRulesTab";
-import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building, Repeat, BookOpen } from "lucide-react";
+import AllergensTab from "@/components/settings/AllergensTab";
+import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building, Repeat, BookOpen, AlertTriangle } from "lucide-react";
 
 export default function Settings() {
   return (
@@ -22,6 +23,7 @@ export default function Settings() {
           <TabsTrigger value="assets" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Wrench size={14} className="hidden sm:inline" /> Attrezz.</TabsTrigger>
           <TabsTrigger value="aromi" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Leaf size={14} className="hidden sm:inline" /> Aromi</TabsTrigger>
           <TabsTrigger value="additivi" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><FlaskConical size={14} className="hidden sm:inline" /> Additivi</TabsTrigger>
+          <TabsTrigger value="allergeni" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><AlertTriangle size={14} className="hidden sm:inline" /> Allergeni</TabsTrigger>
           <TabsTrigger value="recurring" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Repeat size={14} className="hidden sm:inline" /> Ricorrenti</TabsTrigger>
           <TabsTrigger value="etichette" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Tag size={14} className="hidden sm:inline" /> Etichette</TabsTrigger>
           <TabsTrigger value="logiche" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><BookOpen size={14} className="hidden sm:inline" /> Logiche</TabsTrigger>
@@ -31,7 +33,8 @@ export default function Settings() {
         <TabsContent value="operators"><OperatorsTab /></TabsContent>
         <TabsContent value="assets"><AssetsTab /></TabsContent>
         <TabsContent value="aromi"><IngredientsTab category="aroma" title="Aromi" subtitle="Gestisci gli aromi utilizzati nelle produzioni" /></TabsContent>
-        <TabsContent value="additivi"><IngredientsTab category="additivo_allergene" title="Additivi ed Allergeni" subtitle="Gestisci additivi e allergeni utilizzati nelle produzioni" /></TabsContent>
+        <TabsContent value="additivi"><IngredientsTab category="additivo_allergene" title="Additivi" subtitle="Gestisci gli additivi utilizzati nelle produzioni (sigle E…)" /></TabsContent>
+        <TabsContent value="allergeni"><AllergensTab /></TabsContent>
         <TabsContent value="recurring"><RecurringTab /></TabsContent>
         <TabsContent value="etichette"><LabelEditorTab /></TabsContent>
         <TabsContent value="logiche"><LabelRulesTab /></TabsContent>
