@@ -172,7 +172,8 @@ export default function ProductDetail() {
 
   // Pattern unico per il matching: parole intere, case-insensitive.
   // Le parole più lunghe per prime così che "anidride solforosa" vinca su "anidride".
-  const ALLERGEN_REGEX: RegExp = (() => {
+  const ALLERGEN_REGEX: RegExp | null = (() => {
+    if (!ALLERGEN_KEYWORDS || ALLERGEN_KEYWORDS.length === 0) return null;
     const sorted = [...new Set(ALLERGEN_KEYWORDS)].sort((a, b) => b.length - a.length);
     const escaped = sorted.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
     return new RegExp(`\\b(${escaped.join("|")})\\b`, "gi");
@@ -182,6 +183,7 @@ export default function ProductDetail() {
   function splitAllergenSegments(text: string, baseBold: boolean): { text: string; bold: boolean }[] {
     if (!text) return [{ text: "", bold: baseBold }];
     if (baseBold) return [{ text, bold: true }];
+    if (!ALLERGEN_REGEX) return [{ text, bold: false }];
     const out: { text: string; bold: boolean }[] = [];
     let last = 0;
     const re = new RegExp(ALLERGEN_REGEX.source, ALLERGEN_REGEX.flags);
