@@ -181,12 +181,13 @@ export default function ProductDetail() {
     "mollusco","molluschi","vongola","vongole","cozza","cozze","calamaro","calamari","polpo","polpi","seppia","seppie","ostrica","ostriche","lumaca","lumache",
   ];
 
-  // Lista effettiva: se l'admin ha personalizzato le parole nelle Logiche
-  // etichette, usiamo quelle; altrimenti torniamo al default di legge.
+  // Lista effettiva: l'evidenziazione può essere disattivata dalla regola
+  // "Evidenziazione allergeni" (Logiche etichette). Le parole arrivano dalla
+  // scheda Allergeni (tabella dedicata); se non disponibile, fallback alla
+  // lista di legge.
   const _allergenEnabled = ruleParam<boolean>("common", "allergens", "enabled", true);
-  const _allergenKeywordsCustom = ruleParam<string[]>("common", "allergens", "keywords", []);
   const ALLERGEN_KEYWORDS: string[] = _allergenEnabled
-    ? (_allergenKeywordsCustom && _allergenKeywordsCustom.length > 0 ? _allergenKeywordsCustom : ALLERGEN_KEYWORDS_DEFAULT)
+    ? ((allergenKeywordsDb && allergenKeywordsDb.length > 0) ? allergenKeywordsDb : ALLERGEN_KEYWORDS_DEFAULT)
     : [];
 
   // Pattern unico per il matching: parole intere, case-insensitive.
