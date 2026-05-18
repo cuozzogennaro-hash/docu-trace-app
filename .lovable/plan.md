@@ -1,45 +1,53 @@
-# Salumeria: shelf-life differenziata Fresco vs Sottovuoto
+# Allergeni: scheda dedicata e separata dagli additivi
 
 ## Obiettivo
-Permettere di gestire due tempi di scadenza per i prodotti di Salumeria:
-- **Sottovuoto** (default oggi: 30 giorni)
-- **Fresco** (default: 5 giorni)
 
-Il tipo si imposta sulla scheda prodotto in fase di produzione e può essere modificato al volo al momento della stampa per la singola etichetta.
+Oggi additivi e allergeni condividono la stessa categoria "Additivo / Allergene" dentro le materie prime, quindi vengono trattati come merce in ingresso (con lotto, scadenza, fornitore, ecc.). Risultato: la scheda è caotica e gli allergeni sono "gonfiati" di dati che non servono.
 
-## Modifiche per area
+Vogliamo che gli allergeni diventino una **semplice anagrafica di riferimento**: una lista consultabile e aggiornabile dall'admin, usata solo per evidenziare in grassetto le parole allergeniche dentro la lista ingredienti dell'etichetta. Niente lotti, scadenze, fornitori, ingressi merce.
 
-### 1. Database
-Aggiunta colonna `preservation_type` (text, valori: `fresh` | `vacuum`, default `vacuum`) sulla tabella `products`.
-Aggiornata la RPC `operator_admin_insert_product` per accettare il nuovo parametro.
+## Soluzione proposta
 
-### 2. Logiche etichette → Salumeria
-La regola **Scadenza automatica** passa da un solo parametro (`days`) a due:
-- `days_fresh` (default 5)
-- `days_vacuum` (default 30)
+### 1. Nuova tabella `allergens` (anagrafica pura)
 
-Migrazione automatica: per le regole già esistenti, il vecchio valore `days` viene copiato in `days_vacuum`. L'editor della scheda mostra due campi numerici affiancati.
+Campi minimi:
+- `name` (es. "Glutine", "Latte", "Solfiti") — nome principale
+- `keywords` (lista di parole/derivati da cercare nell'elenco ingredienti, es. per Glutine: grano, frumento, segale, orzo, farro)
+- `notes` (facoltativo)
+- gestione standard utente/timestamp
 
-### 3. Schermata Produzione
-Quando il reparto del prodotto è Salumeria, compare un selettore "Conservazione":
-- Sottovuoto (default)
-- Fresco
+Seed automatico con i 14 allergeni del Reg. UE 1169/2011 (glutine, crostacei, uova, pesce, arachidi, soia, latte, frutta a guscio, sedano, senape, sesamo, solfiti, lupini, molluschi) con le keyword già pronte (riprese dall'elenco che oggi è hard-coded in `ProductDetail.tsx` e in `seed_label_rules_for_user`).
 
-Valore salvato in `products.preservation_type`.
+### 2. Nuova scheda "Allergeni" in Impostazioni
 
-### 4. Schermata Stampa etichetta
-Nel dialog "Stampa etichetta", per i prodotti Salumeria, compare un selettore "Conservazione per questa stampa" che mostra come default il valore del prodotto, ma può essere cambiato (override solo per quella stampa). La scadenza viene ricalcolata in tempo reale e mostrata nell'anteprima.
+Tab dedicato accanto a "Ingredienti ricorrenti" e "Logiche etichette":
+- Tabella con Nome + Keywords (chip), pulsante Modifica / Elimina
+- Pulsante "Aggiungi allergene" con form semplice (nome + keywords separate da virgola)
+- Solo admin
 
-### 5. Calcolo scadenza
-Nel rendering etichetta (`computeLabelLayout` + valueMap):
-```
-type = override || product.preservation_type || 'vacuum'
-giorni = (type === 'fresh') ? rule.days_fresh : rule.days_vacuum
-scadenza = production_date + giorni
-```
+### 3. Pulizia della categoria "Additivo / Allergene"
 
-## File modificati / nuovi
-- Migrazione Supabase: nuova colonna + aggiornamento RPC + migrazione dati `salumeria.shelf_life`
-- `src/pages/Production.tsx` — selettore Conservazione per Salumeria
-- `src/components/settings/LabelRulesTab.tsx` — editor `days_fresh` + `days_vacuum`
-- `src/pages/ProductDetail.tsx` — selettore override nel dialog stampa + calcolo scadenza in base al tipo
+- Rinominata in **"Additivo"** ovunque (Ingresso merce, Produzione, scheda materia prima, Ingredienti ricorrenti)
+- La categoria interna `additivo_allergene` resta a livello DB per non rompere i dati esistenti, ma in UI compare solo come "Additivo"
+- Le materie prime già inserite come allergene puro (es. "Solfiti") continuano a funzionare; l'admin potrà cancellarle quando vuole, perché ora gli allergeni vivono nella nuova scheda
+
+### 4. Etichetta: la logica esistente diventa data-driven
+
+- `ProductDetail.tsx` non legge più la lista hard-coded né i keyword dentro `label_rules`, ma la **nuova tabella `allergens`** (unione di tutte le keywords) per costruire la regex di grassetto
+- La regola "Evidenziazione allergeni" in *Logiche etichette* viene aggiornata: descrizione che rimanda alla nuova scheda Allergeni come fonte unica delle parole evidenziate (niente più keyword duplicate dentro `params`)
+
+## File coinvolti
+
+- Migrazione DB: nuova tabella `allergens` + RLS + seed dei 14 allergeni di legge per ogni utente esistente, trigger di seed per nuovi utenti
+- `src/components/settings/AllergensTab.tsx` (nuovo)
+- `src/hooks/useAllergens.tsx` (nuovo)
+- `src/pages/Settings.tsx` (nuovo tab)
+- `src/pages/ProductDetail.tsx` (legge keywords dalla nuova tabella)
+- `src/components/settings/LabelRulesTab.tsx` e seed di `label_rules`: aggiornata la descrizione della regola allergens; rimossa l'editing delle keywords
+- `src/pages/Incoming.tsx`, `src/pages/Production.tsx`, `src/components/settings/IngredientsTab.tsx`, `src/components/settings/RecurringTab.tsx`: etichetta "Additivo / Allergene" → "Additivo"
+
+## Cosa NON cambia
+
+- I prodotti già etichettati continuano a stamparsi identici
+- Le materie prime esistenti restano intatte
+- Le regole per reparto restano modificabili dall'admin come oggi
