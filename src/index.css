@@ -128,10 +128,27 @@ All colors MUST be HSL.
 }
 
 /* Prevent inputs from being hidden behind the sticky mobile header
-   when the on-screen keyboard scrolls them into view (tablet/mobile). */
+   when the on-screen keyboard scrolls them into view (tablet/mobile).
+   Larger bottom margin keeps the focused field above the iOS/iPadOS
+   software keyboard. */
 input,
 textarea,
 select {
-  scroll-margin-top: 80px;
-  scroll-margin-bottom: 80px;
+  scroll-margin-top: 96px;
+  scroll-margin-bottom: 320px;
+}
+
+/* On tablet/iPad, when the keyboard is open the visual viewport shrinks
+   but iOS keeps the layout viewport the same, which can hide focused
+   inputs behind sticky chrome. Adding generous padding-bottom to the main
+   scroll container ensures inputs scroll into view above the keyboard. */
+@media (max-width: 1366px) {
+  main {
+    padding-bottom: env(safe-area-inset-bottom, 0px);
+  }
+  /* When any input is focused inside the app, reserve space at the bottom
+     so the browser can scroll the input above the on-screen keyboard. */
+  body:has(input:focus, textarea:focus, [contenteditable="true"]:focus) main {
+    padding-bottom: 50vh;
+  }
 }
