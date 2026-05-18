@@ -1119,7 +1119,7 @@ ${labelsHtml}
         )}
       </Card>
 
-      <Dialog open={showLabelDialog} onOpenChange={setShowLabelDialog}>
+      <Dialog open={showLabelDialog} onOpenChange={(v) => { setShowLabelDialog(v); if (!v) setPreservationOverride(""); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Stampa Etichetta</DialogTitle>
