@@ -31,6 +31,7 @@ export default function Production() {
   const [notes, setNotes] = useState("");
   const [productDeptId, setProductDeptId] = useState<string>("");
   const [meatType, setMeatType] = useState<"fresh" | "preparato">("fresh");
+  const [preservationType, setPreservationType] = useState<"fresh" | "vacuum">("vacuum");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
@@ -43,6 +44,8 @@ export default function Production() {
   const navigate = useNavigate();
   const isMacelleria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
+  const isSalumeria = (depId: string) =>
+    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim().startsWith("salum") ?? false;
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
@@ -105,6 +108,7 @@ export default function Production() {
     if (!productDeptId) return toast.error("Seleziona un reparto per il prodotto");
     if (selected.size === 0) return toast.error("Seleziona almeno un ingrediente");
     const meat_type = isMacelleria(productDeptId) ? meatType : null;
+    const preservation_type = isSalumeria(productDeptId) ? preservationType : "vacuum";
     if (isOperatorAdmin && operator) {
       const { data, error } = await supabase.rpc("operator_admin_insert_product", {
         p_operator_id: operator.id,
@@ -116,11 +120,12 @@ export default function Production() {
         p_department_id: productDeptId,
         p_meat_type: meat_type,
         p_raw_material_ids: Array.from(selected),
-      });
+        p_preservation_type: preservation_type,
+      } as any);
       const res: any = data;
       if (error || !res?.ok) return toast.error(error?.message || res?.error || "Errore");
       toast.success(`Prodotto creato • ${lot}`);
-      setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh");
+      setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh"); setPreservationType("vacuum");
       setLot(generateInternalLot("P", new Date()));
       load();
       return;
@@ -128,7 +133,7 @@ export default function Production() {
     const { data: { user } } = await supabase.auth.getUser();
     const { data: prod, error } = await supabase
       .from("products")
-      .insert({ user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes, department_id: productDeptId, meat_type })
+      .insert({ user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes, department_id: productDeptId, meat_type, preservation_type } as any)
       .select()
       .single();
     if (error) return toast.error(error.message);
