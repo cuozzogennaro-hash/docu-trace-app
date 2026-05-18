@@ -228,6 +228,22 @@ export default function Production() {
           </div>
         )}
 
+        {isSalumeria(productDeptId) && (
+          <div className="mt-4 p-3 rounded-md bg-emerald-50 border border-emerald-200 space-y-2">
+            <Label className="text-xs font-semibold text-emerald-900">Tipo conservazione *</Label>
+            <Select value={preservationType} onValueChange={(v: "fresh" | "vacuum") => setPreservationType(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="vacuum">Sottovuoto</SelectItem>
+                <SelectItem value="fresh">Fresco</SelectItem>
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-emerald-900/80">
+              La scadenza in etichetta verrà calcolata in base ai giorni configurati in <strong>Impostazioni → Logiche → Salumeria</strong> per il tipo selezionato. Potrai comunque cambiarla al momento della stampa.
+            </p>
+          </div>
+        )}
+
         <div className="mt-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <Label>Ingredienti</Label>
