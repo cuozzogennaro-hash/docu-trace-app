@@ -162,15 +162,27 @@ function ParamsEditor({
   // Giorni shelf-life Salumeria
   if (k === "salumeria.shelf_life") {
     return (
-      <div className="space-y-1.5 max-w-xs">
-        <Label className="text-xs">Giorni di shelf-life da data produzione</Label>
-        <Input
-          type="number"
-          min={1}
-          max={365}
-          value={paramValue(rule, "days", 30)}
-          onChange={(e) => setParam(rule, "days", Math.max(1, parseInt(e.target.value || "0", 10) || 0))}
-        />
+      <div className="grid grid-cols-2 gap-3 max-w-md">
+        <div className="space-y-1.5">
+          <Label className="text-xs">Giorni — Fresco</Label>
+          <Input
+            type="number"
+            min={1}
+            max={365}
+            value={paramValue(rule, "days_fresh", 5)}
+            onChange={(e) => setParam(rule, "days_fresh", Math.max(1, parseInt(e.target.value || "0", 10) || 0))}
+          />
+        </div>
+        <div className="space-y-1.5">
+          <Label className="text-xs">Giorni — Sottovuoto</Label>
+          <Input
+            type="number"
+            min={1}
+            max={365}
+            value={paramValue(rule, "days_vacuum", 30)}
+            onChange={(e) => setParam(rule, "days_vacuum", Math.max(1, parseInt(e.target.value || "0", 10) || 0))}
+          />
+        </div>
       </div>
     );
   }
