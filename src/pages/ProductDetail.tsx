@@ -16,12 +16,14 @@ import { toast } from "sonner";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
+import { useLabelRules } from "@/hooks/useLabelRules";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { company } = useCompany();
   const { departments } = useDepartments();
+  const { param: ruleParam } = useLabelRules();
   const { session } = useAuth();
   const { operator } = useOperatorSession();
   const [product, setProduct] = useState<any>(null);
@@ -128,7 +130,7 @@ export default function ProductDetail() {
   // Allergeni di legge (Reg. UE 1169/2011, All. II) e relativi derivati comuni.
   // Qualsiasi occorrenza (case-insensitive, parola intera) verrà evidenziata
   // in grassetto nel testo degli ingredienti dell'etichetta, in tutti i reparti.
-  const ALLERGEN_KEYWORDS: string[] = [
+  const ALLERGEN_KEYWORDS_DEFAULT: string[] = [
     // 1. Glutine
     "glutine","grano","frumento","segale","orzo","avena","farro","kamut","khorasan","spelta","seitan","malto",
     // 2. Crostacei
@@ -159,6 +161,14 @@ export default function ProductDetail() {
     // 14. Molluschi
     "mollusco","molluschi","vongola","vongole","cozza","cozze","calamaro","calamari","polpo","polpi","seppia","seppie","ostrica","ostriche","lumaca","lumache",
   ];
+
+  // Lista effettiva: se l'admin ha personalizzato le parole nelle Logiche
+  // etichette, usiamo quelle; altrimenti torniamo al default di legge.
+  const _allergenEnabled = ruleParam<boolean>("common", "allergens", "enabled", true);
+  const _allergenKeywordsCustom = ruleParam<string[]>("common", "allergens", "keywords", []);
+  const ALLERGEN_KEYWORDS: string[] = _allergenEnabled
+    ? (_allergenKeywordsCustom && _allergenKeywordsCustom.length > 0 ? _allergenKeywordsCustom : ALLERGEN_KEYWORDS_DEFAULT)
+    : [];
 
   // Pattern unico per il matching: parole intere, case-insensitive.
   // Le parole più lunghe per prime così che "anidride solforosa" vinca su "anidride".
