@@ -15,6 +15,7 @@ import Shopping from "./pages/Shopping";
 import Settings from "./pages/Settings";
 import Archive from "./pages/Archive";
 import RecurringPage from "./pages/Recurring";
+import Reports from "./pages/Reports";
 import RawMaterialDetail from "./pages/RawMaterialDetail";
 import ProductDetail from "./pages/ProductDetail";
 import AppShell from "./components/AppShell";
@@ -51,6 +52,7 @@ const App = () => (
               <Route path="/acquisti" element={<Shopping />} />
               <Route path="/archivio" element={<Archive />} />
               <Route path="/ricorrenti" element={<RecurringPage />} />
+              <Route path="/report" element={<Reports />} />
               <Route path="/archivio/materia-prima/:id" element={<RawMaterialDetail />} />
               <Route path="/archivio/prodotto/:id" element={<ProductDetail />} />
               <Route path="/impostazioni" element={<Settings />} />
