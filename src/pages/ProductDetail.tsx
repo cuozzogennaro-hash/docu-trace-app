@@ -35,6 +35,7 @@ export default function ProductDetail() {
   const [labelQty, setLabelQty] = useState(1);
   const [btPrinting, setBtPrinting] = useState(false);
   const [adminDeptName, setAdminDeptName] = useState<string>("");
+  const [preservationOverride, setPreservationOverride] = useState<"fresh" | "vacuum" | "">("");
 
   useEffect(() => {
     if (!id) return;
@@ -351,7 +352,10 @@ export default function ProductDetail() {
     if (isSalumeria && product?.production_date) {
       const pd = new Date(String(product.production_date) + "T00:00:00");
       if (!isNaN(pd.getTime())) {
-        const _shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", "days", 30)) || 30);
+          const _type = (preservationOverride || ((product as any)?.preservation_type as string) || "vacuum");
+          const _key = _type === "fresh" ? "days_fresh" : "days_vacuum";
+          const _fallback = _type === "fresh" ? 5 : 30;
+          const _shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", _key, _fallback)) || _fallback);
         pd.setDate(pd.getDate() + _shelf);
         salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
       }
@@ -598,7 +602,10 @@ export default function ProductDetail() {
     if (isSalumeria && product?.production_date) {
       const pd = new Date(String(product.production_date) + "T00:00:00");
       if (!isNaN(pd.getTime())) {
-        const _shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", "days", 30)) || 30);
+        const _type = (preservationOverride || ((product as any)?.preservation_type as string) || "vacuum");
+        const _key = _type === "fresh" ? "days_fresh" : "days_vacuum";
+        const _fallback = _type === "fresh" ? 5 : 30;
+        const _shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", _key, _fallback)) || _fallback);
         pd.setDate(pd.getDate() + _shelf);
         salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
       }
@@ -1112,13 +1119,37 @@ ${labelsHtml}
         )}
       </Card>
 
-      <Dialog open={showLabelDialog} onOpenChange={setShowLabelDialog}>
+      <Dialog open={showLabelDialog} onOpenChange={(v) => { setShowLabelDialog(v); if (!v) setPreservationOverride(""); }}>
         <DialogContent className="max-w-2xl">
           <DialogHeader>
             <DialogTitle>Stampa Etichetta</DialogTitle>
             <DialogDescription>Seleziona template e quantità, verifica l'anteprima e stampa.</DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
+            {(() => {
+              const deptName = (
+                departments.find((d) => d.id === (product as any)?.department_id)?.name ||
+                adminDeptName || ""
+              ).toLowerCase().trim();
+              const isSalumeria = deptName.startsWith("salum");
+              if (!isSalumeria) return null;
+              const current = preservationOverride || ((product as any)?.preservation_type as string) || "vacuum";
+              return (
+                <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 space-y-1.5">
+                  <Label className="text-xs font-semibold text-emerald-900">Tipo conservazione per questa stampa</Label>
+                  <Select value={current} onValueChange={(v: "fresh" | "vacuum") => setPreservationOverride(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="vacuum">Sottovuoto</SelectItem>
+                      <SelectItem value="fresh">Fresco</SelectItem>
+                    </SelectContent>
+                  </Select>
+                  <p className="text-xs text-emerald-900/80">
+                    La scadenza viene ricalcolata in tempo reale nell'anteprima qui sotto.
+                  </p>
+                </div>
+              );
+            })()}
             <div>
               <Label className="text-sm font-medium">Template etichetta</Label>
               <Select value={selectedTemplate} onValueChange={setSelectedTemplate}>
