@@ -125,6 +125,67 @@ export default function ProductDetail() {
 
   type IngPart = { text: string; bold: boolean };
 
+  // Allergeni di legge (Reg. UE 1169/2011, All. II) e relativi derivati comuni.
+  // Qualsiasi occorrenza (case-insensitive, parola intera) verrà evidenziata
+  // in grassetto nel testo degli ingredienti dell'etichetta, in tutti i reparti.
+  const ALLERGEN_KEYWORDS: string[] = [
+    // 1. Glutine
+    "glutine","grano","frumento","segale","orzo","avena","farro","kamut","khorasan","spelta","seitan","malto",
+    // 2. Crostacei
+    "crostacei","gambero","gamberi","gamberetti","scampi","scampo","granchio","granchi","aragosta","aragoste",
+    // 3. Uova
+    "uova","uovo","albume","tuorlo","ovoprodotti",
+    // 4. Pesce
+    "pesce","salmone","tonno","merluzzo","baccalà","sgombro","acciuga","acciughe","alici","sardina","sardine","spigola","branzino","orata","trota","nasello",
+    // 5. Arachidi
+    "arachide","arachidi",
+    // 6. Soia
+    "soia","tofu","edamame",
+    // 7. Latte
+    "latte","lattosio","burro","panna","formaggio","mozzarella","yogurt","ricotta","caseina","caseinato","siero","stracchino","parmigiano","grana","scamorza","provolone",
+    // 8. Frutta a guscio
+    "mandorla","mandorle","nocciola","nocciole","noce","noci","pistacchio","pistacchi","anacardo","anacardi","pecan","macadamia",
+    // 9. Sedano
+    "sedano",
+    // 10. Senape
+    "senape",
+    // 11. Sesamo
+    "sesamo",
+    // 12. Solfiti / Anidride solforosa
+    "solfiti","solfito","so2","anidride solforosa",
+    "e220","e221","e222","e223","e224","e225","e226","e227","e228",
+    // 13. Lupini
+    "lupino","lupini",
+    // 14. Molluschi
+    "mollusco","molluschi","vongola","vongole","cozza","cozze","calamaro","calamari","polpo","polpi","seppia","seppie","ostrica","ostriche","lumaca","lumache",
+  ];
+
+  // Pattern unico per il matching: parole intere, case-insensitive.
+  // Le parole più lunghe per prime così che "anidride solforosa" vinca su "anidride".
+  const ALLERGEN_REGEX: RegExp = (() => {
+    const sorted = [...new Set(ALLERGEN_KEYWORDS)].sort((a, b) => b.length - a.length);
+    const escaped = sorted.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&"));
+    return new RegExp(`\\b(${escaped.join("|")})\\b`, "gi");
+  })();
+
+  // Spezza un testo in segmenti {text, bold} con in grassetto le parole allergeniche.
+  function splitAllergenSegments(text: string, baseBold: boolean): { text: string; bold: boolean }[] {
+    if (!text) return [{ text: "", bold: baseBold }];
+    if (baseBold) return [{ text, bold: true }];
+    const out: { text: string; bold: boolean }[] = [];
+    let last = 0;
+    const re = new RegExp(ALLERGEN_REGEX.source, ALLERGEN_REGEX.flags);
+    let m: RegExpExecArray | null;
+    while ((m = re.exec(text)) !== null) {
+      if (m.index > last) out.push({ text: text.slice(last, m.index), bold: false });
+      out.push({ text: m[0], bold: true });
+      last = m.index + m[0].length;
+      if (m[0].length === 0) re.lastIndex++;
+    }
+    if (last < text.length) out.push({ text: text.slice(last), bold: false });
+    return out.length ? out : [{ text, bold: false }];
+  }
+
   function getValueMap() {
     const meats: IngPart[] = [];
     const aromas: IngPart[] = [];
@@ -443,7 +504,9 @@ export default function ProductDetail() {
       const ingrSegs: LabelSeg[] = [{ text: "Ingr.: ", bold: true }];
       data.ingredients.forEach((ing, i) => {
         const sep = i < data.ingredients.length - 1 ? ", " : "";
-        ingrSegs.push({ text: ing.text + sep, bold: ing.bold });
+        const parts = splitAllergenSegments(ing.text, ing.bold);
+        parts.forEach((p) => ingrSegs.push({ text: p.text, bold: p.bold }));
+        if (sep) ingrSegs.push({ text: sep, bold: false });
       });
       if (data.ingredients.length === 0) ingrSegs.push({ text: "—", bold: false });
       items.push({
