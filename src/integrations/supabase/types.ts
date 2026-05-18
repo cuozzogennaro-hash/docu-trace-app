@@ -306,6 +306,7 @@ export type Database = {
           name: string
           notes: string | null
           operator_id: string | null
+          preservation_type: string
           production_date: string
           user_id: string
         }
@@ -318,6 +319,7 @@ export type Database = {
           name: string
           notes?: string | null
           operator_id?: string | null
+          preservation_type?: string
           production_date: string
           user_id: string
         }
@@ -330,6 +332,7 @@ export type Database = {
           name?: string
           notes?: string | null
           operator_id?: string | null
+          preservation_type?: string
           production_date?: string
           user_id?: string
         }
@@ -721,20 +724,36 @@ export type Database = {
         Args: { p_id: string; p_operator_id: string; p_pin: string }
         Returns: Json
       }
-      operator_admin_insert_product: {
-        Args: {
-          p_department_id: string
-          p_internal_lot: string
-          p_meat_type: string
-          p_name: string
-          p_notes: string
-          p_operator_id: string
-          p_pin: string
-          p_production_date: string
-          p_raw_material_ids: string[]
-        }
-        Returns: Json
-      }
+      operator_admin_insert_product:
+        | {
+            Args: {
+              p_department_id: string
+              p_internal_lot: string
+              p_meat_type: string
+              p_name: string
+              p_notes: string
+              p_operator_id: string
+              p_pin: string
+              p_production_date: string
+              p_raw_material_ids: string[]
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_department_id: string
+              p_internal_lot: string
+              p_meat_type: string
+              p_name: string
+              p_notes: string
+              p_operator_id: string
+              p_pin: string
+              p_preservation_type?: string
+              p_production_date: string
+              p_raw_material_ids: string[]
+            }
+            Returns: Json
+          }
       operator_admin_insert_raw_materials: {
         Args: { p_operator_id: string; p_pin: string; p_rows: Json }
         Returns: Json
