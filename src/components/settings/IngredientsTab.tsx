@@ -173,7 +173,7 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
               <div className="space-y-1.5">
                 <Label>
                   {category === "additivo_allergene"
-                    ? "Ingredienti / Sigle (es. E250, E300)"
+                    ? "Sigle additivo (es. E250, E300)"
                     : "Ingredienti"}
                 </Label>
                 <Textarea
@@ -184,7 +184,7 @@ export default function IngredientsTab({ category, title, subtitle }: Props) {
                 />
                 {category === "additivo_allergene" && (
                   <p className="text-xs text-muted-foreground">
-                    In etichetta dei prodotti compariranno solo queste sigle (in grassetto), non il nome commerciale.
+                    In etichetta dei prodotti compariranno solo queste sigle (in grassetto), non il nome commerciale. Gli allergeni si gestiscono nella scheda <b>Allergeni</b>.
                   </p>
                 )}
               </div>
