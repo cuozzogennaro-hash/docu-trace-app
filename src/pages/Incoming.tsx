@@ -670,25 +670,58 @@ export default function Incoming() {
         </Button>
       </Card>
 
+      {rows.length > 0 && (
+        <h3 className="text-sm font-semibold text-muted-foreground mb-2 px-1">
+          Registrate oggi <span className="font-normal">({rows.length})</span>
+        </h3>
+      )}
       <div className="space-y-2">
-        {rows.map((r) => (
-          <Card key={r.id} className="p-4 flex items-center justify-between gap-4">
-            <div className="min-w-0">
-              <div className="font-semibold truncate">{r.product_name}</div>
-              <div className="text-xs text-muted-foreground">
-                {r.supplier_name || "—"} • <span className="font-mono">{r.internal_lot}</span>
-                {r.origin && <> • Origine: {r.origin}</>}
-                {r.category && r.category !== "materia_prima" && (
-                  <> • <span className="font-semibold">{CATEGORIES.find(c => c.value === r.category)?.label ?? r.category}</span></>
-                )}
+        {rows.map((r) => {
+          const cat = CATEGORIES.find((c) => c.value === r.category);
+          const fmtDate = (d?: string | null) => {
+            if (!d) return null;
+            try { return new Date(d + "T00:00:00").toLocaleDateString("it-IT", { day: "2-digit", month: "short" }); } catch { return d; }
+          };
+          return (
+            <Card key={r.id} className={`p-3.5 ${r.is_out_of_stock ? "opacity-60" : ""}`}>
+              <div className="flex items-start justify-between gap-3">
+                <div className="min-w-0 flex-1">
+                  <div className="flex items-start gap-2">
+                    <div className="min-w-0 flex-1">
+                      <div className="font-semibold text-[15px] leading-tight truncate">{r.product_name}</div>
+                      <div className="text-xs text-muted-foreground truncate mt-0.5">{r.supplier_name || "Fornitore non indicato"}</div>
+                    </div>
+                  </div>
+                  <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                    <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-mono font-semibold">
+                      {r.internal_lot}
+                    </span>
+                    {r.quantity && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-[11px] font-medium">{r.quantity}</span>
+                    )}
+                    {r.expiry_date && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-amber-100 text-amber-800 text-[11px] font-medium">
+                        Scad. {fmtDate(r.expiry_date)}
+                      </span>
+                    )}
+                    {cat && r.category !== "materia_prima" && (
+                      <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-purple-100 text-purple-800 text-[11px] font-medium">
+                        {cat.label}
+                      </span>
+                    )}
+                    {r.origin && (
+                      <span className="text-[11px] text-muted-foreground">📍 {r.origin}</span>
+                    )}
+                  </div>
+                </div>
+                <label className="flex flex-col items-center gap-1 text-[10px] text-muted-foreground whitespace-nowrap cursor-pointer select-none shrink-0">
+                  <Checkbox checked={r.is_out_of_stock} onCheckedChange={(v) => toggleStock(r.id, Boolean(v))} />
+                  Esaurito
+                </label>
               </div>
-            </div>
-            <label className="flex items-center gap-2 text-xs text-muted-foreground whitespace-nowrap">
-              <Checkbox checked={r.is_out_of_stock} onCheckedChange={(v) => toggleStock(r.id, Boolean(v))} />
-              Esaurito
-            </label>
-          </Card>
-        ))}
+            </Card>
+          );
+        })}
         {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessuna materia prima registrata oggi.</p>}
       </div>
     </>
