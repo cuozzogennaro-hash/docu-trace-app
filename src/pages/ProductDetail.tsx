@@ -532,7 +532,8 @@ export default function ProductDetail() {
     // Data produzione (in basso a sinistra)
     // Avvisi macelleria (sopra la riga data/lotto), su una sola riga senza wrap
     if (productMeatType) {
-      const noticeText = "Conservare da 0° e +4° — Consumare previa cottura";
+      const _noticeKey = productMeatType === "preparato" ? "macelleria_preparato" : "macelleria_fresh";
+      const noticeText = ruleParam<string>(_noticeKey, "notice", "text", "Conservare da 0° e +4° — Consumare previa cottura");
       const noticePt = fitPt(noticeText, wMm - 2 * p - safetyR, Math.max(5, footerPt * 0.82), 4, false);
       const noticeH = ptMm(noticePt) * lh;
       const noticeY = footerY - noticeH - 0.6;
