@@ -602,7 +602,10 @@ export default function ProductDetail() {
     if (isSalumeria && product?.production_date) {
       const pd = new Date(String(product.production_date) + "T00:00:00");
       if (!isNaN(pd.getTime())) {
-        const _shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", "days", 30)) || 30);
+        const _type = (preservationOverride || ((product as any)?.preservation_type as string) || "vacuum");
+        const _key = _type === "fresh" ? "days_fresh" : "days_vacuum";
+        const _fallback = _type === "fresh" ? 5 : 30;
+        const _shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", _key, _fallback)) || _fallback);
         pd.setDate(pd.getDate() + _shelf);
         salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
       }
