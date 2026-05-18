@@ -9,7 +9,7 @@ import { Input } from "@/components/ui/input";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { Pencil, Trash2, Loader2, FileDown, ChevronRight, Search, ChevronDown } from "lucide-react";
+import { Pencil, Trash2, Loader2, FileDown, ChevronRight, Search, ChevronDown, Calendar, AlertTriangle, Thermometer } from "lucide-react";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { toast } from "sonner";
 import { useCompany } from "@/hooks/useCompany";
@@ -683,36 +683,132 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
 
   /* ---- Mobile card renderer ---- */
   function MobileCard({ r }: { r: any }) {
-    const primaryCol = cfg.columns[0];
-    const secondaryCol = cfg.columns[1];
+    const fmtDate = (d?: string | null) => {
+      if (!d) return null;
+      try { return new Date(d + (d.length === 10 ? "T00:00:00" : "")).toLocaleDateString("it-IT", { day: "2-digit", month: "short", year: "2-digit" }); } catch { return d; }
+    };
+    const daysUntil = (d?: string | null) => {
+      if (!d) return null;
+      const t = new Date(d + (d.length === 10 ? "T00:00:00" : "")).getTime();
+      if (isNaN(t)) return null;
+      return Math.ceil((t - Date.now()) / 86400000);
+    };
+
+    const renderActions = (
+      <div className="flex items-center gap-0.5 shrink-0">
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
+          <Pencil size={14} />
+        </Button>
+        <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
+          <Trash2 size={14} className="text-destructive" />
+        </Button>
+        {isClickable && <ChevronRight size={16} className="text-muted-foreground self-center" />}
+      </div>
+    );
+
+    if (tableKey === "raw_materials") {
+      const expDays = daysUntil(r.expiry_date);
+      const expTone =
+        expDays == null ? "bg-muted text-muted-foreground"
+        : expDays < 0 ? "bg-destructive/15 text-destructive"
+        : expDays <= 3 ? "bg-amber-100 text-amber-800"
+        : "bg-emerald-100 text-emerald-800";
+      return (
+        <Card className={`p-3.5 ${isClickable ? "cursor-pointer active:bg-muted/40" : ""}`} onClick={() => isClickable && onRowClick(r)}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-[15px] leading-tight truncate">{r.product_name ?? "—"}</div>
+              <div className="text-xs text-muted-foreground truncate mt-0.5">{r.supplier_name ?? "Fornitore non indicato"}</div>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-mono font-semibold">
+                  {r.internal_lot ?? "—"}
+                </span>
+                {r.quantity && (
+                  <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-muted text-[11px] font-medium">{r.quantity}</span>
+                )}
+                {r.expiry_date && (
+                  <span className={`inline-flex items-center gap-1 px-2 py-0.5 rounded-md text-[11px] font-medium ${expTone}`}>
+                    {expDays != null && expDays <= 3 && <AlertTriangle size={10} />}
+                    Scad. {fmtDate(r.expiry_date)}
+                  </span>
+                )}
+              </div>
+            </div>
+            {renderActions}
+          </div>
+        </Card>
+      );
+    }
+
+    if (tableKey === "products") {
+      return (
+        <Card className={`p-3.5 ${isClickable ? "cursor-pointer active:bg-muted/40" : ""}`} onClick={() => isClickable && onRowClick(r)}>
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="font-semibold text-[15px] leading-tight truncate">{r.name ?? "—"}</div>
+              <div className="flex flex-wrap items-center gap-1.5 mt-2">
+                <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-primary/10 text-primary text-[11px] font-mono font-semibold">
+                  {r.internal_lot ?? "—"}
+                </span>
+                {r.production_date && (
+                  <span className="inline-flex items-center gap-1 px-2 py-0.5 rounded-md bg-muted text-[11px] font-medium">
+                    <Calendar size={10} /> {fmtDate(r.production_date)}
+                  </span>
+                )}
+              </div>
+              {r.notes && <div className="text-[11px] text-muted-foreground mt-1.5 line-clamp-2">{r.notes}</div>}
+            </div>
+            {renderActions}
+          </div>
+        </Card>
+      );
+    }
+
+    if (tableKey === "temperatures") {
+      const t = r.temperature != null ? Number(r.temperature) : null;
+      return (
+        <Card className="p-3.5">
+          <div className="flex items-start justify-between gap-2">
+            <div className="min-w-0 flex-1">
+              <div className="flex items-center gap-2">
+                <span className="inline-flex items-center gap-1 px-2 py-1 rounded-md bg-blue-100 text-blue-800 text-sm font-bold tabular-nums">
+                  <Thermometer size={12} /> {t != null ? `${t.toFixed(1)}°C` : "—"}
+                </span>
+                <span className="text-sm font-semibold truncate min-w-0">{r.asset_name ?? "—"}</span>
+              </div>
+              <div className="text-xs text-muted-foreground mt-1.5">
+                {r.operator ?? "Operatore non indicato"}
+                {r.recorded_at && <> • {new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}</>}
+              </div>
+              {r.notes && <div className="text-[11px] text-muted-foreground mt-1 line-clamp-2">{r.notes}</div>}
+            </div>
+            {renderActions}
+          </div>
+        </Card>
+      );
+    }
+
+    // sanitations
     return (
-      <Card
-        className={`p-4 ${isClickable ? "cursor-pointer active:bg-muted/40" : ""}`}
-        onClick={() => isClickable && onRowClick(r)}
-      >
+      <Card className="p-3.5">
         <div className="flex items-start justify-between gap-2">
           <div className="min-w-0 flex-1">
-            <div className="font-semibold text-sm truncate">{r[primaryCol.key] ?? "—"}</div>
-            {secondaryCol && (
-              <div className="text-xs text-muted-foreground truncate">{secondaryCol.label}: {r[secondaryCol.key] ?? "—"}</div>
-            )}
-            <div className="flex flex-wrap gap-x-3 gap-y-0.5 mt-1.5">
-              {cfg.columns.slice(2).map((c) => (
-                <span key={c.key} className="text-xs text-muted-foreground">
-                  <span className="font-medium">{c.label}:</span> {r[c.key] ?? "—"}
+            <div className="font-semibold text-sm truncate">{r.asset_name ?? "—"}</div>
+            <div className="flex flex-wrap items-center gap-1.5 mt-1.5">
+              {r.product_used && (
+                <span className="inline-flex items-center px-2 py-0.5 rounded-md bg-emerald-100 text-emerald-800 text-[11px] font-medium truncate max-w-[180px]">
+                  {r.product_used}
                 </span>
-              ))}
+              )}
+              {r.recorded_at && (
+                <span className="text-[11px] text-muted-foreground">
+                  {new Date(r.recorded_at).toLocaleTimeString("it-IT", { hour: "2-digit", minute: "2-digit" })}
+                </span>
+              )}
             </div>
+            <div className="text-xs text-muted-foreground mt-1">{r.operator ?? "Operatore non indicato"}</div>
           </div>
-          <div className="flex items-center gap-0.5 shrink-0">
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); setEditing(r); }}>
-              <Pencil size={14} />
-            </Button>
-            <Button size="icon" variant="ghost" className="h-8 w-8" onClick={(e) => { e.stopPropagation(); remove(r.id); }}>
-              <Trash2 size={14} className="text-destructive" />
-            </Button>
-            {isClickable && <ChevronRight size={16} className="text-muted-foreground" />}
-          </div>
+          {renderActions}
         </div>
       </Card>
     );
