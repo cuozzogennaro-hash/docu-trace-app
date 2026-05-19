@@ -37,6 +37,7 @@ export default function ProductDetail() {
   const [adminDeptName, setAdminDeptName] = useState<string>("");
   const [preservationOverride, setPreservationOverride] = useState<"fresh" | "vacuum" | "">("");
   const [allergenKeywordsDb, setAllergenKeywordsDb] = useState<string[] | null>(null);
+  const [allergenNamesDb, setAllergenNamesDb] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -97,13 +98,17 @@ export default function ProductDetail() {
     (async () => {
       const { data } = await supabase
         .from("allergens" as any)
-        .select("keywords")
+        .select("name, keywords")
         .eq("user_id", session.user.id);
       const all = (((data as any[]) ?? [])
         .flatMap((r) => (r.keywords as string[]) || []))
         .map((k) => (k || "").toLowerCase().trim())
         .filter(Boolean);
       setAllergenKeywordsDb(Array.from(new Set(all)));
+      const names = (((data as any[]) ?? [])
+        .map((r) => (r.name || "").toLowerCase().trim())
+        .filter(Boolean));
+      setAllergenNamesDb(Array.from(new Set(names)));
     })();
   }, [session?.user?.id]);
 
@@ -240,17 +245,21 @@ export default function ProductDetail() {
       if (cat === "aroma") {
         aromas.push({ text: m.product_name, bold: false });
       } else if (cat === "additivo_allergene") {
-        // additivi e allergeni: in etichetta riportiamo SOLO le sigle (E...)
-        // inserite nel campo "ingredienti", non il nome commerciale del prodotto.
+        // Distinguiamo additivi veri (es. "E250, E301") da materie prime che
+        // sono allergeni (es. "Latte"). Per gli allergeni stampiamo SOLO il
+        // nome del prodotto in grassetto, NON l'elenco dei derivati eventualmente
+        // salvato nel campo "ingredienti".
+        const nameLc = (m.product_name || "").toLowerCase().trim();
+        const isAllergen = allergenNamesDb.includes(nameLc);
         const codes = (m.ingredients && String(m.ingredients).trim()) || "";
-        if (codes) {
+        if (isAllergen || !codes) {
+          additives.push({ text: m.product_name, bold: true });
+        } else {
           codes
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean)
             .forEach((c) => additives.push({ text: c, bold: true }));
-        } else {
-          additives.push({ text: m.product_name, bold: true });
         }
       } else {
           const meat = detectMeat(m.product_name);
