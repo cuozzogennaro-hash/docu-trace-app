@@ -145,22 +145,31 @@ export default function Reports() {
   async function fetchProduction(start: string, end: string) {
     const { data } = await supabase
       .from("products")
-      .select("name, production_date, internal_lot, notes, preservation_type, departments:department_id(name)")
+      .select("name, production_date, internal_lot, notes, preservation_type, department_id")
       .eq("user_id", user!.id)
       .gte("production_date", start)
       .lt("production_date", end)
       .order("production_date", { ascending: true });
-    return (data ?? []) as any[];
+    return await attachDepartments(data ?? []);
   }
   async function fetchIncoming(start: string, end: string) {
     const { data } = await supabase
       .from("raw_materials")
-      .select("created_at, document_date, document_number, supplier_name, product_name, internal_lot, supplier_lot, quantity, expiry_date, category, departments:department_id(name)")
+      .select("created_at, document_date, document_number, supplier_name, product_name, internal_lot, supplier_lot, quantity, expiry_date, category, department_id")
       .eq("user_id", user!.id)
       .gte("created_at", `${start}T00:00:00`)
       .lt("created_at", `${end}T00:00:00`)
       .order("created_at", { ascending: true });
-    return (data ?? []) as any[];
+    return await attachDepartments(data ?? []);
+  }
+
+  async function attachDepartments(rows: any[]) {
+    if (!rows.length) return rows;
+    const ids = Array.from(new Set(rows.map((r) => r.department_id).filter(Boolean)));
+    if (!ids.length) return rows;
+    const { data: deps } = await supabase.from("departments").select("id, name").in("id", ids);
+    const map = new Map((deps ?? []).map((d: any) => [d.id, d.name]));
+    return rows.map((r) => ({ ...r, departments: r.department_id ? { name: map.get(r.department_id) ?? "—" } : null }));
   }
 
   function tempTable(doc: jsPDF, rows: any[]) {
