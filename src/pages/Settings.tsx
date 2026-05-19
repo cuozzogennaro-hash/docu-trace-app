@@ -1,5 +1,6 @@
 import PageHeader from "@/components/PageHeader";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { useSearchParams } from "react-router-dom";
 import CompanyTab from "@/components/settings/CompanyTab";
 import OperatorsTab from "@/components/settings/OperatorsTab";
 import AssetsTab from "@/components/settings/AssetsTab";
@@ -12,10 +13,18 @@ import AllergensTab from "@/components/settings/AllergensTab";
 import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building, Repeat, BookOpen, AlertTriangle } from "lucide-react";
 
 export default function Settings() {
+  const [sp, setSp] = useSearchParams();
+  const tabMap: Record<string, string> = {
+    azienda: "company", reparti: "departments", operatori: "operators", attrezzature: "assets",
+    aromi: "aromi", additivi: "additivi", allergeni: "allergeni", ricorrenti: "recurring",
+    etichette: "etichette", logiche: "logiche",
+  };
+  const tabParam = sp.get("tab");
+  const initial = (tabParam && tabMap[tabParam]) || tabParam || "company";
   return (
     <>
       <PageHeader title="Impostazioni" subtitle="Anagrafica azienda, operatori e attrezzature" />
-      <Tabs defaultValue="company" className="w-full">
+      <Tabs defaultValue={initial} className="w-full" onValueChange={(v) => { sp.set("tab", v); setSp(sp, { replace: true }); }}>
         <TabsList className="flex flex-wrap h-auto gap-1 w-full max-w-4xl mb-6">
           <TabsTrigger value="company" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Building2 size={14} className="hidden sm:inline" /> Azienda</TabsTrigger>
           <TabsTrigger value="departments" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Building size={14} className="hidden sm:inline" /> Reparti</TabsTrigger>
