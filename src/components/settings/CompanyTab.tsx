@@ -7,7 +7,8 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
-import { Building2, Upload, Loader2, Save, Trash2, AlertTriangle } from "lucide-react";
+import { Building2, Upload, Loader2, Save, Trash2, AlertTriangle, Sparkles } from "lucide-react";
+import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -38,6 +39,7 @@ export default function CompanyTab() {
   const [pwdOpen, setPwdOpen] = useState(false);
   const [adminPwd, setAdminPwd] = useState("");
   const [verifying, setVerifying] = useState(false);
+  const [wizardOpen, setWizardOpen] = useState(false);
 
   useEffect(() => setForm(company), [company]);
 
@@ -206,6 +208,12 @@ export default function CompanyTab() {
           {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
           Salva impostazioni
         </Button>
+
+        <Button variant="outline" className="gap-2" onClick={() => setWizardOpen(true)}>
+          <Sparkles size={16} /> Riavvia tour guidato
+        </Button>
+
+        <OnboardingWizard open={wizardOpen} onClose={() => setWizardOpen(false)} onCompleted={() => { reload(); }} />
 
         <AlertDialog open={confirmOpen} onOpenChange={setConfirmOpen}>
           <AlertDialogTrigger asChild>

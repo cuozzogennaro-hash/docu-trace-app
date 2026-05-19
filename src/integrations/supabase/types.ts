@@ -377,6 +377,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          onboarding_completed: boolean
           push_token: Json | null
         }
         Insert: {
@@ -384,6 +385,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id: string
+          onboarding_completed?: boolean
           push_token?: Json | null
         }
         Update: {
@@ -391,6 +393,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          onboarding_completed?: boolean
           push_token?: Json | null
         }
         Relationships: []
