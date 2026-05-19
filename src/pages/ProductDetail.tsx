@@ -37,6 +37,7 @@ export default function ProductDetail() {
   const [adminDeptName, setAdminDeptName] = useState<string>("");
   const [preservationOverride, setPreservationOverride] = useState<"fresh" | "vacuum" | "">("");
   const [allergenKeywordsDb, setAllergenKeywordsDb] = useState<string[] | null>(null);
+  const [allergenNamesDb, setAllergenNamesDb] = useState<string[]>([]);
 
   useEffect(() => {
     if (!id) return;
@@ -97,13 +98,17 @@ export default function ProductDetail() {
     (async () => {
       const { data } = await supabase
         .from("allergens" as any)
-        .select("keywords")
+        .select("name, keywords")
         .eq("user_id", session.user.id);
       const all = (((data as any[]) ?? [])
         .flatMap((r) => (r.keywords as string[]) || []))
         .map((k) => (k || "").toLowerCase().trim())
         .filter(Boolean);
       setAllergenKeywordsDb(Array.from(new Set(all)));
+      const names = (((data as any[]) ?? [])
+        .map((r) => (r.name || "").toLowerCase().trim())
+        .filter(Boolean));
+      setAllergenNamesDb(Array.from(new Set(names)));
     })();
   }, [session?.user?.id]);
 
