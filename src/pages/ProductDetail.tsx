@@ -245,17 +245,21 @@ export default function ProductDetail() {
       if (cat === "aroma") {
         aromas.push({ text: m.product_name, bold: false });
       } else if (cat === "additivo_allergene") {
-        // additivi e allergeni: in etichetta riportiamo SOLO le sigle (E...)
-        // inserite nel campo "ingredienti", non il nome commerciale del prodotto.
+        // Distinguiamo additivi veri (es. "E250, E301") da materie prime che
+        // sono allergeni (es. "Latte"). Per gli allergeni stampiamo SOLO il
+        // nome del prodotto in grassetto, NON l'elenco dei derivati eventualmente
+        // salvato nel campo "ingredienti".
+        const nameLc = (m.product_name || "").toLowerCase().trim();
+        const isAllergen = allergenNamesDb.includes(nameLc);
         const codes = (m.ingredients && String(m.ingredients).trim()) || "";
-        if (codes) {
+        if (isAllergen || !codes) {
+          additives.push({ text: m.product_name, bold: true });
+        } else {
           codes
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean)
             .forEach((c) => additives.push({ text: c, bold: true }));
-        } else {
-          additives.push({ text: m.product_name, bold: true });
         }
       } else {
           const meat = detectMeat(m.product_name);
