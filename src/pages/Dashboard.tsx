@@ -6,6 +6,8 @@ import CompanyHeader from "@/components/CompanyHeader";
 import { Sparkles, Thermometer, Package, Factory, AlertTriangle, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
+import OnboardingChecklist from "@/components/onboarding/OnboardingChecklist";
 
 type OverdueTask = {
   assignment_id: string;
@@ -17,6 +19,8 @@ type OverdueTask = {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const [wizardOpen, setWizardOpen] = useState(false);
+  const [checklistKey, setChecklistKey] = useState(0);
   const [stats, setStats] = useState({
     sanitToday: 0,
     tempToday: 0,
@@ -26,6 +30,16 @@ export default function Dashboard() {
     missingToday: false,
   });
   const [overdue, setOverdue] = useState<OverdueTask[]>([]);
+
+  useEffect(() => {
+    if (!user) return;
+    (async () => {
+      const { data } = await supabase.from("profiles").select("onboarding_completed").eq("id", user.id).maybeSingle();
+      if (data && (data as any).onboarding_completed === false) {
+        setWizardOpen(true);
+      }
+    })();
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -73,6 +87,13 @@ export default function Dashboard() {
     <>
       <CompanyHeader />
       <PageHeader title="Dashboard" subtitle="Panoramica del tuo autocontrollo HACCP" />
+
+      <OnboardingChecklist key={checklistKey} onRestart={() => setWizardOpen(true)} />
+      <OnboardingWizard
+        open={wizardOpen}
+        onClose={() => setWizardOpen(false)}
+        onCompleted={() => setChecklistKey((k) => k + 1)}
+      />
 
       <Link to="/ingresso" className="block mb-6">
         <Card className="p-5 lg:p-6 bg-orange-500 hover:bg-orange-600 transition cursor-pointer border-orange-600 shadow-elevated flex items-center gap-4">
