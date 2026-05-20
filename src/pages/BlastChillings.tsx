@@ -12,7 +12,17 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
-import { Snowflake, Printer, ShieldCheck, Play, Square } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { Snowflake, Printer, ShieldCheck, Play, Square, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 function nowLocal() {
@@ -27,7 +37,7 @@ export default function BlastChillings() {
     () => assets.filter((a) => a.asset_type === "blast_chiller" || a.asset_type === "freezer" || a.asset_type === "equipment"),
     [assets]
   );
-  const { rows, reload } = useBlastChillings();
+  const { rows, reload, remove } = useBlastChillings();
 
   const [productName, setProductName] = useState("");
   const [assetId, setAssetId] = useState("");
@@ -39,6 +49,7 @@ export default function BlastChillings() {
   const [notes, setNotes] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
   const [printItem, setPrintItem] = useState<BlastChilling | null>(null);
+  const [deleteItem, setDeleteItem] = useState<BlastChilling | null>(null);
 
   function reset() {
     setProductName(""); setTempStart(""); setTempEnd(""); setEndedAt(""); setNotes("");
@@ -48,6 +59,18 @@ export default function BlastChillings() {
   function handleSave() {
     if (!productName) return toast.error("Indica il nome del prodotto");
     setPinOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!deleteItem) return;
+    try {
+      await remove(deleteItem.id);
+      toast.success("Abbattimento eliminato");
+    } catch (e: any) {
+      toast.error(e.message || "Errore durante l'eliminazione");
+    } finally {
+      setDeleteItem(null);
+    }
   }
 
   async function saveWithOperator(op: { id: string; name: string }) {
@@ -154,9 +177,14 @@ export default function BlastChillings() {
                   </Badge>
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setPrintItem(r)}>
-                <Printer size={14} /> Etichetta
-              </Button>
+              <div className="flex flex-col gap-2 shrink- 0">
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintItem(r)}>
+                  <Printer size={14} /> Etichetta
+                </Button>
+                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive gap-1.5" onClick={() => setDeleteItem(r)}>
+                  <Trash2 size={14} /> Elimina
+                </Button>
+              </div>
             </Card>
           );
         })}
@@ -179,6 +207,28 @@ export default function BlastChillings() {
           ]}
         />
       )}
+
+      <AlertDialog open={!!deleteItem} onOpenChange={(v) => !v && setDeleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare questo abbattimento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteItem && (
+                <span>
+                  <strong>{deleteItem.product_name}</strong> — {new Date(deleteItem.started_at).toLocaleString("it-IT")}
+                </span>
+              )}
+              <br />L'operazione è irreversibile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }

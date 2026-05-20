@@ -34,5 +34,11 @@ export function useBlastChillings() {
 
   useEffect(() => { load(); }, [load]);
 
-  return { rows, loading, reload: load };
+  const remove = useCallback(async (id: string) => {
+    const { error } = await supabase.from("blast_chillings" as any).delete().eq("id", id);
+    if (error) throw error;
+    setRows((prev) => prev.filter((r) => r.id !== id));
+  }, []);
+
+  return { rows, loading, reload: load, remove };
 }
