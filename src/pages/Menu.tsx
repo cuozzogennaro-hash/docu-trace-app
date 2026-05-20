@@ -105,10 +105,16 @@ export default function Menu() {
 
   return (
     <>
-      <PageHeader title="Menu allergeni" subtitle="Dichiarazione allergeni per piatto (Reg. UE 1169/2011)">
-        <Button onClick={printMenu} variant="outline" className="gap-2"><Printer size={16} /> Stampa menu</Button>
-        <Button onClick={newDish} className="bg-gradient-primary gap-2"><Plus size={16} /> Nuovo piatto</Button>
-      </PageHeader>
+      <PageHeader
+        title="Menu allergeni"
+        subtitle="Dichiarazione allergeni per piatto (Reg. UE 1169/2011)"
+        action={
+          <div className="flex gap-2">
+            <Button onClick={printMenu} variant="outline" className="gap-2"><Printer size={16} /> Stampa menu</Button>
+            <Button onClick={newDish} className="bg-gradient-primary gap-2"><Plus size={16} /> Nuovo piatto</Button>
+          </div>
+        }
+      />
 
       <div className="space-y-2">
         {rows.map((d) => {
