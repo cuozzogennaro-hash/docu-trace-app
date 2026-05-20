@@ -10,6 +10,8 @@ export type Preparation = {
   internal_expiry: string;
   storage_type: "frigo" | "freezer" | "ambiente";
   allergen_ids: string[];
+  raw_material_ids: string[];
+  ingredients_text: string | null;
   notes: string | null;
   created_at: string;
 };
