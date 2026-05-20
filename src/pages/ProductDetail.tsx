@@ -1365,14 +1365,28 @@ ${labelsHtml}
           {ingredients.map((m) => (
             <Card
               key={m.id}
-              className="p-4 cursor-pointer hover:bg-muted/40 transition"
-              onClick={() => navigate(`/archivio/materia-prima/${m.id}`)}
+              className="p-4 hover:bg-muted/40 transition flex items-center justify-between gap-3"
             >
-              <div className="font-semibold">{m.product_name}</div>
-              <div className="text-xs text-muted-foreground">
-                {m.supplier_name || "—"} • <span className="font-mono">{m.internal_lot}</span>
-                {m.origin && <> • Origine: {m.origin}</>}
+              <div
+                className="min-w-0 flex-1 cursor-pointer"
+                onClick={() => navigate(`/archivio/materia-prima/${m.id}`)}
+              >
+                <div className="font-semibold truncate">{m.product_name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {m.supplier_name || "—"} • <span className="font-mono">{m.internal_lot}</span>
+                  {m.origin && <> • Origine: {m.origin}</>}
+                </div>
               </div>
+              {session?.user && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => { e.stopPropagation(); removeIngredient(m.id); }}
+                  title="Rimuovi dal prodotto"
+                >
+                  <Trash2 size={16} className="text-destructive" />
+                </Button>
+              )}
             </Card>
           ))}
         </div>
