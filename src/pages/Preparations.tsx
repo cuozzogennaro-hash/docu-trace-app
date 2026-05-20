@@ -48,7 +48,7 @@ function addHoursLocal(base: string, hours: number) {
 
 export default function Preparations() {
   const { allergens } = useAllergens();
-  const { rows, reload } = usePreparations();
+  const { rows, reload, remove } = usePreparations();
 
   const [name, setName] = useState("");
   const [preparedAt, setPreparedAt] = useState(nowLocal());
@@ -58,6 +58,7 @@ export default function Preparations() {
   const [notes, setNotes] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
   const [printItem, setPrintItem] = useState<Preparation | null>(null);
+  const [deleteItem, setDeleteItem] = useState<Preparation | null>(null);
 
   function setStorageAndRecalc(s: "frigo" | "freezer" | "ambiente") {
     setStorage(s);
