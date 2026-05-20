@@ -37,7 +37,7 @@ export default function BlastChillings() {
     () => assets.filter((a) => a.asset_type === "blast_chiller" || a.asset_type === "freezer" || a.asset_type === "equipment"),
     [assets]
   );
-  const { rows, reload } = useBlastChillings();
+  const { rows, reload, remove } = useBlastChillings();
 
   const [productName, setProductName] = useState("");
   const [assetId, setAssetId] = useState("");
@@ -49,6 +49,7 @@ export default function BlastChillings() {
   const [notes, setNotes] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
   const [printItem, setPrintItem] = useState<BlastChilling | null>(null);
+  const [deleteItem, setDeleteItem] = useState<BlastChilling | null>(null);
 
   function reset() {
     setProductName(""); setTempStart(""); setTempEnd(""); setEndedAt(""); setNotes("");
@@ -58,6 +59,18 @@ export default function BlastChillings() {
   function handleSave() {
     if (!productName) return toast.error("Indica il nome del prodotto");
     setPinOpen(true);
+  }
+
+  async function confirmDelete() {
+    if (!deleteItem) return;
+    try {
+      await remove(deleteItem.id);
+      toast.success("Abbattimento eliminato");
+    } catch (e: any) {
+      toast.error(e.message || "Errore durante l'eliminazione");
+    } finally {
+      setDeleteItem(null);
+    }
   }
 
   async function saveWithOperator(op: { id: string; name: string }) {
