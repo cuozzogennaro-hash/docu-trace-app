@@ -107,6 +107,18 @@ export default function Preparations() {
 
   const allergenMap = useMemo(() => new Map(allergens.map((a) => [a.id, a.name])), [allergens]);
 
+  async function confirmDelete() {
+    if (!deleteItem) return;
+    try {
+      await remove(deleteItem.id);
+      toast.success("Preparazione eliminata");
+    } catch (e: any) {
+      toast.error(e.message || "Errore durante l'eliminazione");
+    } finally {
+      setDeleteItem(null);
+    }
+  }
+
   return (
     <>
       <PageHeader title="Mise en place" subtitle="Preparati interni con scadenza interna e allergeni" />
