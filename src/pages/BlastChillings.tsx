@@ -177,9 +177,14 @@ export default function BlastChillings() {
                   </Badge>
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setPrintItem(r)}>
-                <Printer size={14} /> Etichetta
-              </Button>
+              <div className="flex flex-col gap-2 shrink- 0">
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintItem(r)}>
+                  <Printer size={14} /> Etichetta
+                </Button>
+                <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive gap-1.5" onClick={() => setDeleteItem(r)}>
+                  <Trash2 size={14} /> Elimina
+                </Button>
+              </div>
             </Card>
           );
         })}
