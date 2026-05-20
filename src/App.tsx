@@ -20,6 +20,10 @@ import RawMaterialDetail from "./pages/RawMaterialDetail";
 import ProductDetail from "./pages/ProductDetail";
 import BlastChillings from "./pages/BlastChillings";
 import Preparations from "./pages/Preparations";
+import Holding from "./pages/Holding";
+import OilChecks from "./pages/OilChecks";
+import NonConformities from "./pages/NonConformities";
+import Menu from "./pages/Menu";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { OperatorSessionProvider, useOperatorSession } from "./hooks/useOperatorSession";
@@ -56,6 +60,10 @@ const App = () => (
               <Route path="/ricorrenti" element={<RecurringPage />} />
               <Route path="/abbattimenti" element={<BlastChillings />} />
               <Route path="/preparati" element={<Preparations />} />
+              <Route path="/mantenimento" element={<Holding />} />
+              <Route path="/frittura" element={<OilChecks />} />
+              <Route path="/non-conformita" element={<NonConformities />} />
+              <Route path="/menu" element={<Menu />} />
               <Route path="/report" element={<Reports />} />
               <Route path="/archivio/materia-prima/:id" element={<RawMaterialDetail />} />
               <Route path="/archivio/prodotto/:id" element={<ProductDetail />} />

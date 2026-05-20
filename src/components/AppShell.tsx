@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
-import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText, ChevronDown, Snowflake, ChefHat } from "lucide-react";
+import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText, ChevronDown, Snowflake, ChefHat, Flame, Droplets, AlertCircle, UtensilsCrossed } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
@@ -43,6 +43,9 @@ const adminGroups: NavGroup[] = [
     items: [
       { to: "/abbattimenti", icon: Snowflake, label: "Abbattimenti" },
       { to: "/preparati", icon: ChefHat, label: "Mise en place" },
+      { to: "/mantenimento", icon: Flame, label: "Mantenimento" },
+      { to: "/frittura", icon: Droplets, label: "Olio frittura" },
+      { to: "/menu", icon: UtensilsCrossed, label: "Menu allergeni" },
     ],
   },
   {
@@ -58,6 +61,7 @@ const adminGroups: NavGroup[] = [
     key: "report",
     label: "Sistema",
     items: [
+      { to: "/non-conformita", icon: AlertCircle, label: "Non conformità" },
       { to: "/report", icon: FileText, label: "Report HACCP" },
       { to: "/impostazioni", icon: Settings, label: "Impostazioni" },
     ],
