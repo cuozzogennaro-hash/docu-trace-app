@@ -1,53 +1,84 @@
-# Allergeni: scheda dedicata e separata dagli additivi
+# Moduli Cucina / Ristorazione
 
-## Obiettivo
+Aggiungiamo un set di funzioni HACCP pensate per ristoranti, pizzerie e attività miste, **senza toccare** le logiche di etichette / lotti / reparti già in produzione.
 
-Oggi additivi e allergeni condividono la stessa categoria "Additivo / Allergene" dentro le materie prime, quindi vengono trattati come merce in ingresso (con lotto, scadenza, fornitore, ecc.). Risultato: la scheda è caotica e gli allergeni sono "gonfiati" di dati che non servono.
+Le nuove voci compariranno nella sidebar solo per i profili `ristorazione` e `misto`, raggruppate sotto un nuovo gruppo **"Cucina"**. Il profilo `laboratorio` non vede nulla di nuovo.
 
-Vogliamo che gli allergeni diventino una **semplice anagrafica di riferimento**: una lista consultabile e aggiornabile dall'admin, usata solo per evidenziare in grassetto le parole allergeniche dentro la lista ingredienti dell'etichetta. Niente lotti, scadenze, fornitori, ingressi merce.
+## Fase 1 — Le due funzioni più richieste (questa sessione)
 
-## Soluzione proposta
+### 1. Abbattimenti (`/abbattimenti`)
+Registro digitale degli abbattimenti rapidi (HACCP obbligatorio per chi serve crudo, sushi, prepara in anticipo, ecc.).
 
-### 1. Nuova tabella `allergens` (anagrafica pura)
+Per ogni ciclo:
+- Prodotto / preparazione
+- Operatore (dalla sessione operatore)
+- Attrezzatura abbattitore (dagli `assets`, nuovo `asset_type = 'abbattitore'`)
+- Temperatura inizio / fine
+- Ora inizio / ora fine (durata calcolata)
+- Tipo ciclo: positivo (+3°C) / negativo (-18°C)
+- Esito (OK / Anomalia + note)
+- Stampa etichetta abbattimento (riusa il sistema etichette esistente, nuovo template "Abbattimento")
 
-Campi minimi:
-- `name` (es. "Glutine", "Latte", "Solfiti") — nome principale
-- `keywords` (lista di parole/derivati da cercare nell'elenco ingredienti, es. per Glutine: grano, frumento, segale, orzo, farro)
-- `notes` (facoltativo)
-- gestione standard utente/timestamp
+### 2. Mise en place / Preparati interni (`/preparati`)
+Etichette per semilavorati interni con scadenza interna calcolata.
 
-Seed automatico con i 14 allergeni del Reg. UE 1169/2011 (glutine, crostacei, uova, pesce, arachidi, soia, latte, frutta a guscio, sedano, senape, sesamo, solfiti, lupini, molluschi) con le keyword già pronte (riprese dall'elenco che oggi è hard-coded in `ProductDetail.tsx` e in `seed_label_rules_for_user`).
+Per ogni preparato:
+- Nome preparazione
+- Data + ora preparazione
+- Scadenza interna (default configurabile per tipo: salse 48h, verdure cotte 72h, ecc.)
+- Operatore
+- Allergeni (multi-select dalla tabella `allergens` esistente)
+- Conservazione (frigo / freezer / ambiente)
+- Note
+- Stampa etichetta (nuovo template "Mise en place")
 
-### 2. Nuova scheda "Allergeni" in Impostazioni
+## Fase 2 — Successiva (non in questa sessione)
+- Allergeni sul menu (piatti con calcolo automatico da ingredienti)
+- Conservazione / rigenerazione (ciclo cottura → raffreddamento → rigenerazione)
+- Controllo olio friggitrice (TPM)
+- Non conformità / reclami
 
-Tab dedicato accanto a "Ingredienti ricorrenti" e "Logiche etichette":
-- Tabella con Nome + Keywords (chip), pulsante Modifica / Elimina
-- Pulsante "Aggiungi allergene" con form semplice (nome + keywords separate da virgola)
-- Solo admin
+## Dettagli tecnici
 
-### 3. Pulizia della categoria "Additivo / Allergene"
+### Database — nuove tabelle
 
-- Rinominata in **"Additivo"** ovunque (Ingresso merce, Produzione, scheda materia prima, Ingredienti ricorrenti)
-- La categoria interna `additivo_allergene` resta a livello DB per non rompere i dati esistenti, ma in UI compare solo come "Additivo"
-- Le materie prime già inserite come allergene puro (es. "Solfiti") continuano a funzionare; l'admin potrà cancellarle quando vuole, perché ora gli allergeni vivono nella nuova scheda
+```text
+blast_chillings           preparations
+──────────────────       ──────────────────
+id                        id
+user_id                   user_id
+product_name              name
+operator_id               operator_id
+asset_id (abbattitore)    prepared_at (timestamptz)
+cycle_type (pos|neg)      internal_expiry (timestamptz)
+temp_start, temp_end      storage_type (frigo|freezer|ambiente)
+started_at, ended_at      allergen_ids (uuid[])
+outcome (ok|anomaly)      notes
+notes                     created_at
+created_at
+```
 
-### 4. Etichetta: la logica esistente diventa data-driven
+Entrambe con RLS `auth.uid() = user_id`, stesso pattern delle tabelle esistenti.
 
-- `ProductDetail.tsx` non legge più la lista hard-coded né i keyword dentro `label_rules`, ma la **nuova tabella `allergens`** (unione di tutte le keywords) per costruire la regex di grassetto
-- La regola "Evidenziazione allergeni" in *Logiche etichette* viene aggiornata: descrizione che rimanda alla nuova scheda Allergeni come fonte unica delle parole evidenziate (niente più keyword duplicate dentro `params`)
+### Etichette
+Aggiungiamo due **nuovi template** in `label_templates` come opzioni selezionabili; **non modifichiamo** il template default né le `label_rules` esistenti. La stampa riusa esattamente il flusso già in uso (`LabelEditorTab` / printer pipeline).
 
-## File coinvolti
+### Sidebar
+Nuovo gruppo "Cucina" in `AppShell.tsx` con due voci. Aggiornata `NAV_VISIBILITY` in `useActivityProfile.tsx`:
+- `laboratorio`: invariato (non vede il gruppo)
+- `ristorazione`: vede solo Cucina + HACCP + Magazzino base + Sistema
+- `misto`: vede tutto, incluso Cucina
 
-- Migrazione DB: nuova tabella `allergens` + RLS + seed dei 14 allergeni di legge per ogni utente esistente, trigger di seed per nuovi utenti
-- `src/components/settings/AllergensTab.tsx` (nuovo)
-- `src/hooks/useAllergens.tsx` (nuovo)
-- `src/pages/Settings.tsx` (nuovo tab)
-- `src/pages/ProductDetail.tsx` (legge keywords dalla nuova tabella)
-- `src/components/settings/LabelRulesTab.tsx` e seed di `label_rules`: aggiornata la descrizione della regola allergens; rimossa l'editing delle keywords
-- `src/pages/Incoming.tsx`, `src/pages/Production.tsx`, `src/components/settings/IngredientsTab.tsx`, `src/components/settings/RecurringTab.tsx`: etichetta "Additivo / Allergene" → "Additivo"
+### File nuovi
+- `src/pages/BlastChillings.tsx`
+- `src/pages/Preparations.tsx`
+- `src/hooks/useBlastChillings.tsx`
+- `src/hooks/usePreparations.tsx`
+- Route aggiunte in `src/App.tsx`
 
-## Cosa NON cambia
+### File modificati (minimi)
+- `src/components/AppShell.tsx` — nuovo gruppo nav
+- `src/hooks/useActivityProfile.tsx` — aggiunte rotte a `NAV_VISIBILITY`
+- `src/App.tsx` — due nuove route
 
-- I prodotti già etichettati continuano a stamparsi identici
-- Le materie prime esistenti restano intatte
-- Le regole per reparto restano modificabili dall'admin come oggi
+**Non toccati**: `LabelEditorTab`, `LabelRulesTab`, `useLabelRules`, `lib/lot.ts`, tabelle `products` / `raw_materials` / `label_rules` / `label_templates` esistenti.
