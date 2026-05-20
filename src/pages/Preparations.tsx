@@ -196,9 +196,14 @@ export default function Preparations() {
                   {expired && <Badge variant="destructive">Scaduto</Badge>}
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setPrintItem(r)}>
-                <Printer size={14} /> Etichetta
-              </Button>
+              <div className="flex flex-col gap-2 shrink-0">
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintItem(r)}>
+                  <Printer size={14} /> Etichetta
+                </Button>
+                <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setDeleteItem(r)}>
+                  <Trash2 size={14} /> Elimina
+                </Button>
+              </div>
             </Card>
           );
         })}
