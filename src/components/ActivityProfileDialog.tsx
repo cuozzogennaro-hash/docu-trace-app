@@ -14,7 +14,7 @@ export default function ActivityProfileDialog({ open, onOpenChange, allowDismiss
   }
 
   return (
-    <Dialog open={open} onOpenChange={(v) => { if (allowDismiss || !v === false) onOpenChange(v); else if (v === false && !allowDismiss) return; else onOpenChange(v); }}>
+    <Dialog open={open} onOpenChange={(v) => { if (!v && !allowDismiss) return; onOpenChange(v); }}>
       <DialogContent className="max-w-xl" onPointerDownOutside={(e) => { if (!allowDismiss) e.preventDefault(); }} onEscapeKeyDown={(e) => { if (!allowDismiss) e.preventDefault(); }}>
         <DialogHeader>
           <DialogTitle>Che tipo di attività hai?</DialogTitle>
