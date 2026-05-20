@@ -1,0 +1,35 @@
+import { useCallback, useEffect, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+
+export type Preparation = {
+  id: string;
+  user_id: string;
+  operator_id: string | null;
+  name: string;
+  prepared_at: string;
+  internal_expiry: string;
+  storage_type: "frigo" | "freezer" | "ambiente";
+  allergen_ids: string[];
+  notes: string | null;
+  created_at: string;
+};
+
+export function usePreparations() {
+  const [rows, setRows] = useState<Preparation[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  const load = useCallback(async () => {
+    setLoading(true);
+    const { data } = await supabase
+      .from("preparations" as any)
+      .select("*")
+      .order("prepared_at", { ascending: false })
+      .limit(100);
+    setRows(((data as any[]) ?? []) as Preparation[]);
+    setLoading(false);
+  }, []);
+
+  useEffect(() => { load(); }, [load]);
+
+  return { rows, loading, reload: load };
+}
