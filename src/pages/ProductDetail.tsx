@@ -1344,6 +1344,9 @@ ${labelsHtml}
                 {btPrinting ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
                 Stampa Etichetta Bluetooth
               </Button>
+              <Button onClick={printLabelA5} variant="outline" className="w-full gap-2 sm:col-span-2">
+                <FileText size={16} /> Stampa report A5 (etichetta ingrandita)
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground">
               Il pulsante Bluetooth richiede Chrome/Edge e la selezione della stampante nella finestra del browser: l'associazione nelle impostazioni Android non equivale a connessione per l'app.
