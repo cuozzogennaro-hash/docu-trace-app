@@ -207,6 +207,28 @@ export default function BlastChillings() {
           ]}
         />
       )}
+
+      <AlertDialog open={!!deleteItem} onOpenChange={(v) => !v && setDeleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare questo abbattimento?</AlertDialogTitle>
+            <AlertDialogDescription>
+              {deleteItem && (
+                <span>
+                  <strong>{deleteItem.product_name}</strong> — {new Date(deleteItem.started_at).toLocaleString("it-IT")}
+                </span>
+              )}
+              <br />L'operazione è irreversibile.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
