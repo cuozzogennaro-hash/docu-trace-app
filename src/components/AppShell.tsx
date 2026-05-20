@@ -1,25 +1,59 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
-import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText } from "lucide-react";
+import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText, ChevronDown } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
 import NotificationBanner from "@/components/NotificationBanner";
+import ActivityProfileDialog from "@/components/ActivityProfileDialog";
+import { NAV_VISIBILITY, useActivityProfile } from "@/hooks/useActivityProfile";
+import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
-const adminNav = [
-  { to: "/", icon: LayoutDashboard, label: "Dashboard", end: true },
-  { to: "/sanificazione", icon: Sparkles, label: "Sanificazione" },
-  { to: "/temperature", icon: Thermometer, label: "Temperature" },
-  { to: "/ingresso", icon: Package, label: "Ingresso merci" },
-  { to: "/produzione", icon: Factory, label: "Produzione" },
-  { to: "/clienti", icon: Users, label: "Clienti & Vendite" },
-  { to: "/acquisti", icon: ShoppingCart, label: "Lista acquisti" },
-  { to: "/archivio", icon: Archive, label: "Archivio" },
-  { to: "/ricorrenti", icon: Repeat, label: "Prodotti ricorrenti" },
-  { to: "/report", icon: FileText, label: "Report HACCP" },
-  { to: "/impostazioni", icon: Settings, label: "Impostazioni" },
+type NavItem = { to: string; icon: any; label: string; end?: boolean };
+type NavGroup = { key: string; label: string | null; items: NavItem[] };
+
+const adminGroups: NavGroup[] = [
+  {
+    key: "home",
+    label: null,
+    items: [{ to: "/", icon: LayoutDashboard, label: "Dashboard", end: true }],
+  },
+  {
+    key: "haccp",
+    label: "HACCP",
+    items: [
+      { to: "/sanificazione", icon: Sparkles, label: "Sanificazione" },
+      { to: "/temperature", icon: Thermometer, label: "Temperature" },
+    ],
+  },
+  {
+    key: "magazzino",
+    label: "Magazzino",
+    items: [
+      { to: "/ingresso", icon: Package, label: "Ingresso merci" },
+      { to: "/archivio", icon: Archive, label: "Archivio" },
+      { to: "/ricorrenti", icon: Repeat, label: "Prodotti ricorrenti" },
+    ],
+  },
+  {
+    key: "produzione",
+    label: "Produzione & Vendita",
+    items: [
+      { to: "/produzione", icon: Factory, label: "Produzione" },
+      { to: "/clienti", icon: Users, label: "Clienti & Vendite" },
+      { to: "/acquisti", icon: ShoppingCart, label: "Lista acquisti" },
+    ],
+  },
+  {
+    key: "report",
+    label: "Sistema",
+    items: [
+      { to: "/report", icon: FileText, label: "Report HACCP" },
+      { to: "/impostazioni", icon: Settings, label: "Impostazioni" },
+    ],
+  },
 ];
 
 const operatorNav = [
@@ -27,19 +61,39 @@ const operatorNav = [
 ];
 
 export default function AppShell() {
-  const { session, signOut } = useAuth();
+  const { session, signOut, user } = useAuth();
   const { operator, signOut: signOutOperator } = useOperatorSession();
   const navigate = useNavigate();
   const [switcherOpen, setSwitcherOpen] = useState(false);
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
+  const { profile } = useActivityProfile();
+  const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+
+  // Mostra il dialog scelta profilo al primo accesso (titolare loggato, profilo non ancora scelto)
+  useEffect(() => {
+    if (user && !profile) {
+      const t = setTimeout(() => setProfileDialogOpen(true), 400);
+      return () => clearTimeout(t);
+    }
+  }, [user, profile]);
 
   const isAdminOperator = operator?.is_admin === true;
   const adminOperatorRestricted = ["/impostazioni", "/acquisti", "/clienti", "/sanificazione", "/temperature", "/report"];
-  const nav = !operator
-    ? adminNav
-    : isAdminOperator
-    ? adminNav.filter((i) => !adminOperatorRestricted.includes(i.to))
-    : operatorNav;
+
+  // Costruisci gruppi filtrati per profilo attività e ruolo operatore
+  const visibleRoutes = profile ? NAV_VISIBILITY[profile] : null;
+  const groups: NavGroup[] = !operator || isAdminOperator
+    ? adminGroups
+        .map((g) => ({
+          ...g,
+          items: g.items.filter((i) => {
+            if (operator && isAdminOperator && adminOperatorRestricted.includes(i.to)) return false;
+            if (visibleRoutes && !visibleRoutes.has(i.to)) return false;
+            return true;
+          }),
+        }))
+        .filter((g) => g.items.length > 0)
+    : [{ key: "operator", label: null, items: operatorNav }];
 
   async function handleLogout() {
     signOutOperator();
@@ -47,10 +101,18 @@ export default function AppShell() {
     navigate("/auth");
   }
 
+  const renderNav = (onItemClick?: () => void) => (
+    <div className="space-y-3">
+      {groups.map((group) => (
+        <NavGroupBlock key={group.key} group={group} onItemClick={onItemClick} />
+      ))}
+    </div>
+  );
+
   return (
     <div className="min-h-screen bg-gradient-surface">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border p-4 shadow-soft">
+      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border p-4 shadow-soft overflow-y-auto">
         <div className="flex items-center gap-3 px-2 py-3 mb-4">
           <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center">
             <ShieldCheck className="text-primary-foreground" size={20} />
@@ -60,25 +122,7 @@ export default function AppShell() {
             <div className="text-xs text-muted-foreground">Autocontrollo</div>
           </div>
         </div>
-        <nav className="flex-1 space-y-1">
-          {nav.map((item) => (
-            <NavLink
-              key={item.to}
-              to={item.to}
-              end={item.end}
-              className={({ isActive }) =>
-                `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                  isActive
-                    ? "bg-primary text-primary-foreground shadow-soft"
-                    : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                }`
-              }
-            >
-              <item.icon size={18} />
-              {item.label}
-            </NavLink>
-          ))}
-        </nav>
+        <nav className="flex-1">{renderNav()}</nav>
         <div className="space-y-2 pt-2 border-t border-border">
           {operator ? (
             <div className="px-2 py-2 rounded-lg bg-muted/60 flex items-center gap-2">
@@ -129,25 +173,8 @@ export default function AppShell() {
                   <div className="text-xs text-muted-foreground">Autocontrollo</div>
                 </div>
               </div>
-              <nav className="flex-1 overflow-y-auto px-3 py-3 space-y-1">
-                {nav.map((item) => (
-                  <NavLink
-                    key={item.to}
-                    to={item.to}
-                    end={item.end}
-                    onClick={() => setMobileMenuOpen(false)}
-                    className={({ isActive }) =>
-                      `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
-                        isActive
-                          ? "bg-primary text-primary-foreground shadow-soft"
-                          : "text-foreground/70 hover:bg-muted hover:text-foreground"
-                      }`
-                    }
-                  >
-                    <item.icon size={18} />
-                    {item.label}
-                  </NavLink>
-                ))}
+              <nav className="flex-1 overflow-y-auto px-3 py-3">
+                {renderNav(() => setMobileMenuOpen(false))}
               </nav>
               <div className="px-3 py-3 space-y-2 border-t border-border">
                 {operator ? (
@@ -207,6 +234,59 @@ export default function AppShell() {
       </main>
 
       <OperatorSwitcherDialog open={switcherOpen} onOpenChange={setSwitcherOpen} />
+      <ActivityProfileDialog open={profileDialogOpen} onOpenChange={setProfileDialogOpen} allowDismiss={false} />
     </div>
+  );
+}
+
+function NavGroupBlock({ group, onItemClick }: { group: NavGroup; onItemClick?: () => void }) {
+  const COLLAPSE_KEY = `haccp.navGroup.${group.key}`;
+  const [open, setOpen] = useState<boolean>(() => {
+    try {
+      const v = localStorage.getItem(COLLAPSE_KEY);
+      return v === null ? true : v === "1";
+    } catch {
+      return true;
+    }
+  });
+
+  function toggle(v: boolean) {
+    setOpen(v);
+    try { localStorage.setItem(COLLAPSE_KEY, v ? "1" : "0"); } catch {}
+  }
+
+  const items = (
+    <div className="space-y-1">
+      {group.items.map((item) => (
+        <NavLink
+          key={item.to}
+          to={item.to}
+          end={item.end}
+          onClick={onItemClick}
+          className={({ isActive }) =>
+            `flex items-center gap-3 px-3 py-2.5 rounded-lg text-sm font-medium transition ${
+              isActive
+                ? "bg-primary text-primary-foreground shadow-soft"
+                : "text-foreground/70 hover:bg-muted hover:text-foreground"
+            }`
+          }
+        >
+          <item.icon size={18} />
+          {item.label}
+        </NavLink>
+      ))}
+    </div>
+  );
+
+  if (!group.label) return items;
+
+  return (
+    <Collapsible open={open} onOpenChange={toggle}>
+      <CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition">
+        <span>{group.label}</span>
+        <ChevronDown size={12} className={`transition-transform ${open ? "" : "-rotate-90"}`} />
+      </CollapsibleTrigger>
+      <CollapsibleContent className="pt-1">{items}</CollapsibleContent>
+    </Collapsible>
   );
 }
