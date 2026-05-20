@@ -8,10 +8,14 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Building2, Layers, Refrigerator, UserPlus, ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Sparkles, ChevronRight } from "lucide-react";
+import { Building2, Layers, Refrigerator, UserPlus, ArrowLeft, ArrowRight, Check, Loader2, Plus, Trash2, Sparkles, ChevronRight, Lock } from "lucide-react";
 import { toast } from "sonner";
 
 type Props = { open: boolean; onClose: () => void; onCompleted: () => void };
+
+const PROTECTED_DEPARTMENTS = ["Macelleria", "Salumeria", "Ortofrutta"];
+const isProtectedDept = (name: string) =>
+  PROTECTED_DEPARTMENTS.some((p) => p.toLowerCase() === name.trim().toLowerCase());
 
 const STEPS = [
   { key: "company", title: "Dati azienda", icon: Building2 },
@@ -252,22 +256,55 @@ export default function OnboardingWizard({ open, onClose, onCompleted }: Props) 
 
           {step === 1 && (
             <div className="space-y-3">
-              <p className="text-sm text-muted-foreground">Sono già stati suggeriti tre reparti. Rimuovi quelli che non ti servono o aggiungine di nuovi.</p>
+              <p className="text-sm text-muted-foreground">
+                <strong>Macelleria</strong>, <strong>Salumeria</strong> e <strong>Ortofrutta</strong> sono reparti predefiniti
+                e non modificabili: le logiche delle etichette dipendono da questi nomi. Puoi aggiungere altri reparti personalizzati.
+              </p>
               <div className="space-y-2">
-                {departments.map((d, i) => (
-                  <div key={i} className="flex items-center gap-2">
-                    <Input value={d} onChange={(e) => setDepartments(departments.map((x, j) => j === i ? e.target.value : x))} />
-                    <Button size="icon" variant="ghost" onClick={() => setDepartments(departments.filter((_, j) => j !== i))}>
-                      <Trash2 size={16} className="text-destructive" />
-                    </Button>
-                  </div>
-                ))}
+                {departments.map((d, i) => {
+                  const locked = isProtectedDept(d);
+                  return (
+                    <div key={i} className="flex items-center gap-2">
+                      <div className="relative flex-1">
+                        <Input
+                          value={d}
+                          disabled={locked}
+                          onChange={(e) => setDepartments(departments.map((x, j) => j === i ? e.target.value : x))}
+                          className={locked ? "pr-9 bg-muted/50" : ""}
+                        />
+                        {locked && (
+                          <Lock size={14} className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+                        )}
+                      </div>
+                      <Button
+                        size="icon"
+                        variant="ghost"
+                        disabled={locked}
+                        title={locked ? "Reparto predefinito, non eliminabile" : "Elimina"}
+                        onClick={() => setDepartments(departments.filter((_, j) => j !== i))}
+                      >
+                        <Trash2 size={16} className={locked ? "text-muted-foreground/40" : "text-destructive"} />
+                      </Button>
+                    </div>
+                  );
+                })}
               </div>
               <div className="flex gap-2">
                 <Input value={newDept} onChange={(e) => setNewDept(e.target.value)} placeholder="Aggiungi reparto…" onKeyDown={(e) => {
-                  if (e.key === "Enter" && newDept.trim()) { setDepartments([...departments, newDept.trim()]); setNewDept(""); }
+                  if (e.key === "Enter" && newDept.trim()) {
+                    const v = newDept.trim();
+                    if (isProtectedDept(v)) { toast.error("Reparto già predefinito"); return; }
+                    if (departments.some((x) => x.trim().toLowerCase() === v.toLowerCase())) { toast.error("Reparto già presente"); return; }
+                    setDepartments([...departments, v]); setNewDept("");
+                  }
                 }} />
-                <Button variant="outline" onClick={() => { if (newDept.trim()) { setDepartments([...departments, newDept.trim()]); setNewDept(""); } }}>
+                <Button variant="outline" onClick={() => {
+                  const v = newDept.trim();
+                  if (!v) return;
+                  if (isProtectedDept(v)) { toast.error("Reparto già predefinito"); return; }
+                  if (departments.some((x) => x.trim().toLowerCase() === v.toLowerCase())) { toast.error("Reparto già presente"); return; }
+                  setDepartments([...departments, v]); setNewDept("");
+                }}>
                   <Plus size={16} />
                 </Button>
               </div>
