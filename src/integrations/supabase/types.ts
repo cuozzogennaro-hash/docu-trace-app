@@ -227,6 +227,48 @@ export type Database = {
         }
         Relationships: []
       }
+      holding_records: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          id: string
+          mode: string
+          notes: string | null
+          operator_id: string | null
+          outcome: string
+          product_name: string
+          recorded_at: string
+          temperature: number | null
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          id?: string
+          mode?: string
+          notes?: string | null
+          operator_id?: string | null
+          outcome?: string
+          product_name: string
+          recorded_at?: string
+          temperature?: number | null
+          user_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          id?: string
+          mode?: string
+          notes?: string | null
+          operator_id?: string | null
+          outcome?: string
+          product_name?: string
+          recorded_at?: string
+          temperature?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       label_rules: {
         Row: {
           created_at: string
@@ -299,6 +341,138 @@ export type Database = {
           updated_at?: string
           user_id?: string
           width_mm?: number
+        }
+        Relationships: []
+      }
+      menu_dishes: {
+        Row: {
+          allergen_ids: string[]
+          category: string | null
+          created_at: string
+          description: string | null
+          id: string
+          is_active: boolean
+          name: string
+          price: number | null
+          sort_order: number
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          allergen_ids?: string[]
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name: string
+          price?: number | null
+          sort_order?: number
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          allergen_ids?: string[]
+          category?: string | null
+          created_at?: string
+          description?: string | null
+          id?: string
+          is_active?: boolean
+          name?: string
+          price?: number | null
+          sort_order?: number
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      non_conformities: {
+        Row: {
+          area: string
+          corrective_action: string | null
+          created_at: string
+          description: string | null
+          detected_at: string
+          id: string
+          operator_id: string | null
+          resolved_at: string | null
+          severity: string
+          status: string
+          title: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          area?: string
+          corrective_action?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          operator_id?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          area?: string
+          corrective_action?: string | null
+          created_at?: string
+          description?: string | null
+          detected_at?: string
+          id?: string
+          operator_id?: string | null
+          resolved_at?: string | null
+          severity?: string
+          status?: string
+          title?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
+      oil_checks: {
+        Row: {
+          action: string
+          asset_id: string | null
+          checked_at: string
+          created_at: string
+          fryer_name: string | null
+          id: string
+          notes: string | null
+          operator_id: string | null
+          outcome: string
+          polar_compounds: number | null
+          user_id: string
+        }
+        Insert: {
+          action?: string
+          asset_id?: string | null
+          checked_at?: string
+          created_at?: string
+          fryer_name?: string | null
+          id?: string
+          notes?: string | null
+          operator_id?: string | null
+          outcome?: string
+          polar_compounds?: number | null
+          user_id: string
+        }
+        Update: {
+          action?: string
+          asset_id?: string | null
+          checked_at?: string
+          created_at?: string
+          fryer_name?: string | null
+          id?: string
+          notes?: string | null
+          operator_id?: string | null
+          outcome?: string
+          polar_compounds?: number | null
+          user_id?: string
         }
         Relationships: []
       }
