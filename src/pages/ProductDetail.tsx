@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Bluetooth, FileDown, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Bluetooth, FileDown, Loader2, Printer, Trash2, FileText } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
