@@ -68,12 +68,14 @@ export const NAV_VISIBILITY: Record<ActivityProfile, Set<string>> = {
   ristorazione: new Set([
     "/", "/sanificazione", "/temperature",
     "/ingresso", "/archivio",
+    "/abbattimenti", "/preparati",
     "/acquisti",
     "/report", "/impostazioni",
   ]),
   misto: new Set([
     "/", "/sanificazione", "/temperature",
     "/ingresso", "/produzione", "/archivio", "/ricorrenti",
+    "/abbattimenti", "/preparati",
     "/clienti", "/acquisti",
     "/report", "/impostazioni",
   ]),
