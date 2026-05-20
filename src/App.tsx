@@ -18,6 +18,8 @@ import RecurringPage from "./pages/Recurring";
 import Reports from "./pages/Reports";
 import RawMaterialDetail from "./pages/RawMaterialDetail";
 import ProductDetail from "./pages/ProductDetail";
+import BlastChillings from "./pages/BlastChillings";
+import Preparations from "./pages/Preparations";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { OperatorSessionProvider, useOperatorSession } from "./hooks/useOperatorSession";
@@ -52,6 +54,8 @@ const App = () => (
               <Route path="/acquisti" element={<Shopping />} />
               <Route path="/archivio" element={<Archive />} />
               <Route path="/ricorrenti" element={<RecurringPage />} />
+              <Route path="/abbattimenti" element={<BlastChillings />} />
+              <Route path="/preparati" element={<Preparations />} />
               <Route path="/report" element={<Reports />} />
               <Route path="/archivio/materia-prima/:id" element={<RawMaterialDetail />} />
               <Route path="/archivio/prodotto/:id" element={<ProductDetail />} />
