@@ -79,6 +79,7 @@ export default function AssetManager({ onChange }: { onChange?: () => void }) {
               <SelectContent>
                 <SelectItem value="fridge">Frigorifero</SelectItem>
                 <SelectItem value="freezer">Congelatore</SelectItem>
+                <SelectItem value="blast_chiller">Abbattitore</SelectItem>
                 <SelectItem value="equipment">Attrezzatura</SelectItem>
                 <SelectItem value="surface">Superficie</SelectItem>
               </SelectContent>

@@ -2,7 +2,7 @@ import { useEffect, useState } from "react";
 import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
-import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText, ChevronDown } from "lucide-react";
+import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText, ChevronDown, Snowflake, ChefHat } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
@@ -35,6 +35,14 @@ const adminGroups: NavGroup[] = [
       { to: "/ingresso", icon: Package, label: "Ingresso merci" },
       { to: "/archivio", icon: Archive, label: "Archivio" },
       { to: "/ricorrenti", icon: Repeat, label: "Prodotti ricorrenti" },
+    ],
+  },
+  {
+    key: "cucina",
+    label: "Cucina",
+    items: [
+      { to: "/abbattimenti", icon: Snowflake, label: "Abbattimenti" },
+      { to: "/preparati", icon: ChefHat, label: "Mise en place" },
     ],
   },
   {

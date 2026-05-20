@@ -83,6 +83,54 @@ export type Database = {
         }
         Relationships: []
       }
+      blast_chillings: {
+        Row: {
+          asset_id: string | null
+          created_at: string
+          cycle_type: string
+          ended_at: string | null
+          id: string
+          notes: string | null
+          operator_id: string | null
+          outcome: string
+          product_name: string
+          started_at: string
+          temp_end: number | null
+          temp_start: number | null
+          user_id: string
+        }
+        Insert: {
+          asset_id?: string | null
+          created_at?: string
+          cycle_type?: string
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          operator_id?: string | null
+          outcome?: string
+          product_name: string
+          started_at?: string
+          temp_end?: number | null
+          temp_start?: number | null
+          user_id: string
+        }
+        Update: {
+          asset_id?: string | null
+          created_at?: string
+          cycle_type?: string
+          ended_at?: string | null
+          id?: string
+          notes?: string | null
+          operator_id?: string | null
+          outcome?: string
+          product_name?: string
+          started_at?: string
+          temp_end?: number | null
+          temp_start?: number | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       clients: {
         Row: {
           contact: string | null
@@ -289,6 +337,45 @@ export type Database = {
           pin_hash?: string
           push_token?: Json | null
           role?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
+      preparations: {
+        Row: {
+          allergen_ids: string[]
+          created_at: string
+          id: string
+          internal_expiry: string
+          name: string
+          notes: string | null
+          operator_id: string | null
+          prepared_at: string
+          storage_type: string
+          user_id: string
+        }
+        Insert: {
+          allergen_ids?: string[]
+          created_at?: string
+          id?: string
+          internal_expiry: string
+          name: string
+          notes?: string | null
+          operator_id?: string | null
+          prepared_at?: string
+          storage_type?: string
+          user_id: string
+        }
+        Update: {
+          allergen_ids?: string[]
+          created_at?: string
+          id?: string
+          internal_expiry?: string
+          name?: string
+          notes?: string | null
+          operator_id?: string | null
+          prepared_at?: string
+          storage_type?: string
           user_id?: string
         }
         Relationships: []
