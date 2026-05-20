@@ -520,11 +520,13 @@ export type Database = {
           allergen_ids: string[]
           created_at: string
           id: string
+          ingredients_text: string | null
           internal_expiry: string
           name: string
           notes: string | null
           operator_id: string | null
           prepared_at: string
+          raw_material_ids: string[]
           storage_type: string
           user_id: string
         }
@@ -532,11 +534,13 @@ export type Database = {
           allergen_ids?: string[]
           created_at?: string
           id?: string
+          ingredients_text?: string | null
           internal_expiry: string
           name: string
           notes?: string | null
           operator_id?: string | null
           prepared_at?: string
+          raw_material_ids?: string[]
           storage_type?: string
           user_id: string
         }
@@ -544,11 +548,13 @@ export type Database = {
           allergen_ids?: string[]
           created_at?: string
           id?: string
+          ingredients_text?: string | null
           internal_expiry?: string
           name?: string
           notes?: string | null
           operator_id?: string | null
           prepared_at?: string
+          raw_material_ids?: string[]
           storage_type?: string
           user_id?: string
         }
@@ -747,6 +753,54 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      recurring_preparations: {
+        Row: {
+          allergen_ids: string[]
+          created_at: string
+          id: string
+          ingredients_text: string | null
+          last_used_at: string | null
+          name: string
+          notes: string | null
+          raw_material_ids: string[]
+          shelf_hours: number
+          storage_type: string
+          updated_at: string
+          use_count: number
+          user_id: string
+        }
+        Insert: {
+          allergen_ids?: string[]
+          created_at?: string
+          id?: string
+          ingredients_text?: string | null
+          last_used_at?: string | null
+          name: string
+          notes?: string | null
+          raw_material_ids?: string[]
+          shelf_hours?: number
+          storage_type?: string
+          updated_at?: string
+          use_count?: number
+          user_id: string
+        }
+        Update: {
+          allergen_ids?: string[]
+          created_at?: string
+          id?: string
+          ingredients_text?: string | null
+          last_used_at?: string | null
+          name?: string
+          notes?: string | null
+          raw_material_ids?: string[]
+          shelf_hours?: number
+          storage_type?: string
+          updated_at?: string
+          use_count?: number
+          user_id?: string
+        }
+        Relationships: []
       }
       recurring_raw_materials: {
         Row: {
