@@ -13,7 +13,17 @@ import { Textarea } from "@/components/ui/textarea";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Badge } from "@/components/ui/badge";
 import { Checkbox } from "@/components/ui/checkbox";
-import { ChefHat, Printer, ShieldCheck, AlertTriangle } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { ChefHat, Printer, ShieldCheck, AlertTriangle, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 const SHELF_DEFAULTS: Record<string, number> = {
@@ -38,7 +48,7 @@ function addHoursLocal(base: string, hours: number) {
 
 export default function Preparations() {
   const { allergens } = useAllergens();
-  const { rows, reload } = usePreparations();
+  const { rows, reload, remove } = usePreparations();
 
   const [name, setName] = useState("");
   const [preparedAt, setPreparedAt] = useState(nowLocal());
@@ -48,6 +58,7 @@ export default function Preparations() {
   const [notes, setNotes] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
   const [printItem, setPrintItem] = useState<Preparation | null>(null);
+  const [deleteItem, setDeleteItem] = useState<Preparation | null>(null);
 
   function setStorageAndRecalc(s: "frigo" | "freezer" | "ambiente") {
     setStorage(s);
@@ -95,6 +106,18 @@ export default function Preparations() {
   }
 
   const allergenMap = useMemo(() => new Map(allergens.map((a) => [a.id, a.name])), [allergens]);
+
+  async function confirmDelete() {
+    if (!deleteItem) return;
+    try {
+      await remove(deleteItem.id);
+      toast.success("Preparazione eliminata");
+    } catch (e: any) {
+      toast.error(e.message || "Errore durante l'eliminazione");
+    } finally {
+      setDeleteItem(null);
+    }
+  }
 
   return (
     <>
@@ -173,9 +196,14 @@ export default function Preparations() {
                   {expired && <Badge variant="destructive">Scaduto</Badge>}
                 </div>
               </div>
-              <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setPrintItem(r)}>
-                <Printer size={14} /> Etichetta
-              </Button>
+              <div className="flex flex-col gap-2 shrink-0">
+                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintItem(r)}>
+                  <Printer size={14} /> Etichetta
+                </Button>
+                <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setDeleteItem(r)}>
+                  <Trash2 size={14} /> Elimina
+                </Button>
+              </div>
             </Card>
           );
         })}
@@ -200,6 +228,23 @@ export default function Preparations() {
           ]}
         />
       )}
+
+      <AlertDialog open={!!deleteItem} onOpenChange={(v) => !v && setDeleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Eliminare la preparazione?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Questa azione non può essere annullata. Verrà rimossa permanentemente la preparazione <strong>{deleteItem?.name}</strong>.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel onClick={() => setDeleteItem(null)}>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={confirmDelete} className="bg-destructive text-destructive-foreground hover:bg-destructive/90">
+              Elimina
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </>
   );
 }
