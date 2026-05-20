@@ -5,7 +5,7 @@ import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { ArrowLeft, Bluetooth, FileDown, Loader2, Printer } from "lucide-react";
+import { ArrowLeft, Bluetooth, FileDown, Loader2, Printer, Trash2, FileText } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
@@ -1058,6 +1058,87 @@ ${labelsHtml}
     }
   }
 
+  async function removeIngredient(rawId: string) {
+    if (!session?.user) {
+      toast.error("Operazione disponibile solo per il titolare loggato.");
+      return;
+    }
+    if (!confirm("Rimuovere questo ingrediente dal prodotto?")) return;
+    const { error } = await supabase
+      .from("product_ingredients")
+      .delete()
+      .eq("product_id", id!)
+      .eq("raw_material_id", rawId);
+    if (error) return toast.error(error.message);
+    setIngredients((prev) => prev.filter((m: any) => m.id !== rawId));
+    toast.success("Ingrediente rimosso");
+  }
+
+  function printLabelA5() {
+    if (!product) return;
+    const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
+    if (!tpl) { toast.error("Seleziona un template"); return; }
+    const wMm = Number(tpl.width_mm);
+    const hMm = Number(tpl.height_mm);
+    const items = computeLabelLayout(wMm, hMm);
+    const pageW = 148, pageH = 210, margin = 12;
+    const scale = Math.min((pageW - 2 * margin) / wMm, (pageH - 2 * margin) / hMm);
+    const scaledW = wMm * scale;
+    const scaledH = hMm * scale;
+
+    const escapeHtml = (s: string) =>
+      String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+
+    const itemsHtml = items.map((it) => {
+      const segs = it.segments
+        .map((s) => `<span style="font-weight:${s.bold ? 700 : 400}">${escapeHtml(s.text)}</span>`)
+        .join("");
+      return `<div style="position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;overflow:hidden;">${segs}</div>`;
+    }).join("");
+
+    const headerHtml = `
+      <div style="position:absolute;left:${margin}mm;top:${margin}mm;right:${margin}mm;font-size:9pt;color:#444;border-bottom:1px solid #ccc;padding-bottom:3mm;">
+        <div style="font-weight:700;font-size:11pt;color:#000;">${escapeHtml(company?.business_name ?? "")}</div>
+        <div>${escapeHtml(product?.name ?? "")} — Lotto ${escapeHtml(product?.internal_lot ?? "")}</div>
+      </div>`;
+    const labelTopMm = margin + 14;
+
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Etichetta A5 — ${escapeHtml(product?.name ?? "")}</title>
+<style>
+  @page { size: A5 portrait; margin: 0; }
+  html, body { margin:0; padding:0; background:#fff; font-family: Helvetica, Arial, sans-serif; color:#000; }
+  .page { position:relative; width:${pageW}mm; height:${pageH}mm; }
+  .label-wrap { position:absolute; left:${(pageW - scaledW) / 2}mm; top:${labelTopMm}mm; width:${scaledW}mm; height:${scaledH}mm; border:1px dashed #888; box-sizing:border-box; overflow:hidden; }
+  .label { position:relative; width:${wMm}mm; height:${hMm}mm; transform:scale(${scale}); transform-origin: top left; }
+  @media screen {
+    body { padding:12px; background:#f5f5f5; }
+    .page { background:#fff; box-shadow: 0 2px 8px rgba(0,0,0,.15); margin: 0 auto; }
+    .actions { position: fixed; top: 8px; right: 8px; z-index:10; }
+    .actions button { padding:10px 16px; font-size:14px; border:0; border-radius:8px; background:#0a7; color:#fff; }
+  }
+  @media print { .actions { display:none !important; } body { padding:0; background:#fff; } }
+</style></head>
+<body>
+<div class="actions"><button onclick="window.print()">Stampa</button></div>
+<div class="page">
+  ${headerHtml}
+  <div class="label-wrap"><div class="label">${itemsHtml}</div></div>
+</div>
+<script>window.addEventListener('load', function(){ setTimeout(function(){ window.print(); }, 300); });</script>
+</body></html>`;
+
+    const win = window.open("", "_blank");
+    if (win) {
+      win.document.open();
+      win.document.write(html);
+      win.document.close();
+    } else {
+      const blob = new Blob([html], { type: "text/html" });
+      const url = URL.createObjectURL(blob);
+      window.location.href = url;
+    }
+  }
+
   function downloadPdf() {
     if (!product) return;
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -1263,6 +1344,9 @@ ${labelsHtml}
                 {btPrinting ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
                 Stampa Etichetta Bluetooth
               </Button>
+              <Button onClick={printLabelA5} variant="outline" className="w-full gap-2 sm:col-span-2">
+                <FileText size={16} /> Stampa report A5 (etichetta ingrandita)
+              </Button>
             </div>
             <p className="text-xs text-muted-foreground">
               Il pulsante Bluetooth richiede Chrome/Edge e la selezione della stampante nella finestra del browser: l'associazione nelle impostazioni Android non equivale a connessione per l'app.
@@ -1281,14 +1365,28 @@ ${labelsHtml}
           {ingredients.map((m) => (
             <Card
               key={m.id}
-              className="p-4 cursor-pointer hover:bg-muted/40 transition"
-              onClick={() => navigate(`/archivio/materia-prima/${m.id}`)}
+              className="p-4 hover:bg-muted/40 transition flex items-center justify-between gap-3"
             >
-              <div className="font-semibold">{m.product_name}</div>
-              <div className="text-xs text-muted-foreground">
-                {m.supplier_name || "—"} • <span className="font-mono">{m.internal_lot}</span>
-                {m.origin && <> • Origine: {m.origin}</>}
+              <div
+                className="min-w-0 flex-1 cursor-pointer"
+                onClick={() => navigate(`/archivio/materia-prima/${m.id}`)}
+              >
+                <div className="font-semibold truncate">{m.product_name}</div>
+                <div className="text-xs text-muted-foreground">
+                  {m.supplier_name || "—"} • <span className="font-mono">{m.internal_lot}</span>
+                  {m.origin && <> • Origine: {m.origin}</>}
+                </div>
               </div>
+              {session?.user && (
+                <Button
+                  size="icon"
+                  variant="ghost"
+                  onClick={(e) => { e.stopPropagation(); removeIngredient(m.id); }}
+                  title="Rimuovi dal prodotto"
+                >
+                  <Trash2 size={16} className="text-destructive" />
+                </Button>
+              )}
             </Card>
           ))}
         </div>
