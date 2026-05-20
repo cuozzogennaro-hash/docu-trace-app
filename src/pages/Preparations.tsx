@@ -1,0 +1,205 @@
+import { useMemo, useState } from "react";
+import { supabase } from "@/integrations/supabase/client";
+import PageHeader from "@/components/PageHeader";
+import OperatorPinDialog from "@/components/OperatorPinDialog";
+import PrintLabelDialog from "@/components/kitchen/PrintLabelDialog";
+import { usePreparations, type Preparation } from "@/hooks/usePreparations";
+import { useAllergens } from "@/hooks/useAllergens";
+import { Card } from "@/components/ui/card";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Badge } from "@/components/ui/badge";
+import { Checkbox } from "@/components/ui/checkbox";
+import { ChefHat, Printer, ShieldCheck, AlertTriangle } from "lucide-react";
+import { toast } from "sonner";
+
+const SHELF_DEFAULTS: Record<string, number> = {
+  // ore di default per tipo conservazione
+  frigo: 72,
+  freezer: 24 * 30,
+  ambiente: 24,
+};
+
+function nowLocal() {
+  const d = new Date();
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+function addHoursLocal(base: string, hours: number) {
+  const d = new Date(base);
+  d.setHours(d.getHours() + hours);
+  d.setMinutes(d.getMinutes() - d.getTimezoneOffset());
+  return d.toISOString().slice(0, 16);
+}
+
+export default function Preparations() {
+  const { allergens } = useAllergens();
+  const { rows, reload } = usePreparations();
+
+  const [name, setName] = useState("");
+  const [preparedAt, setPreparedAt] = useState(nowLocal());
+  const [storage, setStorage] = useState<"frigo" | "freezer" | "ambiente">("frigo");
+  const [expiry, setExpiry] = useState(() => addHoursLocal(nowLocal(), SHELF_DEFAULTS.frigo));
+  const [allergenIds, setAllergenIds] = useState<string[]>([]);
+  const [notes, setNotes] = useState("");
+  const [pinOpen, setPinOpen] = useState(false);
+  const [printItem, setPrintItem] = useState<Preparation | null>(null);
+
+  function setStorageAndRecalc(s: "frigo" | "freezer" | "ambiente") {
+    setStorage(s);
+    setExpiry(addHoursLocal(preparedAt, SHELF_DEFAULTS[s]));
+  }
+
+  function setPreparedAndRecalc(d: string) {
+    setPreparedAt(d);
+    setExpiry(addHoursLocal(d, SHELF_DEFAULTS[storage]));
+  }
+
+  function toggleAllergen(id: string) {
+    setAllergenIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
+  }
+
+  function reset() {
+    setName(""); setNotes(""); setAllergenIds([]);
+    const n = nowLocal();
+    setPreparedAt(n);
+    setExpiry(addHoursLocal(n, SHELF_DEFAULTS[storage]));
+  }
+
+  function handleSave() {
+    if (!name) return toast.error("Indica il nome della preparazione");
+    setPinOpen(true);
+  }
+
+  async function saveWithOperator(op: { id: string; name: string }) {
+    const { data: { user } } = await supabase.auth.getUser();
+    if (!user) return toast.error("Sessione scaduta");
+    const { error } = await supabase.from("preparations" as any).insert({
+      user_id: user.id,
+      operator_id: op.id,
+      name,
+      prepared_at: new Date(preparedAt).toISOString(),
+      internal_expiry: new Date(expiry).toISOString(),
+      storage_type: storage,
+      allergen_ids: allergenIds,
+      notes: notes || null,
+    });
+    if (error) return toast.error(error.message);
+    toast.success(`Preparazione registrata da ${op.name}`);
+    reset();
+    reload();
+  }
+
+  const allergenMap = useMemo(() => new Map(allergens.map((a) => [a.id, a.name])), [allergens]);
+
+  return (
+    <>
+      <PageHeader title="Mise en place" subtitle="Preparati interni con scadenza interna e allergeni" />
+
+      <Card className="p-5 shadow-soft mb-6">
+        <div className="grid lg:grid-cols-2 gap-4">
+          <div className="space-y-2 lg:col-span-2">
+            <Label>Nome preparazione</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Ragù alla bolognese, maionese, brodo vegetale" />
+          </div>
+          <div className="space-y-2">
+            <Label>Conservazione</Label>
+            <Select value={storage} onValueChange={(v: any) => setStorageAndRecalc(v)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="frigo">Frigorifero (0-4°C)</SelectItem>
+                <SelectItem value="freezer">Freezer (-18°C)</SelectItem>
+                <SelectItem value="ambiente">Temperatura ambiente</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Preparato il</Label>
+            <Input type="datetime-local" value={preparedAt} onChange={(e) => setPreparedAndRecalc(e.target.value)} />
+          </div>
+          <div className="space-y-2 lg:col-span-2">
+            <Label>Scadenza interna</Label>
+            <Input type="datetime-local" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
+            <p className="text-xs text-muted-foreground">Default: frigo 72h, freezer 30gg, ambiente 24h — modificabile.</p>
+          </div>
+          <div className="space-y-2 lg:col-span-2">
+            <Label className="flex items-center gap-1"><AlertTriangle size={12} /> Allergeni presenti</Label>
+            <div className="flex flex-wrap gap-2 p-3 rounded-lg border border-border bg-muted/30">
+              {allergens.map((a) => (
+                <label key={a.id} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-1 rounded hover:bg-background">
+                  <Checkbox checked={allergenIds.includes(a.id)} onCheckedChange={() => toggleAllergen(a.id)} />
+                  <span>{a.name}</span>
+                </label>
+              ))}
+              {allergens.length === 0 && <span className="text-xs text-muted-foreground">Nessun allergene configurato — vai in Impostazioni → Allergeni.</span>}
+            </div>
+          </div>
+          <div className="space-y-2 lg:col-span-2">
+            <Label>Note</Label>
+            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Es. uso entro 24h una volta scongelato" />
+          </div>
+        </div>
+        <Button onClick={handleSave} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
+          <ShieldCheck size={16} /> Identifica e registra
+        </Button>
+      </Card>
+
+      <OperatorPinDialog open={pinOpen} onOpenChange={setPinOpen} onConfirm={saveWithOperator} title="Chi ha preparato?" />
+
+      <h3 className="font-display font-semibold mb-3 flex items-center gap-2"><ChefHat size={16} /> Preparati attivi</h3>
+      <div className="space-y-2">
+        {rows.map((r) => {
+          const expired = new Date(r.internal_expiry) < new Date();
+          const names = r.allergen_ids.map((id) => allergenMap.get(id)).filter(Boolean) as string[];
+          return (
+            <Card key={r.id} className="p-4 flex items-start justify-between gap-3">
+              <div className="min-w-0">
+                <div className="font-semibold truncate">{r.name}</div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Preparato: {new Date(r.prepared_at).toLocaleString("it-IT")}
+                </div>
+                <div className="text-xs mt-0.5">
+                  Scade: <span className={expired ? "text-destructive font-semibold" : "text-foreground"}>
+                    {new Date(r.internal_expiry).toLocaleString("it-IT")}
+                  </span>
+                </div>
+                <div className="mt-2 flex gap-1.5 flex-wrap">
+                  <Badge variant="outline">{r.storage_type}</Badge>
+                  {names.length > 0 && <Badge variant="secondary">Allergeni: {names.join(", ")}</Badge>}
+                  {expired && <Badge variant="destructive">Scaduto</Badge>}
+                </div>
+              </div>
+              <Button size="sm" variant="outline" className="gap-1.5 shrink-0" onClick={() => setPrintItem(r)}>
+                <Printer size={14} /> Etichetta
+              </Button>
+            </Card>
+          );
+        })}
+        {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessun preparato registrato.</p>}
+      </div>
+
+      {printItem && (
+        <PrintLabelDialog
+          open={!!printItem}
+          onOpenChange={(v) => !v && setPrintItem(null)}
+          title="Etichetta mise en place"
+          productName={printItem.name}
+          highlight={printItem.allergen_ids.map((id) => allergenMap.get(id)).filter(Boolean) as string[]}
+          fields={[
+            { label: "Preparato", value: new Date(printItem.prepared_at).toLocaleString("it-IT") },
+            { label: "Scadenza", value: new Date(printItem.internal_expiry).toLocaleString("it-IT") },
+            { label: "Conserv.", value: printItem.storage_type },
+            ...(printItem.allergen_ids.length
+              ? [{ label: "Allergeni", value: printItem.allergen_ids.map((id) => allergenMap.get(id)).filter(Boolean).join(", ") }]
+              : []),
+            ...(printItem.notes ? [{ label: "Note", value: printItem.notes }] : []),
+          ]}
+        />
+      )}
+    </>
+  );
+}
