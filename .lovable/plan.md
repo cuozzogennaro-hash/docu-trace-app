@@ -1,84 +1,58 @@
-# Moduli Cucina / Ristorazione
+# Pubblicazione su App Store con stampa Bluetooth
 
-Aggiungiamo un set di funzioni HACCP pensate per ristoranti, pizzerie e attività miste, **senza toccare** le logiche di etichette / lotti / reparti già in produzione.
+## Perché serve un'app nativa
 
-Le nuove voci compariranno nella sidebar solo per i profili `ristorazione` e `misto`, raggruppate sotto un nuovo gruppo **"Cucina"**. Il profilo `laboratorio` non vede nulla di nuovo.
+Su iOS Safari (e quindi anche nelle PWA installate da iPhone/iPad) **Web Bluetooth è disabilitato da Apple**. Nessuna app web potrà mai stampare via Bluetooth su iOS. L'unica strada è un **wrapper nativo** che incapsuli l'app web in un'app iOS reale, usando le API native del sistema per accedere al Bluetooth.
 
-## Fase 1 — Le due funzioni più richieste (questa sessione)
+La soluzione standard per progetti Lovable è **Capacitor** (di Ionic): mantiene tutto il codice React attuale e lo impacchetta come app iOS/Android.
 
-### 1. Abbattimenti (`/abbattimenti`)
-Registro digitale degli abbattimenti rapidi (HACCP obbligatorio per chi serve crudo, sushi, prepara in anticipo, ecc.).
+## Cosa farò nel progetto Lovable
 
-Per ogni ciclo:
-- Prodotto / preparazione
-- Operatore (dalla sessione operatore)
-- Attrezzatura abbattitore (dagli `assets`, nuovo `asset_type = 'abbattitore'`)
-- Temperatura inizio / fine
-- Ora inizio / ora fine (durata calcolata)
-- Tipo ciclo: positivo (+3°C) / negativo (-18°C)
-- Esito (OK / Anomalia + note)
-- Stampa etichetta abbattimento (riusa il sistema etichette esistente, nuovo template "Abbattimento")
+1. **Installare Capacitor** e i pacchetti iOS/Android:
+   - `@capacitor/core`, `@capacitor/cli`, `@capacitor/ios`, `@capacitor/android`
+2. **Creare `capacitor.config.ts`** con:
+   - appId: `app.lovable.220cd5d1565d4443b75610dfe60373cf`
+   - appName: `HACCP Pro`
+   - hot-reload dal sandbox Lovable per testare in tempo reale su dispositivo
+3. **Installare un plugin Bluetooth per stampanti termiche**, a scelta tra:
+   - `@capacitor-community/bluetooth-le` (BLE generico, va bene per stampanti BLE moderne)
+   - `capacitor-thermal-printer` o equivalente (specifico per ESC/POS, formato standard delle stampanti scontrino)
+4. **Aggiungere una funzione "Stampa su Bluetooth"** nei punti che oggi usano `window.print()` (etichette in `PrintLabelDialog.tsx`, menu allergeni, ecc.): rilevamento dispositivo nativo, scansione stampanti, invio comandi ESC/POS per testo + grassetto allergeni.
+   - Su web/PWA il pulsante mantiene il comportamento attuale (`window.print`).
+   - Su iOS/Android nativo appare il flusso "scegli stampante Bluetooth".
+5. **Aggiornare `Info.plist`** (lato Xcode, vedi sotto) con i permessi `NSBluetoothAlwaysUsageDescription`.
 
-### 2. Mise en place / Preparati interni (`/preparati`)
-Etichette per semilavorati interni con scadenza interna calcolata.
+## Cosa dovrai fare tu (fuori da Lovable)
 
-Per ogni preparato:
-- Nome preparazione
-- Data + ora preparazione
-- Scadenza interna (default configurabile per tipo: salse 48h, verdure cotte 72h, ecc.)
-- Operatore
-- Allergeni (multi-select dalla tabella `allergens` esistente)
-- Conservazione (frigo / freezer / ambiente)
-- Note
-- Stampa etichetta (nuovo template "Mise en place")
+La build iOS **non può essere fatta dentro Lovable** — serve un Mac con Xcode e un account Apple Developer.
 
-## Fase 2 — Successiva (non in questa sessione)
-- Allergeni sul menu (piatti con calcolo automatico da ingredienti)
-- Conservazione / rigenerazione (ciclo cottura → raffreddamento → rigenerazione)
-- Controllo olio friggitrice (TPM)
-- Non conformità / reclami
+1. **Account Apple Developer** — 99 USD/anno: https://developer.apple.com/programs/
+2. **Esportare il progetto su GitHub** dal pulsante in alto a destra in Lovable, poi `git clone` sul tuo Mac.
+3. Sul Mac:
+   ```
+   npm install
+   npx cap add ios
+   npm run build
+   npx cap sync
+   npx cap open ios
+   ```
+4. In Xcode: firmare l'app col tuo Apple Developer Team, testare su iPhone reale, poi **Archive → Distribute → App Store Connect**.
+5. Compilare la scheda App Store (icona, screenshot, descrizione, privacy policy — **obbligatoria** per app con login).
+6. Inviare in **review Apple** (di solito 24–72 h).
 
-## Dettagli tecnici
+## Tempi e costi realistici
 
-### Database — nuove tabelle
+- Lavoro mio in Lovable (Capacitor + plugin Bluetooth + UI stampa): un paio di iterazioni.
+- Account Apple Developer: 99 USD/anno.
+- Mac con Xcode obbligatorio per build/upload (non aggirabile).
+- Prima review Apple: 1–3 giorni; possibili richieste di modifica.
 
-```text
-blast_chillings           preparations
-──────────────────       ──────────────────
-id                        id
-user_id                   user_id
-product_name              name
-operator_id               operator_id
-asset_id (abbattitore)    prepared_at (timestamptz)
-cycle_type (pos|neg)      internal_expiry (timestamptz)
-temp_start, temp_end      storage_type (frigo|freezer|ambiente)
-started_at, ended_at      allergen_ids (uuid[])
-outcome (ok|anomaly)      notes
-notes                     created_at
-created_at
-```
+## Bonus: anche Android
 
-Entrambe con RLS `auth.uid() = user_id`, stesso pattern delle tabelle esistenti.
+Con lo stesso codice puoi pubblicare anche su **Google Play** (`npx cap add android`, Android Studio, account dev Google 25 USD una tantum). Su Android Web Bluetooth funzionerebbe pure via PWA, ma l'app nativa è più affidabile.
 
-### Etichette
-Aggiungiamo due **nuovi template** in `label_templates` come opzioni selezionabili; **non modifichiamo** il template default né le `label_rules` esistenti. La stampa riusa esattamente il flusso già in uso (`LabelEditorTab` / printer pipeline).
+## Domande prima di partire
 
-### Sidebar
-Nuovo gruppo "Cucina" in `AppShell.tsx` con due voci. Aggiornata `NAV_VISIBILITY` in `useActivityProfile.tsx`:
-- `laboratorio`: invariato (non vede il gruppo)
-- `ristorazione`: vede solo Cucina + HACCP + Magazzino base + Sistema
-- `misto`: vede tutto, incluso Cucina
-
-### File nuovi
-- `src/pages/BlastChillings.tsx`
-- `src/pages/Preparations.tsx`
-- `src/hooks/useBlastChillings.tsx`
-- `src/hooks/usePreparations.tsx`
-- Route aggiunte in `src/App.tsx`
-
-### File modificati (minimi)
-- `src/components/AppShell.tsx` — nuovo gruppo nav
-- `src/hooks/useActivityProfile.tsx` — aggiunte rotte a `NAV_VISIBILITY`
-- `src/App.tsx` — due nuove route
-
-**Non toccati**: `LabelEditorTab`, `LabelRulesTab`, `useLabelRules`, `lib/lot.ts`, tabelle `products` / `raw_materials` / `label_rules` / `label_templates` esistenti.
+- Vuoi **solo iOS** o **iOS + Android**?
+- Sai già il **modello di stampante Bluetooth** che useranno i clienti? (Serve per scegliere il plugin giusto — BLE generico vs ESC/POS termico.)
+- Hai già **account Apple Developer** o devo guidarti nell'iscrizione?
