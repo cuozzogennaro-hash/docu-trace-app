@@ -1,8 +1,16 @@
-import { useEffect, useRef } from "react";
+import { useRef, useState } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
-import { Printer } from "lucide-react";
+import { Printer, Bluetooth } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
+import { toast } from "sonner";
+import {
+  isNativeApp,
+  buildLabelBytes,
+  sendToPrinter,
+  pickAndConnectPrinter,
+  getSavedPrinter,
+} from "@/lib/btPrinter";
 
 export type LabelField = { label: string; value: string };
 
@@ -23,6 +31,8 @@ type Props = {
 export default function PrintLabelDialog({ open, onOpenChange, title, productName, fields, highlight = [] }: Props) {
   const { company } = useCompany();
   const printRef = useRef<HTMLDivElement>(null);
+  const [printing, setPrinting] = useState(false);
+  const native = isNativeApp();
 
   function handlePrint() {
     const html = printRef.current?.innerHTML;
@@ -45,6 +55,28 @@ export default function PrintLabelDialog({ open, onOpenChange, title, productNam
     w.document.close();
     w.focus();
     setTimeout(() => { w.print(); w.close(); }, 250);
+  }
+
+  async function handleBluetoothPrint(forcePick = false) {
+    try {
+      setPrinting(true);
+      let printer = getSavedPrinter();
+      if (!printer || forcePick) printer = await pickAndConnectPrinter();
+      const bytes = buildLabelBytes({
+        title,
+        businessName: company.business_name || undefined,
+        productName,
+        fields,
+        highlight,
+        footer: [company.address, company.city].filter(Boolean).join(" — ") || undefined,
+      });
+      await sendToPrinter(bytes, printer);
+      toast.success("Inviato alla stampante");
+    } catch (e: any) {
+      toast.error(e?.message || "Errore di stampa Bluetooth");
+    } finally {
+      setPrinting(false);
+    }
   }
 
   function renderValue(v: string) {
@@ -76,9 +108,21 @@ export default function PrintLabelDialog({ open, onOpenChange, title, productNam
             )}
           </div>
         </div>
-        <Button onClick={handlePrint} className="bg-gradient-primary gap-2">
-          <Printer size={16} /> Stampa
-        </Button>
+        <div className="flex flex-col gap-2">
+          <Button onClick={handlePrint} className="bg-gradient-primary gap-2">
+            <Printer size={16} /> Stampa
+          </Button>
+          {native && (
+            <>
+              <Button onClick={() => handleBluetoothPrint(false)} disabled={printing} variant="outline" className="gap-2">
+                <Bluetooth size={16} /> {printing ? "Invio…" : "Stampa Bluetooth"}
+              </Button>
+              <Button onClick={() => handleBluetoothPrint(true)} disabled={printing} variant="ghost" size="sm" className="gap-2 text-xs">
+                <Bluetooth size={12} /> Cambia stampante…
+              </Button>
+            </>
+          )}
+        </div>
       </DialogContent>
     </Dialog>
   );
