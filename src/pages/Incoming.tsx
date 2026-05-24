@@ -819,6 +819,44 @@ export default function Incoming() {
         })}
         {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessuna materia prima registrata oggi.</p>}
       </div>
+
+      <Dialog open={disputeOpen} onOpenChange={setDisputeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Contestazione fornitore</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Descrizione</Label>
+            <Textarea value={disputeText} onChange={(e) => setDisputeText(e.target.value)} className="min-h-[140px]" />
+            <p className="text-[11px] text-muted-foreground">Verrà registrata nel Registro Non Conformità (area: fornitore).</p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDisputeOpen(false)}>Annulla</Button>
+            <Button
+              onClick={async () => {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) { toast.error("Sessione scaduta"); return; }
+                const line = disputeLineIdx != null ? lines[disputeLineIdx] : null;
+                const { error } = await (supabase as any).from("non_conformities").insert({
+                  user_id: user.id,
+                  area: "fornitore",
+                  severity: "high",
+                  title: `Temperatura non conforme — ${line?.productName || "ingresso merce"}`,
+                  description: disputeText,
+                  status: "open",
+                });
+                if (error) return toast.error(error.message);
+                toast.success("Contestazione registrata nel registro Non Conformità");
+                setDisputeOpen(false);
+                setDisputeText("");
+                setDisputeLineIdx(null);
+              }}
+            >
+              Registra contestazione
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
