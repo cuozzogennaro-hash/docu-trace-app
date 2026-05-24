@@ -680,6 +680,70 @@ export default function Incoming() {
                   </div>
                 </div>
               )}
+              {isCucina(line.departmentId) && (() => {
+                const tempNum = parseFloat(line.intakeTemperature.replace(",", "."));
+                const hasTemp = !Number.isNaN(tempNum);
+                const compliant = hasTemp && intakeIsCompliant(tempNum, line.intakeStorageMode);
+                return (
+                  <div className={`mt-3 p-3 rounded-md border space-y-2 ${hasTemp && !compliant ? "bg-rose-50 border-rose-300" : "bg-blue-50 border-blue-200"}`}>
+                    <Label className="text-xs font-semibold flex items-center gap-1.5">
+                      <Thermometer size={14} /> Temperatura di ingresso (Cucina)
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Modalità conservazione</Label>
+                        <Select
+                          value={line.intakeStorageMode}
+                          onValueChange={(v: any) => updateLine(idx, { intakeStorageMode: v })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
+                            <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
+                            <SelectItem value="ambient">Ambiente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Temperatura rilevata (°C)</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={line.intakeTemperature}
+                          onChange={(e) => updateLine(idx, { intakeTemperature: e.target.value })}
+                          placeholder={line.intakeStorageMode === "frozen" ? "-20" : line.intakeStorageMode === "refrigerated" ? "3.5" : "20"}
+                          className="font-mono"
+                        />
+                      </div>
+                    </div>
+                    {hasTemp && !compliant && (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1">
+                        <div className="flex-1 text-xs text-rose-900 flex items-start gap-1.5">
+                          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                          <span>Temperatura <strong>non conforme</strong> per la modalità selezionata. Apri una contestazione al fornitore.</span>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setDisputeLineIdx(idx);
+                            setDisputeText(
+                              `Il prodotto "${line.productName || "—"}" (lotto fornitore ${line.supplierLot || "—"}) è stato consegnato a ${tempNum.toFixed(1)}°C, fuori dai limiti di conservazione ${line.intakeStorageMode === "refrigerated" ? "refrigerata (≤ +4°C)" : line.intakeStorageMode === "frozen" ? "surgelata (≤ −18°C)" : "ambiente"}.\nFornitore: ${supplierName || "—"}\nDocumento: ${documentNumber || "—"} del ${documentDate || "—"}.`
+                            );
+                            setDisputeOpen(true);
+                          }}
+                        >
+                          Apri contestazione
+                        </Button>
+                      </div>
+                    )}
+                    {hasTemp && compliant && (
+                      <div className="text-xs text-emerald-700 font-medium">✓ Conforme</div>
+                    )}
+                  </div>
+                );
+              })()}
               {lines.length > 1 && (
                 <Button type="button" variant="ghost" size="sm" className="mt-2 text-destructive gap-1" onClick={() => removeLine(idx)}>
                   <Trash2 size={14} /> Rimuovi
