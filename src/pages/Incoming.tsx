@@ -281,6 +281,8 @@ export default function Incoming() {
             slaughteredIn: "",
             slaughterMark: "",
             ingredients: p.ingredients || "",
+            intakeTemperature: "",
+            intakeStorageMode: "refrigerated",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
