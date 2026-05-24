@@ -361,7 +361,13 @@ export default function BlastChillings() {
           </AlertDialogHeader>
           <AlertDialogFooter>
             <AlertDialogCancel>Annulla</AlertDialogCancel>
-            <AlertDialogAction onClick={() => setCompletePinOpen(true)} className="bg-gradient-primary">
+            <AlertDialogAction
+              onClick={(e) => {
+                e.preventDefault();
+                setCompletePinOpen(true);
+              }}
+              className="bg-gradient-primary"
+            >
               Identifica e chiudi
             </AlertDialogAction>
           </AlertDialogFooter>
