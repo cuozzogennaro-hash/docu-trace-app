@@ -465,7 +465,7 @@ function generateProductsMonthlyPdf(
   doc.save(`prodotti_${monthKey}.pdf`);
 }
 
-function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any }) {
+function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey; company: any; productsLabel?: string }) {
   const cfg = CONFIGS[tableKey];
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
