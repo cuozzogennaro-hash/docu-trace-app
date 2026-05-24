@@ -278,21 +278,22 @@ export default function Production() {
           </div>
         )}
 
-        {/* Flag conservazione/abbattimento + ingredienti manuali */}
-        <div className="mt-4 p-3 rounded-md bg-sky-50 border border-sky-200">
-          <label className="flex items-start gap-2 cursor-pointer">
-            <Checkbox
-              checked={requiresBlastChilling}
-              onCheckedChange={(v) => setRequiresBlastChilling(!!v)}
-              className="mt-0.5"
-            />
-            <div className="space-y-0.5">
-              <div className="text-sm font-semibold text-sky-900">Richiede abbattimento o conservazione speciale</div>
-              <div className="text-[11px] text-sky-900/80">
-                Al salvataggio verrà creata una voce in <strong>Archivio → Abbattimenti</strong> da completare con temperature di inizio/fine ciclo.
-              </div>
-            </div>
-          </label>
+        {/* Tipo conservazione del prodotto finito */}
+        <div className="mt-4 p-3 rounded-md bg-sky-50 border border-sky-200 space-y-2">
+          <Label className="text-xs font-semibold text-sky-900">Tipo conservazione *</Label>
+          <Select value={storageMode} onValueChange={(v: "refrigerato" | "abbattuto" | "surgelato") => setStorageMode(v)}>
+            <SelectTrigger><SelectValue /></SelectTrigger>
+            <SelectContent>
+              <SelectItem value="refrigerato">A temperatura (refrigerato 0-4°C)</SelectItem>
+              <SelectItem value="abbattuto">Abbattuto (ciclo positivo)</SelectItem>
+              <SelectItem value="surgelato">Surgelato (ciclo negativo -18°C)</SelectItem>
+            </SelectContent>
+          </Select>
+          {(storageMode === "abbattuto" || storageMode === "surgelato") && (
+            <p className="text-[11px] text-sky-900/80">
+              Al salvataggio verrà creata una voce in <strong>Abbattimenti</strong> da completare con temperature di inizio/fine e tempo ciclo.
+            </p>
+          )}
         </div>
 
         <div className="mt-3 space-y-1">
