@@ -20,7 +20,7 @@ import { useOperatorSession } from "@/hooks/useOperatorSession";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
-type TableKey = "raw_materials" | "products" | "temperatures" | "sanitations";
+type TableKey = "raw_materials" | "products" | "temperatures" | "sanitations" | "blast_chillings";
 
 type ColumnDef = { key: string; label: string; type?: "text" | "number" | "date" | "textarea"; readOnly?: boolean };
 
@@ -68,6 +68,19 @@ const CONFIGS: Record<TableKey, { label: string; columns: ColumnDef[]; relation?
       { key: "notes", label: "Note", type: "textarea" },
     ],
   },
+  blast_chillings: {
+    label: "Abbattimenti",
+    columns: [
+      { key: "product_name", label: "Prodotto" },
+      { key: "cycle_type", label: "Ciclo" },
+      { key: "temp_start", label: "T inizio °C", type: "number" },
+      { key: "temp_end", label: "T fine °C", type: "number" },
+      { key: "started_at", label: "Inizio", readOnly: true },
+      { key: "ended_at", label: "Fine", readOnly: true },
+      { key: "outcome", label: "Esito", readOnly: true },
+      { key: "notes", label: "Note", type: "textarea" },
+    ],
+  },
 };
 
 export default function Archive() {
@@ -90,7 +103,7 @@ export default function Archive() {
     <>
       <PageHeader title="Archivio" subtitle="Visualizza, modifica e gestisci tutti i tuoi dati HACCP" />
       <Tabs value={tab} onValueChange={(v) => { setTab(v as TableKey); setSearchParams({ tab: v }, { replace: true }); }}>
-        <TabsList className="w-full grid grid-cols-2 lg:grid-cols-4 mb-4 h-auto">
+        <TabsList className="w-full grid grid-cols-2 lg:grid-cols-5 mb-4 h-auto">
           {(Object.keys(CONFIGS) as TableKey[]).map((k) => (
             <TabsTrigger key={k} value={k} className="py-2">{CONFIGS[k].label}</TabsTrigger>
           ))}

@@ -28,6 +28,7 @@ export default function ProductDetail() {
   const { operator } = useOperatorSession();
   const [product, setProduct] = useState<any>(null);
   const [ingredients, setIngredients] = useState<any[]>([]);
+  const [blastChillings, setBlastChillings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [labelTemplates, setLabelTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
@@ -76,6 +77,14 @@ export default function ProductDetail() {
         .eq("product_id", id);
 
       setIngredients((links ?? []).map((l: any) => l.raw_materials).filter(Boolean));
+
+      // Load related blast chillings
+      const { data: bcRows } = await (supabase as any)
+        .from("blast_chillings")
+        .select("*")
+        .eq("product_id", id)
+        .order("started_at", { ascending: false });
+      setBlastChillings(bcRows ?? []);
 
       // Load label templates
       const { data: { user } } = await supabase.auth.getUser();
@@ -1179,6 +1188,31 @@ ${labelsHtml}
 
     y = (doc as any).lastAutoTable.finalY + 10;
 
+    if (blastChillings.length > 0) {
+      doc.setFontSize(13);
+      doc.text("Abbattimenti", 14, y);
+      y += 6;
+      autoTable(doc, {
+        startY: y,
+        head: [["Ciclo", "T inizio", "T fine", "Inizio", "Fine", "Durata", "Esito"]],
+        body: blastChillings.map((b) => {
+          const dur = b.ended_at ? Math.round((new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()) / 60000) + " min" : "—";
+          return [
+            b.cycle_type === "negative" ? "Negativo (-18°C)" : "Positivo (+3°C)",
+            b.temp_start != null ? `${b.temp_start}°C` : "—",
+            b.temp_end != null ? `${b.temp_end}°C` : "—",
+            b.started_at ? new Date(b.started_at).toLocaleString("it-IT") : "—",
+            b.ended_at ? new Date(b.ended_at).toLocaleString("it-IT") : "In corso",
+            dur,
+            b.outcome === "ok" ? "Conforme" : "Anomalia",
+          ];
+        }),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
     if (ingredients.length > 0) {
       doc.setFontSize(13);
       doc.text("Materie prime utilizzate", 14, y);
@@ -1237,6 +1271,36 @@ ${labelsHtml}
           </Button>
         )}
       </Card>
+
+      {blastChillings.length > 0 && (
+        <Card className="p-5 mb-6">
+          <h3 className="font-display font-bold mb-3">Abbattimenti</h3>
+          <div className="space-y-2">
+            {blastChillings.map((b) => {
+              const dur = b.ended_at ? Math.round((new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()) / 60000) : null;
+              return (
+                <div key={b.id} className="p-3 rounded-lg border bg-muted/30">
+                  <div className="flex items-center justify-between gap-2 flex-wrap">
+                    <span className="text-sm font-semibold">
+                      {b.cycle_type === "negative" ? "Surgelazione (-18°C)" : "Abbattimento (+3°C)"}
+                    </span>
+                    <span className={`text-xs px-2 py-0.5 rounded-md ${b.outcome === "ok" ? "bg-emerald-100 text-emerald-800" : "bg-destructive/15 text-destructive"}`}>
+                      {b.ended_at ? (b.outcome === "ok" ? "Conforme" : "Anomalia") : "Da completare"}
+                    </span>
+                  </div>
+                  <div className="text-xs text-muted-foreground mt-1.5">
+                    {new Date(b.started_at).toLocaleString("it-IT")}
+                    {b.ended_at && ` → ${new Date(b.ended_at).toLocaleString("it-IT")}`}
+                    {dur != null && ` • ${dur} min`}
+                    {b.temp_start != null && ` • ${b.temp_start}°C → ${b.temp_end ?? "—"}°C`}
+                  </div>
+                  {b.notes && <div className="text-xs text-muted-foreground mt-1">{b.notes}</div>}
+                </div>
+              );
+            })}
+          </div>
+        </Card>
+      )}
 
       <Dialog open={showLabelDialog} onOpenChange={(v) => { setShowLabelDialog(v); if (!v) setPreservationOverride(""); }}>
         <DialogContent className="max-w-2xl">
