@@ -993,7 +993,6 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
   }
 
   if (tableKey === "raw_materials" || tableKey === "products") {
-    const pdfFn = tableKey === "raw_materials" ? generateRawMaterialsMonthlyPdf : generateProductsMonthlyPdf;
     return (
       <>
         {SearchBar}
