@@ -275,6 +275,33 @@ export default function Production() {
           </div>
         )}
 
+        {/* Flag conservazione/abbattimento + ingredienti manuali */}
+        <div className="mt-4 p-3 rounded-md bg-sky-50 border border-sky-200">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <Checkbox
+              checked={requiresBlastChilling}
+              onCheckedChange={(v) => setRequiresBlastChilling(!!v)}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <div className="text-sm font-semibold text-sky-900">Richiede abbattimento o conservazione speciale</div>
+              <div className="text-[11px] text-sky-900/80">
+                Al salvataggio verrà creata una voce in <strong>Archivio → Abbattimenti</strong> da completare con temperature di inizio/fine ciclo.
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <div className="mt-3 space-y-1">
+          <Label className="text-xs">Ingredienti scritti a mano (opzionale)</Label>
+          <Textarea
+            value={manualIngredients}
+            onChange={(e) => setManualIngredients(e.target.value)}
+            placeholder="Es. pomodoro, basilico, olio EVO, sale… (puoi anche selezionare ingredienti dalla lista qui sotto)"
+            className="min-h-[70px]"
+          />
+        </div>
+
         <div className="mt-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <Label>Ingredienti</Label>
