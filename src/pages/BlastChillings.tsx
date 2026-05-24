@@ -326,8 +326,34 @@ export default function BlastChillings() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Temperatura finale °C</Label>
-                    <Input type="number" step="0.1" value={completeTempEnd} onChange={(e) => setCompleteTempEnd(e.target.value)} placeholder={completeItem?.cycle_type === "positive" ? "es. 3" : "es. -18"} />
+                    <Label>Tipo ciclo</Label>
+                    <Select value={completeCycleType} onValueChange={(v: any) => setCompleteCycleType(v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="positive">Positivo (+3°C entro 90')</SelectItem>
+                        <SelectItem value="negative">Negativo (-18°C entro 4h)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label>Temp. inizio °C</Label>
+                      <Input type="number" step="0.1" value={completeTempStart} onChange={(e) => setCompleteTempStart(e.target.value)} placeholder="es. 75" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Temp. fine °C</Label>
+                      <Input type="number" step="0.1" value={completeTempEnd} onChange={(e) => setCompleteTempEnd(e.target.value)} placeholder={completeCycleType === "positive" ? "es. 3" : "es. -18"} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label>Inizio</Label>
+                      <Input type="datetime-local" value={completeStartedAt} onChange={(e) => setCompleteStartedAt(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Fine</Label>
+                      <Input type="datetime-local" value={completeEndedAt} onChange={(e) => setCompleteEndedAt(e.target.value)} />
+                    </div>
                   </div>
                 </div>
               </div>
