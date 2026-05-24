@@ -15,6 +15,9 @@ import { Link } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Thermometer, AlertTriangle } from "lucide-react";
 
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
@@ -37,6 +40,8 @@ type ProductLine = {
   slaughteredIn: string;
   slaughterMark: string;
   ingredients: string;
+  intakeTemperature: string;
+  intakeStorageMode: "refrigerated" | "frozen" | "ambient";
 };
 
 function newProductLine(date?: string): ProductLine {
@@ -56,6 +61,8 @@ function newProductLine(date?: string): ProductLine {
     slaughteredIn: "",
     slaughterMark: "",
     ingredients: "",
+    intakeTemperature: "",
+    intakeStorageMode: "refrigerated",
   };
 }
 
