@@ -9,10 +9,20 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown } from "lucide-react";
+import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown, Snowflake, Flame, Droplet, ChefHat } from "lucide-react";
 import { toast } from "sonner";
 
-type ReportKey = "temperatures" | "sanitations" | "production" | "incoming" | "full";
+type ReportKey =
+  | "temperatures"
+  | "sanitations"
+  | "production"
+  | "incoming"
+  | "blast_chillings"
+  | "holding"
+  | "oil_checks"
+  | "preparations"
+  | "kitchen"
+  | "full";
 
 const MONTHS_IT = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 
