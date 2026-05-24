@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { useActivityProfile, archiveProductsLabel } from "@/hooks/useActivityProfile";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
