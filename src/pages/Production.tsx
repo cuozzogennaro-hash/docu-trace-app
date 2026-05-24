@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { productionLabel, useActivityProfile } from "@/hooks/useActivityProfile";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
@@ -24,6 +27,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function Production() {
   const { session } = useAuth();
   const { operator } = useOperatorSession();
+  const { profile } = useActivityProfile();
+  const pageLabel = productionLabel(profile);
   const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
   const [name, setName] = useState("");
   const [prodDate, setProdDate] = useState(new Date().toISOString().slice(0, 10));
@@ -32,6 +37,8 @@ export default function Production() {
   const [productDeptId, setProductDeptId] = useState<string>("");
   const [meatType, setMeatType] = useState<"fresh" | "preparato">("fresh");
   const [preservationType, setPreservationType] = useState<"fresh" | "vacuum">("vacuum");
+  const [requiresBlastChilling, setRequiresBlastChilling] = useState(false);
+  const [manualIngredients, setManualIngredients] = useState("");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
@@ -106,7 +113,9 @@ export default function Production() {
   async function save() {
     if (!name) return toast.error("Nome prodotto richiesto");
     if (!productDeptId) return toast.error("Seleziona un reparto per il prodotto");
-    if (selected.size === 0) return toast.error("Seleziona almeno un ingrediente");
+    if (selected.size === 0 && !manualIngredients.trim()) {
+      return toast.error("Seleziona almeno un ingrediente o scrivili manualmente");
+    }
     const meat_type = isMacelleria(productDeptId) ? meatType : null;
     const preservation_type = isSalumeria(productDeptId) ? preservationType : "vacuum";
     if (isOperatorAdmin && operator) {
@@ -126,6 +135,7 @@ export default function Production() {
       if (error || !res?.ok) return toast.error(error?.message || res?.error || "Errore");
       toast.success(`Prodotto creato • ${lot}`);
       setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh"); setPreservationType("vacuum");
+      setRequiresBlastChilling(false); setManualIngredients("");
       setLot(generateInternalLot("P", new Date()));
       load();
       return;
@@ -133,22 +143,43 @@ export default function Production() {
     const { data: { user } } = await supabase.auth.getUser();
     const { data: prod, error } = await supabase
       .from("products")
-      .insert({ user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes, department_id: productDeptId, meat_type, preservation_type } as any)
+      .insert({
+        user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes,
+        department_id: productDeptId, meat_type, preservation_type,
+        requires_blast_chilling: requiresBlastChilling,
+        manual_ingredients: manualIngredients.trim() || null,
+      } as any)
       .select()
       .single();
     if (error) return toast.error(error.message);
-    const ingredients = Array.from(selected).map((rm) => ({
-      product_id: prod.id,
-      raw_material_id: rm,
-      user_id: user!.id,
-    }));
-    await supabase.from("product_ingredients").insert(ingredients);
-    toast.success(`Prodotto creato • ${lot}`);
+    if (selected.size > 0) {
+      const ingredients = Array.from(selected).map((rm) => ({
+        product_id: prod.id,
+        raw_material_id: rm,
+        user_id: user!.id,
+      }));
+      await supabase.from("product_ingredients").insert(ingredients);
+    }
+    if (requiresBlastChilling) {
+      await (supabase as any).from("blast_chillings").insert({
+        user_id: user!.id,
+        product_name: name,
+        cycle_type: "positive",
+        outcome: "ok",
+        notes: `Da completare — generato da ${pageLabel} • Lotto ${lot}`,
+        product_id: prod.id,
+      });
+      toast.success(`Creato • Abbattimento da completare in Archivio`);
+    } else {
+      toast.success(`Creato • ${lot}`);
+    }
     setName("");
     setNotes("");
     setSelected(new Set());
     setMeatType("fresh");
     setPreservationType("vacuum");
+    setRequiresBlastChilling(false);
+    setManualIngredients("");
     setLot(generateInternalLot("P", new Date()));
     load();
   }
@@ -168,7 +199,7 @@ export default function Production() {
 
   return (
     <>
-      <PageHeader title="Produzione" subtitle="Crea semilavorati e prodotti finiti con tracciabilità ingredienti" />
+      <PageHeader title={pageLabel} subtitle={profile === "ristorazione" ? "Crea e archivia le ricette di cucina" : "Crea semilavorati e prodotti finiti con tracciabilità ingredienti"} />
 
       <div className="mb-4">
         <Button asChild variant="outline" className="gap-2">
@@ -243,6 +274,33 @@ export default function Production() {
             </p>
           </div>
         )}
+
+        {/* Flag conservazione/abbattimento + ingredienti manuali */}
+        <div className="mt-4 p-3 rounded-md bg-sky-50 border border-sky-200">
+          <label className="flex items-start gap-2 cursor-pointer">
+            <Checkbox
+              checked={requiresBlastChilling}
+              onCheckedChange={(v) => setRequiresBlastChilling(!!v)}
+              className="mt-0.5"
+            />
+            <div className="space-y-0.5">
+              <div className="text-sm font-semibold text-sky-900">Richiede abbattimento o conservazione speciale</div>
+              <div className="text-[11px] text-sky-900/80">
+                Al salvataggio verrà creata una voce in <strong>Archivio → Abbattimenti</strong> da completare con temperature di inizio/fine ciclo.
+              </div>
+            </div>
+          </label>
+        </div>
+
+        <div className="mt-3 space-y-1">
+          <Label className="text-xs">Ingredienti scritti a mano (opzionale)</Label>
+          <Textarea
+            value={manualIngredients}
+            onChange={(e) => setManualIngredients(e.target.value)}
+            placeholder="Es. pomodoro, basilico, olio EVO, sale… (puoi anche selezionare ingredienti dalla lista qui sotto)"
+            className="min-h-[70px]"
+          />
+        </div>
 
         <div className="mt-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">

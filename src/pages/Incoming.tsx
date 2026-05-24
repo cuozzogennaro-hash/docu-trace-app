@@ -15,6 +15,9 @@ import { Link } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Thermometer, AlertTriangle } from "lucide-react";
 
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
@@ -37,6 +40,8 @@ type ProductLine = {
   slaughteredIn: string;
   slaughterMark: string;
   ingredients: string;
+  intakeTemperature: string;
+  intakeStorageMode: "refrigerated" | "frozen" | "ambient";
 };
 
 function newProductLine(date?: string): ProductLine {
@@ -56,6 +61,8 @@ function newProductLine(date?: string): ProductLine {
     slaughteredIn: "",
     slaughterMark: "",
     ingredients: "",
+    intakeTemperature: "",
+    intakeStorageMode: "refrigerated",
   };
 }
 
@@ -95,6 +102,19 @@ export default function Incoming() {
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "ortofrutta";
   const isSalumeria = (depId: string) =>
     (departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() ?? "").startsWith("salum");
+  const isCucina = (depId: string) =>
+    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "cucina";
+
+  // Soglie default conformità temperatura ingresso
+  function intakeIsCompliant(temp: number, mode: "refrigerated" | "frozen" | "ambient"): boolean {
+    if (mode === "refrigerated") return temp <= 4;
+    if (mode === "frozen") return temp <= -18;
+    return temp >= 5 && temp <= 25;
+  }
+
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeLineIdx, setDisputeLineIdx] = useState<number | null>(null);
+  const [disputeText, setDisputeText] = useState("");
 
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
@@ -170,6 +190,8 @@ export default function Incoming() {
       slaughteredIn: r.slaughtered_in ?? "",
       slaughterMark: r.slaughter_mark ?? "",
       ingredients: r.ingredients ?? "",
+      intakeTemperature: "",
+      intakeStorageMode: "refrigerated",
     };
   }
 
@@ -272,6 +294,8 @@ export default function Incoming() {
             slaughteredIn: "",
             slaughterMark: "",
             ingredients: p.ingredients || "",
+            intakeTemperature: "",
+            intakeStorageMode: "refrigerated",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
@@ -373,6 +397,13 @@ export default function Incoming() {
       slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
       slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : null,
       ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
+      intake_temperature: isCucina(l.departmentId) && l.intakeTemperature.trim()
+        ? parseFloat(l.intakeTemperature.replace(",", "."))
+        : null,
+      intake_temp_compliant: isCucina(l.departmentId) && l.intakeTemperature.trim()
+        ? intakeIsCompliant(parseFloat(l.intakeTemperature.replace(",", ".")), l.intakeStorageMode)
+        : null,
+      intake_storage_mode: isCucina(l.departmentId) ? l.intakeStorageMode : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
@@ -656,6 +687,70 @@ export default function Incoming() {
                   </div>
                 </div>
               )}
+              {isCucina(line.departmentId) && (() => {
+                const tempNum = parseFloat(line.intakeTemperature.replace(",", "."));
+                const hasTemp = !Number.isNaN(tempNum);
+                const compliant = hasTemp && intakeIsCompliant(tempNum, line.intakeStorageMode);
+                return (
+                  <div className={`mt-3 p-3 rounded-md border space-y-2 ${hasTemp && !compliant ? "bg-rose-50 border-rose-300" : "bg-blue-50 border-blue-200"}`}>
+                    <Label className="text-xs font-semibold flex items-center gap-1.5">
+                      <Thermometer size={14} /> Temperatura di ingresso (Cucina)
+                    </Label>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Modalità conservazione</Label>
+                        <Select
+                          value={line.intakeStorageMode}
+                          onValueChange={(v: any) => updateLine(idx, { intakeStorageMode: v })}
+                        >
+                          <SelectTrigger><SelectValue /></SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
+                            <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
+                            <SelectItem value="ambient">Ambiente</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Temperatura rilevata (°C)</Label>
+                        <Input
+                          type="number"
+                          step="0.1"
+                          value={line.intakeTemperature}
+                          onChange={(e) => updateLine(idx, { intakeTemperature: e.target.value })}
+                          placeholder={line.intakeStorageMode === "frozen" ? "-20" : line.intakeStorageMode === "refrigerated" ? "3.5" : "20"}
+                          className="font-mono"
+                        />
+                      </div>
+                    </div>
+                    {hasTemp && !compliant && (
+                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1">
+                        <div className="flex-1 text-xs text-rose-900 flex items-start gap-1.5">
+                          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                          <span>Temperatura <strong>non conforme</strong> per la modalità selezionata. Apri una contestazione al fornitore.</span>
+                        </div>
+                        <Button
+                          type="button"
+                          size="sm"
+                          variant="destructive"
+                          onClick={() => {
+                            setDisputeLineIdx(idx);
+                            setDisputeText(
+                              `Il prodotto "${line.productName || "—"}" (lotto fornitore ${line.supplierLot || "—"}) è stato consegnato a ${tempNum.toFixed(1)}°C, fuori dai limiti di conservazione ${line.intakeStorageMode === "refrigerated" ? "refrigerata (≤ +4°C)" : line.intakeStorageMode === "frozen" ? "surgelata (≤ −18°C)" : "ambiente"}.\nFornitore: ${supplierName || "—"}\nDocumento: ${documentNumber || "—"} del ${documentDate || "—"}.`
+                            );
+                            setDisputeOpen(true);
+                          }}
+                        >
+                          Apri contestazione
+                        </Button>
+                      </div>
+                    )}
+                    {hasTemp && compliant && (
+                      <div className="text-xs text-emerald-700 font-medium">✓ Conforme</div>
+                    )}
+                  </div>
+                );
+              })()}
               {lines.length > 1 && (
                 <Button type="button" variant="ghost" size="sm" className="mt-2 text-destructive gap-1" onClick={() => removeLine(idx)}>
                   <Trash2 size={14} /> Rimuovi
@@ -724,6 +819,44 @@ export default function Incoming() {
         })}
         {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessuna materia prima registrata oggi.</p>}
       </div>
+
+      <Dialog open={disputeOpen} onOpenChange={setDisputeOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Contestazione fornitore</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <Label className="text-xs">Descrizione</Label>
+            <Textarea value={disputeText} onChange={(e) => setDisputeText(e.target.value)} className="min-h-[140px]" />
+            <p className="text-[11px] text-muted-foreground">Verrà registrata nel Registro Non Conformità (area: fornitore).</p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setDisputeOpen(false)}>Annulla</Button>
+            <Button
+              onClick={async () => {
+                const { data: { user } } = await supabase.auth.getUser();
+                if (!user) { toast.error("Sessione scaduta"); return; }
+                const line = disputeLineIdx != null ? lines[disputeLineIdx] : null;
+                const { error } = await (supabase as any).from("non_conformities").insert({
+                  user_id: user.id,
+                  area: "fornitore",
+                  severity: "high",
+                  title: `Temperatura non conforme — ${line?.productName || "ingresso merce"}`,
+                  description: disputeText,
+                  status: "open",
+                });
+                if (error) return toast.error(error.message);
+                toast.success("Contestazione registrata nel registro Non Conformità");
+                setDisputeOpen(false);
+                setDisputeText("");
+                setDisputeLineIdx(null);
+              }}
+            >
+              Registra contestazione
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }

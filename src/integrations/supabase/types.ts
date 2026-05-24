@@ -93,6 +93,7 @@ export type Database = {
           notes: string | null
           operator_id: string | null
           outcome: string
+          product_id: string | null
           product_name: string
           started_at: string
           temp_end: number | null
@@ -108,6 +109,7 @@ export type Database = {
           notes?: string | null
           operator_id?: string | null
           outcome?: string
+          product_id?: string | null
           product_name: string
           started_at?: string
           temp_end?: number | null
@@ -123,6 +125,7 @@ export type Database = {
           notes?: string | null
           operator_id?: string | null
           outcome?: string
+          product_id?: string | null
           product_name?: string
           started_at?: string
           temp_end?: number | null
@@ -602,12 +605,14 @@ export type Database = {
           department_id: string | null
           id: string
           internal_lot: string
+          manual_ingredients: string | null
           meat_type: string | null
           name: string
           notes: string | null
           operator_id: string | null
           preservation_type: string
           production_date: string
+          requires_blast_chilling: boolean
           user_id: string
         }
         Insert: {
@@ -615,12 +620,14 @@ export type Database = {
           department_id?: string | null
           id?: string
           internal_lot: string
+          manual_ingredients?: string | null
           meat_type?: string | null
           name: string
           notes?: string | null
           operator_id?: string | null
           preservation_type?: string
           production_date: string
+          requires_blast_chilling?: boolean
           user_id: string
         }
         Update: {
@@ -628,12 +635,14 @@ export type Database = {
           department_id?: string | null
           id?: string
           internal_lot?: string
+          manual_ingredients?: string | null
           meat_type?: string | null
           name?: string
           notes?: string | null
           operator_id?: string | null
           preservation_type?: string
           production_date?: string
+          requires_blast_chilling?: boolean
           user_id?: string
         }
         Relationships: []
@@ -677,6 +686,9 @@ export type Database = {
           expiry_date: string | null
           id: string
           ingredients: string | null
+          intake_storage_mode: string | null
+          intake_temp_compliant: boolean | null
+          intake_temperature: number | null
           internal_lot: string
           is_out_of_stock: boolean
           meat_type: string | null
@@ -703,6 +715,9 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           ingredients?: string | null
+          intake_storage_mode?: string | null
+          intake_temp_compliant?: boolean | null
+          intake_temperature?: number | null
           internal_lot: string
           is_out_of_stock?: boolean
           meat_type?: string | null
@@ -729,6 +744,9 @@ export type Database = {
           expiry_date?: string | null
           id?: string
           ingredients?: string | null
+          intake_storage_mode?: string | null
+          intake_temp_compliant?: boolean | null
+          intake_temperature?: number | null
           internal_lot?: string
           is_out_of_stock?: boolean
           meat_type?: string | null
