@@ -301,6 +301,16 @@ export default function ProductDetail() {
     }
 
     const parts: IngPart[] = [...meats, ...others, ...aromas, ...additives];
+    // Ingredienti scritti a mano (campo manual_ingredients sul prodotto):
+    // li accodiamo come voci aggiuntive in etichetta.
+    const manualRaw = ((product as any)?.manual_ingredients || "").toString().trim();
+    if (manualRaw) {
+      manualRaw
+        .split(/[,;\n]+/)
+        .map((s) => s.trim())
+        .filter(Boolean)
+        .forEach((t) => parts.push({ text: t, bold: false }));
+    }
     const ingredientsList = parts.map((p) => p.text).join(", ");
     return {
       valueMap: {
