@@ -53,6 +53,10 @@ export default function BlastChillings() {
   const [completeItem, setCompleteItem] = useState<BlastChilling | null>(null);
   const [completeTempEnd, setCompleteTempEnd] = useState("");
   const [completeAssetId, setCompleteAssetId] = useState("");
+  const [completeCycleType, setCompleteCycleType] = useState<"positive" | "negative">("positive");
+  const [completeTempStart, setCompleteTempStart] = useState("");
+  const [completeStartedAt, setCompleteStartedAt] = useState("");
+  const [completeEndedAt, setCompleteEndedAt] = useState("");
   const [completePinOpen, setCompletePinOpen] = useState(false);
 
   const pendingRows = useMemo(() => rows.filter((r) => !r.ended_at), [rows]);
@@ -62,18 +66,25 @@ export default function BlastChillings() {
     setCompleteItem(item);
     setCompleteTempEnd("");
     setCompleteAssetId(item.asset_id ?? "");
+    setCompleteCycleType((item.cycle_type as "positive" | "negative") || "positive");
+    setCompleteTempStart(item.temp_start != null ? String(item.temp_start) : "");
+    setCompleteStartedAt(item.started_at ? new Date(item.started_at).toISOString().slice(0, 16) : nowLocal());
+    setCompleteEndedAt(nowLocal());
   }
 
   async function confirmComplete(op: { id: string; name: string }) {
     if (!completeItem) return;
-    const targetTemp = completeItem.cycle_type === "positive" ? 3 : -18;
+    const targetTemp = completeCycleType === "positive" ? 3 : -18;
     const tEnd = completeTempEnd ? Number(completeTempEnd) : null;
     const outcome = tEnd != null && tEnd > targetTemp + 1 ? "anomaly" : "ok";
     const { error } = await (supabase as any)
       .from("blast_chillings")
       .update({
-        ended_at: new Date().toISOString(),
+        cycle_type: completeCycleType,
+        temp_start: completeTempStart ? Number(completeTempStart) : null,
         temp_end: tEnd,
+        started_at: completeStartedAt ? new Date(completeStartedAt).toISOString() : completeItem.started_at,
+        ended_at: completeEndedAt ? new Date(completeEndedAt).toISOString() : new Date().toISOString(),
         asset_id: completeAssetId || completeItem.asset_id,
         operator_id: op.id,
         outcome,
@@ -315,8 +326,34 @@ export default function BlastChillings() {
                     </Select>
                   </div>
                   <div className="space-y-1.5">
-                    <Label>Temperatura finale °C</Label>
-                    <Input type="number" step="0.1" value={completeTempEnd} onChange={(e) => setCompleteTempEnd(e.target.value)} placeholder={completeItem?.cycle_type === "positive" ? "es. 3" : "es. -18"} />
+                    <Label>Tipo ciclo</Label>
+                    <Select value={completeCycleType} onValueChange={(v: any) => setCompleteCycleType(v)}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="positive">Positivo (+3°C entro 90')</SelectItem>
+                        <SelectItem value="negative">Negativo (-18°C entro 4h)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label>Temp. inizio °C</Label>
+                      <Input type="number" step="0.1" value={completeTempStart} onChange={(e) => setCompleteTempStart(e.target.value)} placeholder="es. 75" />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Temp. fine °C</Label>
+                      <Input type="number" step="0.1" value={completeTempEnd} onChange={(e) => setCompleteTempEnd(e.target.value)} placeholder={completeCycleType === "positive" ? "es. 3" : "es. -18"} />
+                    </div>
+                  </div>
+                  <div className="grid grid-cols-2 gap-2">
+                    <div className="space-y-1.5">
+                      <Label>Inizio</Label>
+                      <Input type="datetime-local" value={completeStartedAt} onChange={(e) => setCompleteStartedAt(e.target.value)} />
+                    </div>
+                    <div className="space-y-1.5">
+                      <Label>Fine</Label>
+                      <Input type="datetime-local" value={completeEndedAt} onChange={(e) => setCompleteEndedAt(e.target.value)} />
+                    </div>
                   </div>
                 </div>
               </div>
