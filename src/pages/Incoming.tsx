@@ -102,6 +102,19 @@ export default function Incoming() {
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "ortofrutta";
   const isSalumeria = (depId: string) =>
     (departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() ?? "").startsWith("salum");
+  const isCucina = (depId: string) =>
+    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "cucina";
+
+  // Soglie default conformità temperatura ingresso
+  function intakeIsCompliant(temp: number, mode: "refrigerated" | "frozen" | "ambient"): boolean {
+    if (mode === "refrigerated") return temp <= 4;
+    if (mode === "frozen") return temp <= -18;
+    return temp >= 5 && temp <= 25;
+  }
+
+  const [disputeOpen, setDisputeOpen] = useState(false);
+  const [disputeLineIdx, setDisputeLineIdx] = useState<number | null>(null);
+  const [disputeText, setDisputeText] = useState("");
 
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
