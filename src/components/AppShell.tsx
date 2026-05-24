@@ -8,13 +8,17 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
 import NotificationBanner from "@/components/NotificationBanner";
 import ActivityProfileDialog from "@/components/ActivityProfileDialog";
-import { NAV_VISIBILITY, useActivityProfile } from "@/hooks/useActivityProfile";
+import { NAV_VISIBILITY, useActivityProfile, productionLabel, recurringLabel, hasKitchen } from "@/hooks/useActivityProfile";
+import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 
 type NavItem = { to: string; icon: any; label: string; end?: boolean };
 type NavGroup = { key: string; label: string | null; items: NavItem[] };
 
-const adminGroups: NavGroup[] = [
+function buildAdminGroups(profile: ReturnType<typeof useActivityProfile>["profile"]): NavGroup[] {
+  const prodLabel = productionLabel(profile);
+  const recLabel = recurringLabel(profile);
+  return [
   {
     key: "home",
     label: null,
@@ -34,7 +38,7 @@ const adminGroups: NavGroup[] = [
     items: [
       { to: "/ingresso", icon: Package, label: "Ingresso merci" },
       { to: "/archivio", icon: Archive, label: "Archivio" },
-      { to: "/ricorrenti", icon: Repeat, label: "Prodotti ricorrenti" },
+      { to: "/ricorrenti", icon: Repeat, label: recLabel },
     ],
   },
   {
@@ -52,7 +56,7 @@ const adminGroups: NavGroup[] = [
     key: "produzione",
     label: "Produzione & Vendita",
     items: [
-      { to: "/produzione", icon: Factory, label: "Produzione" },
+      { to: "/produzione", icon: Factory, label: prodLabel },
       { to: "/clienti", icon: Users, label: "Clienti & Vendite" },
       { to: "/acquisti", icon: ShoppingCart, label: "Lista acquisti" },
     ],
@@ -66,7 +70,8 @@ const adminGroups: NavGroup[] = [
       { to: "/impostazioni", icon: Settings, label: "Impostazioni" },
     ],
   },
-];
+  ];
+}
 
 const operatorNav = [
   { to: "/", icon: LayoutDashboard, label: "I miei compiti", end: true },
@@ -89,7 +94,32 @@ export default function AppShell() {
     }
   }, [user, profile]);
 
+  // Auto-seed "Cucina" department for kitchen-enabled profiles
+  useEffect(() => {
+    if (!user || !hasKitchen(profile)) return;
+    (async () => {
+      try {
+        const { data: existing } = await supabase
+          .from("departments")
+          .select("id")
+          .eq("user_id", user.id)
+          .ilike("name", "cucina")
+          .limit(1);
+        if (!existing || existing.length === 0) {
+          await supabase.from("departments").insert({
+            user_id: user.id,
+            name: "Cucina",
+            sort_order: 50,
+          });
+        }
+      } catch {
+        // non-blocking
+      }
+    })();
+  }, [user, profile]);
+
   const isAdminOperator = operator?.is_admin === true;
+  const adminGroups = buildAdminGroups(profile);
   const adminOperatorRestricted = ["/impostazioni", "/acquisti", "/clienti", "/sanificazione", "/temperature", "/report"];
 
   // Costruisci gruppi filtrati per profilo attività e ruolo operatore
