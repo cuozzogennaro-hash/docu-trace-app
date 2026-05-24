@@ -436,9 +436,11 @@ function generateProductsMonthlyPdf(
   monthLbl: string,
   weeks: { label: string; items: any[] }[],
   company: any,
+  title?: string,
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  let startY = drawPdfHeader(doc, "Registro Prodotti", monthLbl, company);
+  const headerTitle = title ? `Registro ${title}` : "Registro Prodotti";
+  let startY = drawPdfHeader(doc, headerTitle, monthLbl, company);
   weeks.forEach((w) => {
     if (startY > 250) { doc.addPage(); startY = 20; }
     doc.setFont("helvetica", "bold");
