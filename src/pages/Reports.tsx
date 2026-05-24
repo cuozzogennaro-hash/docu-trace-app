@@ -182,6 +182,47 @@ export default function Reports() {
     return rows.map((r) => ({ ...r, departments: r.department_id ? { name: map.get(r.department_id) ?? "—" } : null }));
   }
 
+  async function fetchBlastChillings(start: string, end: string) {
+    const { data } = await (supabase as any)
+      .from("blast_chillings")
+      .select("started_at, ended_at, product_name, cycle_type, temp_start, temp_end, outcome, notes, assets:asset_id(name)")
+      .eq("user_id", user!.id)
+      .gte("started_at", `${start}T00:00:00`)
+      .lt("started_at", `${end}T00:00:00`)
+      .order("started_at", { ascending: true });
+    return (data ?? []) as any[];
+  }
+  async function fetchHolding(start: string, end: string) {
+    const { data } = await (supabase as any)
+      .from("holding_records")
+      .select("recorded_at, product_name, mode, temperature, outcome, notes, assets:asset_id(name)")
+      .eq("user_id", user!.id)
+      .gte("recorded_at", `${start}T00:00:00`)
+      .lt("recorded_at", `${end}T00:00:00`)
+      .order("recorded_at", { ascending: true });
+    return (data ?? []) as any[];
+  }
+  async function fetchOilChecks(start: string, end: string) {
+    const { data } = await (supabase as any)
+      .from("oil_checks")
+      .select("checked_at, fryer_name, action, polar_compounds, outcome, notes, assets:asset_id(name)")
+      .eq("user_id", user!.id)
+      .gte("checked_at", `${start}T00:00:00`)
+      .lt("checked_at", `${end}T00:00:00`)
+      .order("checked_at", { ascending: true });
+    return (data ?? []) as any[];
+  }
+  async function fetchPreparations(start: string, end: string) {
+    const { data } = await (supabase as any)
+      .from("preparations")
+      .select("prepared_at, name, storage_type, internal_expiry, ingredients_text, notes")
+      .eq("user_id", user!.id)
+      .gte("prepared_at", `${start}T00:00:00`)
+      .lt("prepared_at", `${end}T00:00:00`)
+      .order("prepared_at", { ascending: true });
+    return (data ?? []) as any[];
+  }
+
   function tempTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
       startY: 52,
@@ -266,6 +307,90 @@ export default function Reports() {
     });
   }
 
+  function blastTable(doc: jsPDF, rows: any[]) {
+    autoTable(doc, {
+      startY: 52,
+      head: [["Inizio", "Fine", "Prodotto", "Ciclo", "Abbattitore", "T. inizio", "T. fine", "Esito", "Note"]],
+      body: rows.map((r) => [
+        new Date(r.started_at).toLocaleString("it-IT"),
+        r.ended_at ? new Date(r.ended_at).toLocaleString("it-IT") : "Da completare",
+        r.product_name ?? "—",
+        r.cycle_type === "positive" ? "+3°C" : "-18°C",
+        r.assets?.name ?? "—",
+        r.temp_start != null ? `${r.temp_start}°C` : "—",
+        r.temp_end != null ? `${r.temp_end}°C` : "—",
+        r.outcome === "ok" ? "Conforme" : "Anomalia",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 7.5, cellPadding: 1.5 },
+      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index === 7 && data.cell.raw === "Anomalia") {
+          data.cell.styles.textColor = [200, 30, 30];
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+  }
+
+  function holdingTable(doc: jsPDF, rows: any[]) {
+    autoTable(doc, {
+      startY: 52,
+      head: [["Data/ora", "Prodotto", "Modalità", "Attrezzatura", "Temp.", "Esito", "Note"]],
+      body: rows.map((r) => [
+        new Date(r.recorded_at).toLocaleString("it-IT"),
+        r.product_name ?? "—",
+        r.mode === "hot" ? "Caldo" : "Freddo",
+        r.assets?.name ?? "—",
+        r.temperature != null ? `${r.temperature}°C` : "—",
+        r.outcome === "ok" ? "Conforme" : "Anomalia",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index === 5 && data.cell.raw === "Anomalia") {
+          data.cell.styles.textColor = [200, 30, 30];
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+  }
+
+  function oilTable(doc: jsPDF, rows: any[]) {
+    autoTable(doc, {
+      startY: 52,
+      head: [["Data/ora", "Friggitrice", "Azione", "Comp. polari %", "Esito", "Note"]],
+      body: rows.map((r) => [
+        new Date(r.checked_at).toLocaleString("it-IT"),
+        r.fryer_name ?? r.assets?.name ?? "—",
+        r.action === "change" ? "Sostituzione" : r.action === "filter" ? "Filtraggio" : "Verifica",
+        r.polar_compounds != null ? `${r.polar_compounds}%` : "—",
+        r.outcome === "ok" ? "Conforme" : "Anomalia",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 8, cellPadding: 2 },
+      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+    });
+  }
+
+  function preparationsTable(doc: jsPDF, rows: any[]) {
+    autoTable(doc, {
+      startY: 52,
+      head: [["Data/ora", "Preparazione", "Conservazione", "Scadenza interna", "Ingredienti", "Note"]],
+      body: rows.map((r) => [
+        new Date(r.prepared_at).toLocaleString("it-IT"),
+        r.name ?? "—",
+        r.storage_type === "frigo" ? "Frigo" : r.storage_type === "freezer" ? "Freezer" : r.storage_type ?? "—",
+        r.internal_expiry ? new Date(r.internal_expiry).toLocaleString("it-IT") : "—",
+        r.ingredients_text ?? "—",
+        r.notes ?? "",
+      ]),
+      styles: { fontSize: 7.5, cellPadding: 1.5 },
+      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+    });
+  }
+
   function emptyMsg(doc: jsPDF, text: string) {
     doc.setFontSize(11);
     doc.setTextColor(120);
@@ -297,11 +422,28 @@ export default function Reports() {
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable);
       } else if (kind === "incoming") {
         await addSection("Registro ingresso merci", () => fetchIncoming(start, end), incomingTable);
+      } else if (kind === "blast_chillings") {
+        await addSection("Registro abbattimenti", () => fetchBlastChillings(start, end), blastTable);
+      } else if (kind === "holding") {
+        await addSection("Registro mantenimento caldo/freddo", () => fetchHolding(start, end), holdingTable);
+      } else if (kind === "oil_checks") {
+        await addSection("Registro controllo olio frittura", () => fetchOilChecks(start, end), oilTable);
+      } else if (kind === "preparations") {
+        await addSection("Registro preparazioni / mise en place", () => fetchPreparations(start, end), preparationsTable);
+      } else if (kind === "kitchen") {
+        await addSection("Registro abbattimenti", () => fetchBlastChillings(start, end), blastTable);
+        await addSection("Registro mantenimento caldo/freddo", () => fetchHolding(start, end), holdingTable, true);
+        await addSection("Registro controllo olio frittura", () => fetchOilChecks(start, end), oilTable, true);
+        await addSection("Registro preparazioni / mise en place", () => fetchPreparations(start, end), preparationsTable, true);
       } else if (kind === "full") {
         await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable);
         await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, true);
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable, true);
         await addSection("Registro ingresso merci", () => fetchIncoming(start, end), incomingTable, true);
+        await addSection("Registro abbattimenti", () => fetchBlastChillings(start, end), blastTable, true);
+        await addSection("Registro mantenimento caldo/freddo", () => fetchHolding(start, end), holdingTable, true);
+        await addSection("Registro controllo olio frittura", () => fetchOilChecks(start, end), oilTable, true);
+        await addSection("Registro preparazioni / mise en place", () => fetchPreparations(start, end), preparationsTable, true);
       }
 
       drawSignatureBlock(doc);
@@ -322,6 +464,10 @@ export default function Reports() {
     { key: "sanitations", title: "Registro sanificazioni", desc: "Sanificazioni effettuate, prodotto usato ed operatore.", icon: Sparkles, tone: "from-emerald-500 to-teal-500" },
     { key: "production", title: "Registro produzioni", desc: "Prodotti realizzati, reparto, lotto interno e tipo di conservazione.", icon: Factory, tone: "from-orange-500 to-amber-500" },
     { key: "incoming", title: "Registro ingresso merci", desc: "DDT, fornitori, lotti, quantità e scadenze delle materie prime.", icon: Package, tone: "from-purple-500 to-fuchsia-500" },
+    { key: "blast_chillings", title: "Registro abbattimenti", desc: "Cicli positivi/negativi, temperature inizio/fine ed esito.", icon: Snowflake, tone: "from-sky-500 to-indigo-500" },
+    { key: "holding", title: "Mantenimento caldo/freddo", desc: "Verifiche di temperatura su prodotti in mantenimento.", icon: Thermometer, tone: "from-rose-500 to-pink-500" },
+    { key: "oil_checks", title: "Controllo olio frittura", desc: "Verifiche, filtraggi e sostituzioni dell'olio di frittura.", icon: Droplet, tone: "from-yellow-500 to-orange-500" },
+    { key: "preparations", title: "Preparazioni cucina", desc: "Mise en place, ingredienti, conservazione e scadenza interna.", icon: ChefHat, tone: "from-emerald-500 to-lime-500" },
   ];
 
   return (
@@ -342,6 +488,16 @@ export default function Reports() {
           >
             {busy === "full" ? <Loader2 className="animate-spin" size={18} /> : <FileDown size={18} />}
             Scarica registro completo
+          </Button>
+          <Button
+            onClick={() => generate("kitchen")}
+            disabled={!!busy}
+            variant="outline"
+            className="gap-2"
+            size="lg"
+          >
+            {busy === "kitchen" ? <Loader2 className="animate-spin" size={18} /> : <ChefHat size={18} />}
+            Registro Cucina
           </Button>
         </div>
       </Card>
