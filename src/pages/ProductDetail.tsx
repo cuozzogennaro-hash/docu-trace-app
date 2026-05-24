@@ -1188,6 +1188,31 @@ ${labelsHtml}
 
     y = (doc as any).lastAutoTable.finalY + 10;
 
+    if (blastChillings.length > 0) {
+      doc.setFontSize(13);
+      doc.text("Abbattimenti", 14, y);
+      y += 6;
+      autoTable(doc, {
+        startY: y,
+        head: [["Ciclo", "T inizio", "T fine", "Inizio", "Fine", "Durata", "Esito"]],
+        body: blastChillings.map((b) => {
+          const dur = b.ended_at ? Math.round((new Date(b.ended_at).getTime() - new Date(b.started_at).getTime()) / 60000) + " min" : "—";
+          return [
+            b.cycle_type === "negative" ? "Negativo (-18°C)" : "Positivo (+3°C)",
+            b.temp_start != null ? `${b.temp_start}°C` : "—",
+            b.temp_end != null ? `${b.temp_end}°C` : "—",
+            b.started_at ? new Date(b.started_at).toLocaleString("it-IT") : "—",
+            b.ended_at ? new Date(b.ended_at).toLocaleString("it-IT") : "In corso",
+            dur,
+            b.outcome === "ok" ? "Conforme" : "Anomalia",
+          ];
+        }),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
     if (ingredients.length > 0) {
       doc.setFontSize(13);
       doc.text("Materie prime utilizzate", 14, y);
