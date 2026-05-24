@@ -28,6 +28,7 @@ export default function ProductDetail() {
   const { operator } = useOperatorSession();
   const [product, setProduct] = useState<any>(null);
   const [ingredients, setIngredients] = useState<any[]>([]);
+  const [blastChillings, setBlastChillings] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [labelTemplates, setLabelTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
