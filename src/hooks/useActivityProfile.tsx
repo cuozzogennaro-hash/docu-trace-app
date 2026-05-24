@@ -96,6 +96,18 @@ export function recurringLabel(profile: ActivityProfile | null): string {
   return profile === "ristorazione" ? "Ricette ricorrenti" : "Lavorazioni ricorrenti";
 }
 
+/**
+ * Etichetta dinamica della voce "Prodotti" in Archivio in base al profilo.
+ * - ristorazione → "Ricette"
+ * - misto → "Lavorazioni/Ricette"
+ * - laboratorio → "Prodotti"
+ */
+export function archiveProductsLabel(profile: ActivityProfile | null): string {
+  if (profile === "ristorazione") return "Ricette";
+  if (profile === "misto") return "Lavorazioni/Ricette";
+  return "Prodotti";
+}
+
 /** I profili in cui il reparto Cucina è un reparto a tutti gli effetti. */
 export function hasKitchen(profile: ActivityProfile | null): boolean {
   return profile === "ristorazione" || profile === "misto";

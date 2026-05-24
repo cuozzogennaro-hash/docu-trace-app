@@ -17,6 +17,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { useActivityProfile, archiveProductsLabel } from "@/hooks/useActivityProfile";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 
@@ -90,6 +91,8 @@ export default function Archive() {
     (Object.keys(CONFIGS) as TableKey[]).includes(initialTab) ? initialTab : "raw_materials"
   );
   const { company } = useCompany();
+  const { profile } = useActivityProfile();
+  const productsTabLabel = archiveProductsLabel(profile);
 
   useEffect(() => {
     const q = searchParams.get("tab") as TableKey | null;
@@ -99,18 +102,20 @@ export default function Archive() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  const tabLabel = (k: TableKey) => k === "products" ? productsTabLabel : CONFIGS[k].label;
+
   return (
     <>
       <PageHeader title="Archivio" subtitle="Visualizza, modifica e gestisci tutti i tuoi dati HACCP" />
       <Tabs value={tab} onValueChange={(v) => { setTab(v as TableKey); setSearchParams({ tab: v }, { replace: true }); }}>
         <TabsList className="w-full grid grid-cols-2 lg:grid-cols-5 mb-4 h-auto">
           {(Object.keys(CONFIGS) as TableKey[]).map((k) => (
-            <TabsTrigger key={k} value={k} className="py-2">{CONFIGS[k].label}</TabsTrigger>
+            <TabsTrigger key={k} value={k} className="py-2">{tabLabel(k)}</TabsTrigger>
           ))}
         </TabsList>
         {(Object.keys(CONFIGS) as TableKey[]).map((k) => (
           <TabsContent key={k} value={k}>
-            <ArchiveTable tableKey={k} company={company} />
+            <ArchiveTable tableKey={k} company={company} productsLabel={productsTabLabel} />
           </TabsContent>
         ))}
       </Tabs>
@@ -431,9 +436,11 @@ function generateProductsMonthlyPdf(
   monthLbl: string,
   weeks: { label: string; items: any[] }[],
   company: any,
+  title?: string,
 ) {
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
-  let startY = drawPdfHeader(doc, "Registro Prodotti", monthLbl, company);
+  const headerTitle = title ? `Registro ${title}` : "Registro Prodotti";
+  let startY = drawPdfHeader(doc, headerTitle, monthLbl, company);
   weeks.forEach((w) => {
     if (startY > 250) { doc.addPage(); startY = 20; }
     doc.setFont("helvetica", "bold");
@@ -460,7 +467,7 @@ function generateProductsMonthlyPdf(
   doc.save(`prodotti_${monthKey}.pdf`);
 }
 
-function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any }) {
+function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey; company: any; productsLabel?: string }) {
   const cfg = CONFIGS[tableKey];
   const [rows, setRows] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
@@ -986,7 +993,6 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
   }
 
   if (tableKey === "raw_materials" || tableKey === "products") {
-    const pdfFn = tableKey === "raw_materials" ? generateRawMaterialsMonthlyPdf : generateProductsMonthlyPdf;
     return (
       <>
         {SearchBar}
@@ -1008,7 +1014,11 @@ function ArchiveTable({ tableKey, company }: { tableKey: TableKey; company: any 
                       size="sm"
                       variant="outline"
                       className="gap-1.5"
-                      onClick={() => pdfFn(mg.monthKey, mg.monthLabel, mg.weeks, company)}
+                      onClick={() =>
+                        tableKey === "raw_materials"
+                          ? generateRawMaterialsMonthlyPdf(mg.monthKey, mg.monthLabel, mg.weeks, company)
+                          : generateProductsMonthlyPdf(mg.monthKey, mg.monthLabel, mg.weeks, company, productsLabel)
+                      }
                     >
                       <FileDown size={14} /> PDF
                     </Button>
