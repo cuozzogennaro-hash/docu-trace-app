@@ -14,6 +14,9 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { productionLabel, useActivityProfile } from "@/hooks/useActivityProfile";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
@@ -24,6 +27,8 @@ const CATEGORY_LABELS: Record<string, string> = {
 export default function Production() {
   const { session } = useAuth();
   const { operator } = useOperatorSession();
+  const { profile } = useActivityProfile();
+  const pageLabel = productionLabel(profile);
   const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
   const [name, setName] = useState("");
   const [prodDate, setProdDate] = useState(new Date().toISOString().slice(0, 10));
@@ -32,6 +37,8 @@ export default function Production() {
   const [productDeptId, setProductDeptId] = useState<string>("");
   const [meatType, setMeatType] = useState<"fresh" | "preparato">("fresh");
   const [preservationType, setPreservationType] = useState<"fresh" | "vacuum">("vacuum");
+  const [requiresBlastChilling, setRequiresBlastChilling] = useState(false);
+  const [manualIngredients, setManualIngredients] = useState("");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
