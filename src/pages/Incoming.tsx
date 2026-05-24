@@ -177,6 +177,8 @@ export default function Incoming() {
       slaughteredIn: r.slaughtered_in ?? "",
       slaughterMark: r.slaughter_mark ?? "",
       ingredients: r.ingredients ?? "",
+      intakeTemperature: "",
+      intakeStorageMode: "refrigerated",
     };
   }
 
