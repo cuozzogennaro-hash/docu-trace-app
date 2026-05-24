@@ -91,6 +91,8 @@ export default function Archive() {
     (Object.keys(CONFIGS) as TableKey[]).includes(initialTab) ? initialTab : "raw_materials"
   );
   const { company } = useCompany();
+  const { profile } = useActivityProfile();
+  const productsTabLabel = archiveProductsLabel(profile);
 
   useEffect(() => {
     const q = searchParams.get("tab") as TableKey | null;
@@ -100,18 +102,20 @@ export default function Archive() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [searchParams]);
 
+  const tabLabel = (k: TableKey) => k === "products" ? productsTabLabel : CONFIGS[k].label;
+
   return (
     <>
       <PageHeader title="Archivio" subtitle="Visualizza, modifica e gestisci tutti i tuoi dati HACCP" />
       <Tabs value={tab} onValueChange={(v) => { setTab(v as TableKey); setSearchParams({ tab: v }, { replace: true }); }}>
         <TabsList className="w-full grid grid-cols-2 lg:grid-cols-5 mb-4 h-auto">
           {(Object.keys(CONFIGS) as TableKey[]).map((k) => (
-            <TabsTrigger key={k} value={k} className="py-2">{CONFIGS[k].label}</TabsTrigger>
+            <TabsTrigger key={k} value={k} className="py-2">{tabLabel(k)}</TabsTrigger>
           ))}
         </TabsList>
         {(Object.keys(CONFIGS) as TableKey[]).map((k) => (
           <TabsContent key={k} value={k}>
-            <ArchiveTable tableKey={k} company={company} />
+            <ArchiveTable tableKey={k} company={company} productsLabel={productsTabLabel} />
           </TabsContent>
         ))}
       </Tabs>
