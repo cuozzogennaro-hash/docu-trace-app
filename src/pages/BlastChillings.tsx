@@ -22,7 +22,7 @@ import {
   AlertDialogHeader,
   AlertDialogTitle,
 } from "@/components/ui/alert-dialog";
-import { Snowflake, Printer, ShieldCheck, Play, Square, Trash2 } from "lucide-react";
+import { Snowflake, Printer, ShieldCheck, Play, Square, Trash2, AlertCircle, CheckCircle2 } from "lucide-react";
 import { toast } from "sonner";
 
 function nowLocal() {
@@ -50,6 +50,40 @@ export default function BlastChillings() {
   const [pinOpen, setPinOpen] = useState(false);
   const [printItem, setPrintItem] = useState<BlastChilling | null>(null);
   const [deleteItem, setDeleteItem] = useState<BlastChilling | null>(null);
+  const [completeItem, setCompleteItem] = useState<BlastChilling | null>(null);
+  const [completeTempEnd, setCompleteTempEnd] = useState("");
+  const [completeAssetId, setCompleteAssetId] = useState("");
+  const [completePinOpen, setCompletePinOpen] = useState(false);
+
+  const pendingRows = useMemo(() => rows.filter((r) => !r.ended_at), [rows]);
+  const completedRows = useMemo(() => rows.filter((r) => r.ended_at), [rows]);
+
+  function openComplete(item: BlastChilling) {
+    setCompleteItem(item);
+    setCompleteTempEnd("");
+    setCompleteAssetId(item.asset_id ?? "");
+  }
+
+  async function confirmComplete(op: { id: string; name: string }) {
+    if (!completeItem) return;
+    const targetTemp = completeItem.cycle_type === "positive" ? 3 : -18;
+    const tEnd = completeTempEnd ? Number(completeTempEnd) : null;
+    const outcome = tEnd != null && tEnd > targetTemp + 1 ? "anomaly" : "ok";
+    const { error } = await (supabase as any)
+      .from("blast_chillings")
+      .update({
+        ended_at: new Date().toISOString(),
+        temp_end: tEnd,
+        asset_id: completeAssetId || completeItem.asset_id,
+        operator_id: op.id,
+        outcome,
+      })
+      .eq("id", completeItem.id);
+    if (error) return toast.error(error.message);
+    toast.success(`Abbattimento completato da ${op.name}`);
+    setCompleteItem(null);
+    reload();
+  }
 
   function reset() {
     setProductName(""); setTempStart(""); setTempEnd(""); setEndedAt(""); setNotes("");
@@ -100,6 +134,35 @@ export default function BlastChillings() {
   return (
     <>
       <PageHeader title="Abbattimenti" subtitle="Registro cicli di abbattimento positivo/negativo (HACCP)" />
+
+      {pendingRows.length > 0 && (
+        <Card className="p-5 shadow-soft mb-6 border-amber-500/40 bg-amber-500/5">
+          <div className="flex items-center gap-2 mb-3">
+            <AlertCircle size={18} className="text-amber-600" />
+            <h3 className="font-display font-bold">Abbattimenti da completare ({pendingRows.length})</h3>
+          </div>
+          <p className="text-xs text-muted-foreground mb-3">Cicli generati automaticamente dalle ricette/lavorazioni con flag "Richiede abbattimento". Inserisci temperatura finale e abbattitore per chiudere il ciclo.</p>
+          <div className="space-y-2">
+            {pendingRows.map((r) => (
+              <div key={r.id} className="flex items-start justify-between gap-3 p-3 rounded-lg bg-background border">
+                <div className="min-w-0">
+                  <div className="font-semibold truncate">{r.product_name}</div>
+                  <div className="text-xs text-muted-foreground mt-0.5">
+                    Aperto: {new Date(r.started_at).toLocaleString("it-IT")}
+                    {r.notes && ` • ${r.notes}`}
+                  </div>
+                  <Badge variant="secondary" className="mt-2">
+                    {r.cycle_type === "positive" ? "Positivo +3°C" : "Negativo -18°C"}
+                  </Badge>
+                </div>
+                <Button size="sm" className="gap-1.5 bg-gradient-primary shrink-0" onClick={() => openComplete(r)}>
+                  <CheckCircle2 size={14} /> Completa
+                </Button>
+              </div>
+            ))}
+          </div>
+        </Card>
+      )}
 
       <Card className="p-5 shadow-soft mb-6">
         <div className="grid lg:grid-cols-2 gap-4">
@@ -157,7 +220,7 @@ export default function BlastChillings() {
 
       <h3 className="font-display font-semibold mb-3 flex items-center gap-2"><Snowflake size={16} /> Ultimi abbattimenti</h3>
       <div className="space-y-2">
-        {rows.map((r) => {
+        {completedRows.map((r) => {
           const duration = r.ended_at ? Math.round((new Date(r.ended_at).getTime() - new Date(r.started_at).getTime()) / 60000) : null;
           return (
             <Card key={r.id} className="p-4 flex items-start justify-between gap-3">
@@ -188,7 +251,7 @@ export default function BlastChillings() {
             </Card>
           );
         })}
-        {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessun abbattimento registrato.</p>}
+        {completedRows.length === 0 && pendingRows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessun abbattimento registrato.</p>}
       </div>
 
       {printItem && (
@@ -229,6 +292,46 @@ export default function BlastChillings() {
           </AlertDialogFooter>
         </AlertDialogContent>
       </AlertDialog>
+
+      <AlertDialog open={!!completeItem} onOpenChange={(v) => !v && setCompleteItem(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Completa abbattimento</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div>
+                {completeItem && (
+                  <div className="mb-3">
+                    <strong>{completeItem.product_name}</strong> — {completeItem.cycle_type === "positive" ? "Positivo (+3°C)" : "Negativo (-18°C)"}
+                  </div>
+                )}
+                <div className="space-y-3 mt-2">
+                  <div className="space-y-1.5">
+                    <Label>Abbattitore</Label>
+                    <Select value={completeAssetId} onValueChange={setCompleteAssetId}>
+                      <SelectTrigger><SelectValue placeholder="Seleziona attrezzatura" /></SelectTrigger>
+                      <SelectContent>
+                        {blastChillers.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1.5">
+                    <Label>Temperatura finale °C</Label>
+                    <Input type="number" step="0.1" value={completeTempEnd} onChange={(e) => setCompleteTempEnd(e.target.value)} placeholder={completeItem?.cycle_type === "positive" ? "es. 3" : "es. -18"} />
+                  </div>
+                </div>
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Annulla</AlertDialogCancel>
+            <AlertDialogAction onClick={() => setCompletePinOpen(true)} className="bg-gradient-primary">
+              Identifica e chiudi
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
+
+      <OperatorPinDialog open={completePinOpen} onOpenChange={setCompletePinOpen} onConfirm={confirmComplete} title="Chi ha completato l'abbattimento?" />
     </>
   );
 }
