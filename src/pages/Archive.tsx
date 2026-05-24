@@ -1015,7 +1015,11 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
                       size="sm"
                       variant="outline"
                       className="gap-1.5"
-                      onClick={() => pdfFn(mg.monthKey, mg.monthLabel, mg.weeks, company)}
+                      onClick={() =>
+                        tableKey === "raw_materials"
+                          ? generateRawMaterialsMonthlyPdf(mg.monthKey, mg.monthLabel, mg.weeks, company)
+                          : generateProductsMonthlyPdf(mg.monthKey, mg.monthLabel, mg.weeks, company, productsLabel)
+                      }
                     >
                       <FileDown size={14} /> PDF
                     </Button>
