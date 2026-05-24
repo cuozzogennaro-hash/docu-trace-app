@@ -68,15 +68,33 @@ export const NAV_VISIBILITY: Record<ActivityProfile, Set<string>> = {
   ristorazione: new Set([
     "/", "/sanificazione", "/temperature",
     "/ingresso", "/archivio",
-    "/abbattimenti", "/preparati", "/mantenimento", "/frittura", "/menu",
+    "/produzione", "/ricorrenti", "/menu",
     "/acquisti",
     "/non-conformita", "/report", "/impostazioni",
   ]),
   misto: new Set([
     "/", "/sanificazione", "/temperature",
     "/ingresso", "/produzione", "/archivio", "/ricorrenti",
-    "/abbattimenti", "/preparati", "/mantenimento", "/frittura", "/menu",
+    "/menu",
     "/clienti", "/acquisti",
     "/non-conformita", "/report", "/impostazioni",
   ]),
 };
+
+/**
+ * Etichetta dinamica della voce "Produzione" in base al profilo.
+ * - ristorazione → "Ricette"
+ * - altri → "Lavorazioni"
+ */
+export function productionLabel(profile: ActivityProfile | null): string {
+  return profile === "ristorazione" ? "Ricette" : "Lavorazioni";
+}
+
+export function recurringLabel(profile: ActivityProfile | null): string {
+  return profile === "ristorazione" ? "Ricette ricorrenti" : "Lavorazioni ricorrenti";
+}
+
+/** I profili in cui il reparto Cucina è un reparto a tutti gli effetti. */
+export function hasKitchen(profile: ActivityProfile | null): boolean {
+  return profile === "ristorazione" || profile === "misto";
+}
