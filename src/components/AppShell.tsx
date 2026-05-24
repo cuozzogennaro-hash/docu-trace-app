@@ -45,6 +45,7 @@ function buildAdminGroups(profile: ReturnType<typeof useActivityProfile>["profil
     key: "cucina",
     label: "Cucina",
     items: [
+      { to: "/produzione", icon: Factory, label: prodLabel },
       { to: "/abbattimenti", icon: Snowflake, label: "Abbattimenti" },
       { to: "/preparati", icon: ChefHat, label: "Mise en place" },
       { to: "/mantenimento", icon: Flame, label: "Mantenimento" },
@@ -56,7 +57,6 @@ function buildAdminGroups(profile: ReturnType<typeof useActivityProfile>["profil
     key: "produzione",
     label: "Produzione & Vendita",
     items: [
-      { to: "/produzione", icon: Factory, label: prodLabel },
       { to: "/clienti", icon: Users, label: "Clienti & Vendite" },
       { to: "/acquisti", icon: ShoppingCart, label: "Lista acquisti" },
     ],
