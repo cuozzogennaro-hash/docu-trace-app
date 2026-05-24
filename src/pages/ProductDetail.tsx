@@ -78,6 +78,14 @@ export default function ProductDetail() {
 
       setIngredients((links ?? []).map((l: any) => l.raw_materials).filter(Boolean));
 
+      // Load related blast chillings
+      const { data: bcRows } = await (supabase as any)
+        .from("blast_chillings")
+        .select("*")
+        .eq("product_id", id)
+        .order("started_at", { ascending: false });
+      setBlastChillings(bcRows ?? []);
+
       // Load label templates
       const { data: { user } } = await supabase.auth.getUser();
       if (user) {
