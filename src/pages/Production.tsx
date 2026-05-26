@@ -37,6 +37,7 @@ export default function Production() {
   const [productDeptId, setProductDeptId] = useState<string>("");
   const [meatType, setMeatType] = useState<"fresh" | "preparato">("fresh");
   const [preservationType, setPreservationType] = useState<"fresh" | "vacuum">("vacuum");
+  const [macelleriaPreservation, setMacelleriaPreservation] = useState<"vaschetta" | "vacuum">("vaschetta");
   const [storageMode, setStorageMode] = useState<"refrigerato" | "abbattuto" | "surgelato">("refrigerato");
   const [requiresBlastChilling, setRequiresBlastChilling] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
@@ -118,7 +119,11 @@ export default function Production() {
       return toast.error("Seleziona almeno un ingrediente o scrivili manualmente");
     }
     const meat_type = isMacelleria(productDeptId) ? meatType : null;
-    const preservation_type = isSalumeria(productDeptId) ? preservationType : storageMode;
+    const preservation_type = isMacelleria(productDeptId)
+      ? macelleriaPreservation
+      : isSalumeria(productDeptId)
+      ? preservationType
+      : storageMode;
     const needsBlast = requiresBlastChilling || storageMode === "abbattuto" || storageMode === "surgelato";
     if (isOperatorAdmin && operator) {
       const { data, error } = await supabase.rpc("operator_admin_insert_product", {
@@ -136,7 +141,7 @@ export default function Production() {
       const res: any = data;
       if (error || !res?.ok) return toast.error(error?.message || res?.error || "Errore");
       toast.success(`Prodotto creato • ${lot}`);
-      setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh"); setPreservationType("vacuum");
+      setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh"); setPreservationType("vacuum"); setMacelleriaPreservation("vaschetta");
       setRequiresBlastChilling(false); setManualIngredients("");
       setLot(generateInternalLot("P", new Date()));
       load();
@@ -180,6 +185,7 @@ export default function Production() {
     setSelected(new Set());
     setMeatType("fresh");
     setPreservationType("vacuum");
+    setMacelleriaPreservation("vaschetta");
     setStorageMode("refrigerato");
     setRequiresBlastChilling(false);
     setManualIngredients("");
@@ -259,6 +265,19 @@ export default function Production() {
                 ? "In etichetta: Nato in / Allevato in / Macellato in + Bollo CE."
                 : "In etichetta: stringa semplificata con origine prevalente (es. \"Carni suine origine: UE\")."}
             </p>
+            <div className="pt-2">
+              <Label className="text-xs font-semibold text-orange-900">Confezionamento *</Label>
+              <Select value={macelleriaPreservation} onValueChange={(v: "vaschetta" | "vacuum") => setMacelleriaPreservation(v)}>
+                <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vaschetta">In vaschetta</SelectItem>
+                  <SelectItem value="vacuum">Sottovuoto</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-orange-900/80 mt-1">
+                Default <strong>vaschetta</strong>. Seleziona <strong>sottovuoto</strong> solo se il prodotto viene confezionato sottovuoto.
+              </p>
+            </div>
           </div>
         )}
 
