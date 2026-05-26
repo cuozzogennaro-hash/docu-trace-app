@@ -1,0 +1,2 @@
+ALTER TABLE public.products DROP CONSTRAINT IF EXISTS products_preservation_type_check;
+ALTER TABLE public.products ADD CONSTRAINT products_preservation_type_check CHECK (preservation_type = ANY (ARRAY['fresh'::text, 'vacuum'::text, 'vaschetta'::text, 'refrigerato'::text, 'abbattuto'::text, 'surgelato'::text]));
