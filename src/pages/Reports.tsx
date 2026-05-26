@@ -279,7 +279,13 @@ export default function Reports() {
         r.name ?? "—",
         r.departments?.name ?? "—",
         r.internal_lot ?? "—",
-        r.preservation_type === "fresh" ? "Fresco" : r.preservation_type === "vacuum" ? "Sottovuoto" : "—",
+        r.preservation_type === "fresh" ? "Fresco" :
+        r.preservation_type === "vacuum" ? "Sottovuoto" :
+        r.preservation_type === "vaschetta" ? "In vaschetta" :
+        r.preservation_type === "refrigerato" ? "Refrigerato" :
+        r.preservation_type === "abbattuto" ? "Abbattuto" :
+        r.preservation_type === "surgelato" ? "Surgelato" :
+        r.preservation_type ?? "—",
         r.notes ?? "",
       ]),
       styles: { fontSize: 8, cellPadding: 2 },
