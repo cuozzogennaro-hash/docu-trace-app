@@ -57,7 +57,7 @@ function hoursBetween(from: string, to: string) {
   return Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 3600000));
 }
 
-export default function Preparations({ embedded = false }: { embedded?: boolean } = {}) {
+export default function Preparations({ embedded = false, departmentId }: { embedded?: boolean; departmentId?: string } = {}) {
   const { allergens } = useAllergens();
   const { rows, reload, remove } = usePreparations();
   const { rows: recurring, save: saveRecurring, touch: touchRecurring, remove: removeRecurring } = useRecurringPreparations();
@@ -164,6 +164,28 @@ export default function Preparations({ embedded = false }: { embedded?: boolean 
       notes: notes ? `${notes} • Lotto ${lot}` : `Lotto ${lot}`,
     });
     if (error) return toast.error(error.message);
+
+    // Se la lavorazione proviene dal reparto Cucina, registra anche un record
+    // in `products` cosi compare in Archivio Generale → Lavorazioni/Ricette
+    // come per gli altri reparti.
+    if (departmentId) {
+      try {
+        await (supabase as any).from("products").insert({
+          user_id: user.id,
+          operator_id: op.id,
+          name,
+          production_date: new Date(preparedAt).toISOString().slice(0, 10),
+          internal_lot: lot,
+          department_id: departmentId,
+          preservation_type: storage === "freezer" ? "freezer" : storage === "ambiente" ? "ambiente" : "frigo",
+          requires_blast_chilling: requiresBlast,
+          manual_ingredients: ingredientsText || null,
+          notes: notes || null,
+        });
+      } catch {
+        // non bloccante: la preparazione è gia stata salvata
+      }
+    }
 
     // Apri scheda Abbattimento (se richiesto) o direttamente Mantenimento.
     // Se richiede entrambi, apri solo abbattimento ora; la scheda Mantenimento
