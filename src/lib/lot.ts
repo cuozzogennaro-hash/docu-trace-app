@@ -1,6 +1,6 @@
 // Generate internal lot code: DDMMYY-XX
 // date param: arrival date for raw materials, production date for products
-export function generateInternalLot(prefix: "L" | "P" = "L", date?: Date): string {
+export function generateInternalLot(prefix: "L" | "P" | "R" = "L", date?: Date): string {
   const d = date ?? new Date();
   const yy = String(d.getFullYear()).slice(-2);
   const mm = String(d.getMonth() + 1).padStart(2, "0");

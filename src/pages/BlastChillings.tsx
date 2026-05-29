@@ -77,6 +77,10 @@ export default function BlastChillings() {
     const targetTemp = completeCycleType === "positive" ? 3 : -18;
     const tEnd = completeTempEnd ? Number(completeTempEnd) : null;
     const outcome = tEnd != null && tEnd > targetTemp + 1 ? "anomaly" : "ok";
+    // Se l'abbattimento è stato generato da Cucina con flag [CONS:hot|cold],
+    // al termine del ciclo apriamo automaticamente la scheda in Mantenimento.
+    const consMatch = (completeItem.notes || "").match(/\[CONS:(hot|cold|regeneration)\]/);
+    const cleanedNotes = (completeItem.notes || "").replace(/\s*\[CONS:[^\]]+\]\s*/, "").trim() || null;
     const { error } = await (supabase as any)
       .from("blast_chillings")
       .update({
@@ -88,9 +92,25 @@ export default function BlastChillings() {
         asset_id: completeAssetId || completeItem.asset_id,
         operator_id: op.id,
         outcome,
+        notes: cleanedNotes,
       })
       .eq("id", completeItem.id);
     if (error) return toast.error(error.message);
+    if (consMatch) {
+      const mode = consMatch[1] as "hot" | "cold" | "regeneration";
+      const { data: { user } } = await supabase.auth.getUser();
+      if (user) {
+        await (supabase as any).from("holding_records").insert({
+          user_id: user.id,
+          operator_id: op.id,
+          product_name: completeItem.product_name,
+          mode,
+          outcome: "ok",
+          notes: `Generato da Abbattimento completato`,
+        });
+        toast.message("Scheda mantenimento aperta", { description: "Registra le rilevazioni in Mantenimento." });
+      }
+    }
     toast.success(`Abbattimento completato da ${op.name}`);
     setCompleteItem(null);
     reload();
