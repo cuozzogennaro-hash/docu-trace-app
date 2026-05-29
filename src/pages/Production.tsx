@@ -234,10 +234,6 @@ export default function Production() {
       <Card className="p-5 mb-6 shadow-soft">
         <div className="grid lg:grid-cols-2 gap-4">
           <div className="space-y-2">
-            <Label>Nome prodotto</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ragù della casa" />
-          </div>
-          <div className="space-y-2">
             <Label>Reparto *</Label>
             <Select value={productDeptId} onValueChange={setProductDeptId}>
               <SelectTrigger><SelectValue placeholder={departments.length === 0 ? "Crea reparto in Impostazioni" : "Seleziona reparto"} /></SelectTrigger>
@@ -247,6 +243,10 @@ export default function Production() {
                 ))}
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2">
+            <Label>Nome prodotto</Label>
+            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ragù della casa" />
           </div>
           {!isCucina(productDeptId) && (
           <>
