@@ -416,6 +416,11 @@ export default function ProductDetail() {
     ).toLowerCase().trim();
     const isSalumeria = productDeptName.startsWith("salum");
     const isMacelleria = productDeptName.startsWith("macel");
+    const isCucina = productDeptName.startsWith("cucin");
+    // Per il reparto Cucina applichiamo la stessa logica dei "Preparati /
+    // Trasformati (Multicomponente)" della Macelleria: meat traceability
+    // aggregata in una riga "Carne origine: IT/UE" e avviso di conservazione.
+    const effectiveMeatType: string | null = isCucina ? "preparato" : productMeatType;
     // Macelleria + Carne Fresca (monocomponente): in etichetta il lotto stampato
     // deve essere quello del produttore (supplier_lot) inserito in ingresso merce,
     // non il lotto interno del prodotto.
@@ -443,7 +448,7 @@ export default function ProductDetail() {
     const prepCountries = new Set<string>();
     for (const m of ingredients as any[]) {
       const name = m.product_name || "carne";
-      if (productMeatType === "preparato") {
+      if (effectiveMeatType === "preparato") {
         [m.born_in, m.raised_in, m.slaughtered_in].forEach((v: string | null) => {
           const t = (v || "").trim();
           if (t) prepCountries.add(t);
@@ -472,7 +477,7 @@ export default function ProductDetail() {
       }
     });
     const traceLines: string[] = [];
-    if (productMeatType === "preparato" && prepCountries.size > 0) {
+    if (effectiveMeatType === "preparato" && prepCountries.size > 0) {
       const norm = [...prepCountries].map((c) => c.toLowerCase().trim());
       const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
       traceLines.push(`Carne origine: ${allItaly ? "IT" : "UE"}`);
@@ -613,9 +618,13 @@ export default function ProductDetail() {
     }
 
     // Data produzione (in basso a sinistra)
-    // Avvisi macelleria (sopra la riga data/lotto), su una sola riga senza wrap
-    if (productMeatType) {
-      const _noticeKey = productMeatType === "preparato" ? "macelleria_preparato" : "macelleria_fresh";
+    // Avvisi (sopra la riga data/lotto), su una sola riga senza wrap.
+    // Macelleria → regole macelleria_fresh / macelleria_preparato.
+    // Cucina    → stessa logica del preparato macelleria, regola "cucina".
+    if (productMeatType || isCucina) {
+      const _noticeKey = isCucina
+        ? "cucina"
+        : (productMeatType === "preparato" ? "macelleria_preparato" : "macelleria_fresh");
       const noticeText = ruleParam<string>(_noticeKey, "notice", "text", "Conservare da 0° e +4° — Consumare previa cottura");
       const noticePt = fitPt(noticeText, wMm - 2 * p - safetyR, Math.max(5, footerPt * 0.82), 4, false);
       const noticeH = ptMm(noticePt) * lh;
