@@ -182,13 +182,13 @@ export default function Preparations({ embedded = false }: { embedded?: boolean 
     } else {
       await (supabase as any).from("holding_records").insert({
         user_id: user.id,
-        operator_id: op.id,
+        operator_id: null,
         product_name: labelName,
         mode: holdingMode,
-        outcome: "ok",
-        notes: `Generato da Cucina • Lotto ${lot}`,
+        outcome: "pending",
+        notes: `Da completare — generato da Cucina • Lotto ${lot}`,
       });
-      toast.message("Scheda mantenimento aperta", { description: "Registra le rilevazioni in Mantenimento." });
+      toast.message("Scheda mantenimento aperta", { description: "Da completare in Mantenimento con temperatura e operatore." });
     }
 
     if (selectedRecipe) {

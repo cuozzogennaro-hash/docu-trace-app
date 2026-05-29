@@ -10,7 +10,7 @@ export type HoldingRecord = {
   mode: "hot" | "cold" | "regeneration";
   temperature: number | null;
   recorded_at: string;
-  outcome: "ok" | "anomaly";
+  outcome: "ok" | "anomaly" | "pending";
   notes: string | null;
   created_at: string;
 };

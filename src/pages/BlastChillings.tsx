@@ -102,13 +102,13 @@ export default function BlastChillings() {
       if (user) {
         await (supabase as any).from("holding_records").insert({
           user_id: user.id,
-          operator_id: op.id,
+          operator_id: null,
           product_name: completeItem.product_name,
           mode,
-          outcome: "ok",
-          notes: `Generato da Abbattimento completato`,
+          outcome: "pending",
+          notes: `Da completare — generato da Abbattimento completato`,
         });
-        toast.message("Scheda mantenimento aperta", { description: "Registra le rilevazioni in Mantenimento." });
+        toast.message("Scheda mantenimento aperta", { description: "Da completare in Mantenimento con temperatura e operatore." });
       }
     }
     toast.success(`Abbattimento completato da ${op.name}`);
