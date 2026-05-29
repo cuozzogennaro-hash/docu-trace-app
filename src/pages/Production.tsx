@@ -248,6 +248,8 @@ export default function Production() {
               </SelectContent>
             </Select>
           </div>
+          {!isCucina(productDeptId) && (
+          <>
           <div className="space-y-2">
             <Label>Data produzione</Label>
             <Input type="date" value={prodDate} onChange={(e) => {
@@ -263,7 +265,16 @@ export default function Production() {
             <Label>Note</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
           </div>
+          </>
+          )}
         </div>
+
+        {isCucina(productDeptId) ? (
+          <div className="mt-4">
+            <Preparations embedded />
+          </div>
+        ) : (
+        <>
 
         {isMacelleria(productDeptId) && (
           <div className="mt-4 p-3 rounded-md bg-orange-50 border border-orange-200 space-y-2">
