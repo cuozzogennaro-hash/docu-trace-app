@@ -37,7 +37,7 @@ function buildAdminGroups(profile: ReturnType<typeof useActivityProfile>["profil
     label: "Magazzino",
     items: [
       { to: "/ingresso", icon: Package, label: "Ingresso merci" },
-      { to: "/archivio", icon: Archive, label: "Archivio" },
+      { to: "/archivio", icon: Archive, label: "Archivio Generale" },
       { to: "/ricorrenti", icon: Repeat, label: recLabel },
     ],
   },
