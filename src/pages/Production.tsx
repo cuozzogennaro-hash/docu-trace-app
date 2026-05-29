@@ -17,6 +17,7 @@ import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { productionLabel, useActivityProfile } from "@/hooks/useActivityProfile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
+import Preparations from "@/pages/Preparations";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
@@ -49,12 +50,26 @@ export default function Production() {
   const [openWeeks, setOpenWeeks] = useState<Record<string, boolean>>({ "Questa settimana": true, "Settimana scorsa": false });
   const { departments: deptsFromHook } = useDepartments();
   const [operatorDepts, setOperatorDepts] = useState<any[]>([]);
-  const departments = isOperatorAdmin ? operatorDepts : deptsFromHook;
+  const allDepartments = isOperatorAdmin ? operatorDepts : deptsFromHook;
+  // Per Ristorazione mostra solo il reparto "Cucina"
+  const departments = profile === "ristorazione"
+    ? allDepartments.filter((d) => d.name?.toLowerCase().trim() === "cucina")
+    : allDepartments;
   const navigate = useNavigate();
   const isMacelleria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "macelleria";
   const isSalumeria = (depId: string) =>
     departments.find((d) => d.id === depId)?.name?.toLowerCase().trim().startsWith("salum") ?? false;
+  const isCucina = (depId: string) =>
+    departments.find((d) => d.id === depId)?.name?.toLowerCase().trim() === "cucina";
+
+  // Per Ristorazione: auto-seleziona Cucina appena disponibile
+  useEffect(() => {
+    if (profile === "ristorazione" && !productDeptId && departments.length > 0) {
+      const cucina = departments.find((d) => d.name?.toLowerCase().trim() === "cucina");
+      if (cucina) setProductDeptId(cucina.id);
+    }
+  }, [profile, departments, productDeptId]);
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
