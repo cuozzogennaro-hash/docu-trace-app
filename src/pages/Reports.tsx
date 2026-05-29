@@ -450,6 +450,577 @@ export default function Reports() {
     doc.setTextColor(0);
   }
 
+  // ====================== ASL PACKAGE ======================
+
+  async function fetchOperatorsList() {
+    const { data } = await supabase
+      .from("operators")
+      .select("name, role, is_active, is_admin, created_at")
+      .eq("user_id", user!.id)
+      .order("name");
+    return (data ?? []) as any[];
+  }
+  async function fetchAssetsList() {
+    const { data } = await supabase
+      .from("assets")
+      .select("name, asset_type, target_temp_min, target_temp_max, cleaning_product, department_id")
+      .eq("user_id", user!.id)
+      .order("name");
+    return await attachDepartments(data ?? []);
+  }
+  async function fetchSuppliersList() {
+    const { data } = await supabase
+      .from("suppliers")
+      .select("name, vat")
+      .eq("user_id", user!.id)
+      .order("name");
+    return (data ?? []) as any[];
+  }
+  async function fetchNonConformities(start: string, end: string) {
+    const { data } = await supabase
+      .from("non_conformities")
+      .select("detected_at, area, severity, status, title, description, corrective_action, resolved_at")
+      .eq("user_id", user!.id)
+      .gte("detected_at", `${start}T00:00:00`)
+      .lt("detected_at", `${end}T00:00:00`)
+      .order("detected_at", { ascending: true });
+    return (data ?? []) as any[];
+  }
+
+  function drawAslCover(doc: jsPDF, periodLabel: string, logo: Awaited<ReturnType<typeof logoDataUrl>>) {
+    const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
+    // soft background band
+    doc.setFillColor(245, 247, 250);
+    doc.rect(0, 0, pageW, 70, "F");
+    if (logo) {
+      const maxH = 28;
+      const ratio = logo.w / logo.h;
+      const h = maxH;
+      const w = h * ratio;
+      try { doc.addImage(logo.data, "PNG", (pageW - w) / 2, 22, w, h); } catch {}
+    }
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(22);
+    doc.text("Pacchetto Ispezione HACCP", pageW / 2, 95, { align: "center" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(12);
+    doc.setTextColor(90);
+    doc.text("Documento di autocontrollo — Reg. CE 852/2004 e Reg. UE 1169/2011", pageW / 2, 104, { align: "center" });
+    doc.setTextColor(0);
+
+    // Company block
+    doc.setDrawColor(220);
+    doc.roundedRect(20, 120, pageW - 40, 60, 3, 3, "S");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(14);
+    doc.text(company.business_name ?? "—", 28, 132);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    let y = 140;
+    const lines: string[] = [];
+    if (company.vat) lines.push(`Partita IVA: ${company.vat}`);
+    const addr = [company.address, company.city].filter(Boolean).join(" — ");
+    if (addr) lines.push(addr);
+    if (company.phone) lines.push(`Telefono: ${company.phone}`);
+    if (company.email) lines.push(`Email: ${company.email}`);
+    lines.forEach((l) => { doc.text(l, 28, y); y += 6; });
+
+    // Period block
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Periodo di riferimento", 28, 200);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(14);
+    doc.text(periodLabel, 28, 210);
+
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Data emissione documento", pageW - 28, 200, { align: "right" });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(14);
+    doc.text(new Date().toLocaleDateString("it-IT"), pageW - 28, 210, { align: "right" });
+
+    // Footer note
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      "Il presente documento riepiloga le registrazioni HACCP relative al periodo indicato.\nCostituisce documentazione di autocontrollo ai sensi della normativa vigente.",
+      pageW / 2,
+      pageH - 30,
+      { align: "center" },
+    );
+    doc.setTextColor(0);
+  }
+
+  function drawAslIndex(doc: jsPDF, sections: { title: string; page: number }[]) {
+    const pageW = doc.internal.pageSize.getWidth();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Indice del documento", pageW / 2, 24, { align: "center" });
+    doc.setDrawColor(220);
+    doc.line(20, 30, pageW - 20, 30);
+    doc.setFontSize(11);
+    let y = 44;
+    sections.forEach((s, i) => {
+      doc.setFont("helvetica", "normal");
+      doc.text(`${i + 1}. ${s.title}`, 24, y);
+      // dotted leader
+      const tw = doc.getTextWidth(`${i + 1}. ${s.title}`);
+      const dotsStart = 24 + tw + 4;
+      const dotsEnd = pageW - 30;
+      doc.setTextColor(180);
+      let x = dotsStart;
+      while (x < dotsEnd) { doc.text(".", x, y); x += 2; }
+      doc.setTextColor(0);
+      doc.setFont("helvetica", "bold");
+      doc.text(String(s.page), pageW - 24, y, { align: "right" });
+      y += 8;
+    });
+  }
+
+  function operatorsTable(doc: jsPDF, rows: any[]) {
+    autoTable(doc, {
+      startY: 52,
+      head: [["Nome", "Ruolo", "Stato", "Permessi", "Attivo dal"]],
+      body: rows.map((r) => [
+        r.name ?? "—",
+        r.role ?? "—",
+        r.is_active ? "Attivo" : "Disattivo",
+        r.is_admin ? "Amministratore" : "Operatore",
+        formatDate(r.created_at),
+      ]),
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+    });
+  }
+
+  function assetsTable(doc: jsPDF, rows: any[]) {
+    autoTable(doc, {
+      startY: 52,
+      head: [["Attrezzatura", "Tipo", "Reparto", "Range temp. (°C)", "Prodotto sanificante"]],
+      body: rows.map((r) => [
+        r.name ?? "—",
+        r.asset_type ?? "—",
+        r.departments?.name ?? "—",
+        r.target_temp_min != null && r.target_temp_max != null
+          ? `${r.target_temp_min} / ${r.target_temp_max}`
+          : "—",
+        r.cleaning_product ?? "—",
+      ]),
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+    });
+  }
+
+  function suppliersTable(doc: jsPDF, rows: any[]) {
+    autoTable(doc, {
+      startY: 52,
+      head: [["Fornitore", "P.IVA"]],
+      body: rows.map((r) => [r.name ?? "—", r.vat ?? "—"]),
+      styles: { fontSize: 9, cellPadding: 2.5 },
+      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+    });
+  }
+
+  function ncTable(doc: jsPDF, rows: any[]) {
+    autoTable(doc, {
+      startY: 52,
+      head: [["Data", "Area", "Gravità", "Titolo", "Descrizione", "Azione correttiva", "Stato", "Risolta il"]],
+      body: rows.map((r) => [
+        formatDate(r.detected_at),
+        r.area ?? "—",
+        (r.severity ?? "—").toUpperCase(),
+        r.title ?? "—",
+        r.description ?? "—",
+        r.corrective_action ?? "—",
+        r.status === "open" ? "Aperta" : r.status === "in_progress" ? "In corso" : "Chiusa",
+        formatDate(r.resolved_at),
+      ]),
+      styles: { fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak" },
+      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+      columnStyles: { 3: { cellWidth: 35 }, 4: { cellWidth: 55 }, 5: { cellWidth: 55 } },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.column.index === 2) {
+          const v = String(data.cell.raw ?? "");
+          if (v === "HIGH" || v === "CRITICAL") {
+            data.cell.styles.textColor = [200, 30, 30];
+            data.cell.styles.fontStyle = "bold";
+          }
+        }
+        if (data.section === "body" && data.column.index === 6 && data.cell.raw === "Aperta") {
+          data.cell.styles.textColor = [200, 30, 30];
+          data.cell.styles.fontStyle = "bold";
+        }
+      },
+    });
+  }
+
+  type SummaryStats = {
+    tempTotal: number; tempInRange: number; tempOutOfRange: number;
+    sanitTotal: number;
+    productionTotal: number;
+    incomingTotal: number;
+    blastTotal: number; blastAnomalies: number;
+    holdingTotal: number; holdingAnomalies: number;
+    oilTotal: number; oilAnomalies: number;
+    prepTotal: number;
+    ncTotal: number; ncOpen: number; ncClosed: number;
+  };
+
+  function computeSummary(buckets: {
+    temps: any[]; sanit: any[]; prods: any[]; inc: any[]; blast: any[]; hold: any[]; oils: any[]; preps: any[]; ncs: any[];
+  }): SummaryStats {
+    let inR = 0, outR = 0;
+    buckets.temps.forEach((r) => {
+      const min = r.assets?.target_temp_min;
+      const max = r.assets?.target_temp_max;
+      const t = Number(r.temperature);
+      if (min != null && max != null && !isNaN(t)) {
+        if (t >= Number(min) && t <= Number(max)) inR++; else outR++;
+      }
+    });
+    return {
+      tempTotal: buckets.temps.length,
+      tempInRange: inR,
+      tempOutOfRange: outR,
+      sanitTotal: buckets.sanit.length,
+      productionTotal: buckets.prods.length,
+      incomingTotal: buckets.inc.length,
+      blastTotal: buckets.blast.length,
+      blastAnomalies: buckets.blast.filter((r) => r.outcome !== "ok").length,
+      holdingTotal: buckets.hold.length,
+      holdingAnomalies: buckets.hold.filter((r) => r.outcome !== "ok").length,
+      oilTotal: buckets.oils.length,
+      oilAnomalies: buckets.oils.filter((r) => r.outcome !== "ok").length,
+      prepTotal: buckets.preps.length,
+      ncTotal: buckets.ncs.length,
+      ncOpen: buckets.ncs.filter((r) => r.status === "open" || r.status === "in_progress").length,
+      ncClosed: buckets.ncs.filter((r) => r.status === "closed" || r.resolved_at).length,
+    };
+  }
+
+  function drawSummarySection(doc: jsPDF, s: SummaryStats) {
+    const pageW = doc.internal.pageSize.getWidth();
+    // KPI cards grid 4x2
+    const cards: { label: string; value: string; tone?: "ok" | "warn" | "neutral" }[] = [
+      { label: "Rilevazioni temperatura", value: String(s.tempTotal), tone: "neutral" },
+      { label: "Conformi", value: String(s.tempInRange), tone: "ok" },
+      { label: "Fuori range", value: String(s.tempOutOfRange), tone: s.tempOutOfRange > 0 ? "warn" : "ok" },
+      { label: "Sanificazioni registrate", value: String(s.sanitTotal), tone: "neutral" },
+      { label: "Produzioni / lotti emessi", value: String(s.productionTotal), tone: "neutral" },
+      { label: "Ingressi merce", value: String(s.incomingTotal), tone: "neutral" },
+      { label: "Abbattimenti", value: `${s.blastTotal} (${s.blastAnomalies} anom.)`, tone: s.blastAnomalies > 0 ? "warn" : "ok" },
+      { label: "Holding caldo/freddo", value: `${s.holdingTotal} (${s.holdingAnomalies} anom.)`, tone: s.holdingAnomalies > 0 ? "warn" : "ok" },
+      { label: "Controlli olio frittura", value: `${s.oilTotal} (${s.oilAnomalies} anom.)`, tone: s.oilAnomalies > 0 ? "warn" : "ok" },
+      { label: "Preparazioni / mise en place", value: String(s.prepTotal), tone: "neutral" },
+      { label: "Non conformità aperte", value: String(s.ncOpen), tone: s.ncOpen > 0 ? "warn" : "ok" },
+      { label: "Non conformità chiuse", value: String(s.ncClosed), tone: "ok" },
+    ];
+    const cols = 4;
+    const gap = 4;
+    const margin = 14;
+    const cw = (pageW - margin * 2 - gap * (cols - 1)) / cols;
+    const ch = 22;
+    let x = margin, y = 56;
+    cards.forEach((c, i) => {
+      const col = i % cols;
+      const row = Math.floor(i / cols);
+      x = margin + col * (cw + gap);
+      y = 56 + row * (ch + gap);
+      // tone fill
+      if (c.tone === "warn") doc.setFillColor(254, 242, 242);
+      else if (c.tone === "ok") doc.setFillColor(240, 253, 244);
+      else doc.setFillColor(248, 250, 252);
+      doc.setDrawColor(220);
+      doc.roundedRect(x, y, cw, ch, 2, 2, "FD");
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(14);
+      if (c.tone === "warn") doc.setTextColor(185, 28, 28);
+      else if (c.tone === "ok") doc.setTextColor(21, 128, 61);
+      else doc.setTextColor(30, 41, 59);
+      doc.text(c.value, x + 4, y + 11);
+      doc.setTextColor(80);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(7.5);
+      doc.text(c.label, x + 4, y + 17, { maxWidth: cw - 8 });
+      doc.setTextColor(0);
+    });
+
+    // Conformity rate
+    const rateY = y + ch + 14;
+    const pct = s.tempTotal > 0 ? Math.round((s.tempInRange / s.tempTotal) * 1000) / 10 : 100;
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(11);
+    doc.text("Tasso di conformità temperatura nel periodo", margin, rateY);
+    // bar
+    const barW = pageW - margin * 2;
+    const barH = 8;
+    doc.setFillColor(238, 242, 247);
+    doc.rect(margin, rateY + 4, barW, barH, "F");
+    const fillW = Math.max(0, Math.min(1, pct / 100)) * barW;
+    if (pct >= 95) doc.setFillColor(34, 197, 94);
+    else if (pct >= 80) doc.setFillColor(234, 179, 8);
+    else doc.setFillColor(239, 68, 68);
+    doc.rect(margin, rateY + 4, fillW, barH, "F");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.setTextColor(30);
+    doc.text(`${pct.toFixed(1)}%`, pageW - margin, rateY + 10, { align: "right" });
+    doc.setTextColor(0);
+  }
+
+  function drawSignaturePage(doc: jsPDF, signatureData: string | null) {
+    const pageW = doc.internal.pageSize.getWidth();
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(16);
+    doc.text("Dichiarazione del responsabile dell'autocontrollo", pageW / 2, 28, { align: "center" });
+    doc.setDrawColor(220);
+    doc.line(20, 33, pageW - 20, 33);
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(10);
+    const text =
+      `Il sottoscritto, in qualità di responsabile dell'autocontrollo igienico-sanitario di ${company.business_name ?? "________________"}, ` +
+      `dichiara che le registrazioni contenute nel presente documento sono veritiere, complete e relative alle attività svolte nel periodo indicato in copertina. ` +
+      `Le procedure di autocontrollo sono state attuate secondo il piano HACCP aziendale, in conformità al Reg. CE 852/2004 e successive modifiche. ` +
+      `Eventuali non conformità rilevate sono state oggetto di idonea azione correttiva, come documentato nelle sezioni dedicate del presente fascicolo.`;
+    doc.text(text, 20, 48, { maxWidth: pageW - 40, lineHeightFactor: 1.5 });
+
+    // Signature box
+    const sigBoxY = 110;
+    const sigBoxH = 50;
+    const colW = (pageW - 40 - 10) / 2;
+
+    // Left: place / date
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Luogo e data", 20, sigBoxY);
+    doc.setDrawColor(120);
+    doc.line(20, sigBoxY + sigBoxH, 20 + colW, sigBoxY + sigBoxH);
+    const placeDate = `${company.city ?? ""}${company.city ? ", " : ""}${new Date().toLocaleDateString("it-IT")}`;
+    doc.setFont("helvetica", "normal");
+    doc.text(placeDate, 20, sigBoxY + sigBoxH - 2);
+
+    // Right: signature
+    const rx = 20 + colW + 10;
+    doc.setFont("helvetica", "bold");
+    doc.text("Firma del responsabile", rx, sigBoxY);
+    doc.line(rx, sigBoxY + sigBoxH, rx + colW, sigBoxY + sigBoxH);
+    if (signatureData) {
+      try {
+        // place image above the line
+        doc.addImage(signatureData, "PNG", rx + 4, sigBoxY + 6, colW - 8, sigBoxH - 10);
+      } catch {}
+    }
+
+    // Stamp area
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(10);
+    doc.text("Timbro aziendale", 20, sigBoxY + sigBoxH + 18);
+    doc.setDrawColor(200);
+    doc.roundedRect(20, sigBoxY + sigBoxH + 22, 70, 35, 2, 2, "S");
+  }
+
+  async function handleSignatureFile(file: File) {
+    if (!file) return;
+    if (file.size > 2 * 1024 * 1024) {
+      toast.error("Immagine troppo grande (max 2 MB)");
+      return;
+    }
+    const data: string = await new Promise((resolve, reject) => {
+      const r = new FileReader();
+      r.onloadend = () => resolve(r.result as string);
+      r.onerror = reject;
+      r.readAsDataURL(file);
+    });
+    setAslSignatureData(data);
+    toast.success("Firma caricata");
+  }
+
+  async function generateAslPackage() {
+    if (!user) return;
+    setAslBusy(true);
+    try {
+      const { start, end, label } = aslPeriodRange(aslPeriodKind, aslCustomStart, aslCustomEnd);
+      const logo = await logoDataUrl();
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+
+      // ---- COVER ----
+      drawAslCover(doc, label, logo);
+
+      // ---- Fetch all data ----
+      const [temps, sanit, prods, inc, blast, hold, oils, preps, ncs, operatorsRows, assetsRows, suppliersRows] = await Promise.all([
+        fetchTemperatures(start, end),
+        fetchSanitations(start, end),
+        fetchProduction(start, end),
+        fetchIncoming(start, end),
+        fetchBlastChillings(start, end),
+        fetchHolding(start, end),
+        fetchOilChecks(start, end),
+        fetchPreparations(start, end),
+        aslIncludeNc ? fetchNonConformities(start, end) : Promise.resolve([]),
+        aslIncludeAnagrafiche ? fetchOperatorsList() : Promise.resolve([]),
+        aslIncludeAnagrafiche ? fetchAssetsList() : Promise.resolve([]),
+        aslIncludeAnagrafiche ? fetchSuppliersList() : Promise.resolve([]),
+      ]);
+
+      // Switch to landscape for tables, keep cover/index/signature portrait? Mix is awkward.
+      // To keep it simple: from here on we add landscape pages by re-creating sections with addPage({orientation}).
+      // jsPDF supports per-page orientation via addPage(format, orientation).
+
+      type Section = { title: string; render: () => void; landscape?: boolean };
+      const sections: Section[] = [];
+
+      if (aslIncludeAnagrafiche) {
+        sections.push({
+          title: "Anagrafica operatori",
+          render: () => {
+            drawHeader(doc, "Anagrafica operatori abilitati", label, logo);
+            if (operatorsRows.length === 0) emptyMsg(doc, "Nessun operatore configurato.");
+            else operatorsTable(doc, operatorsRows);
+          },
+          landscape: true,
+        });
+        sections.push({
+          title: "Attrezzature e punti di controllo",
+          render: () => {
+            drawHeader(doc, "Attrezzature e punti di controllo", label, logo);
+            if (assetsRows.length === 0) emptyMsg(doc, "Nessuna attrezzatura configurata.");
+            else assetsTable(doc, assetsRows);
+          },
+          landscape: true,
+        });
+        sections.push({
+          title: "Fornitori",
+          render: () => {
+            drawHeader(doc, "Elenco fornitori", label, logo);
+            if (suppliersRows.length === 0) emptyMsg(doc, "Nessun fornitore registrato.");
+            else suppliersTable(doc, suppliersRows);
+          },
+          landscape: true,
+        });
+      }
+
+      if (aslIncludeSummary) {
+        const summary = computeSummary({ temps, sanit, prods, inc, blast, hold, oils, preps, ncs });
+        sections.push({
+          title: "Sintesi del periodo",
+          render: () => {
+            drawHeader(doc, "Sintesi del periodo", label, logo);
+            drawSummarySection(doc, summary);
+          },
+          landscape: false,
+        });
+      }
+
+      sections.push({ title: "Registro temperature", landscape: true, render: () => { drawHeader(doc, "Registro temperature", label, logo); if (temps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else tempTable(doc, temps); } });
+      sections.push({ title: "Registro sanificazioni", landscape: true, render: () => { drawHeader(doc, "Registro sanificazioni", label, logo); if (sanit.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else sanitTable(doc, sanit); } });
+      sections.push({ title: "Registro produzioni", landscape: true, render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
+      sections.push({ title: "Registro ingresso merci", landscape: true, render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
+      sections.push({ title: "Registro abbattimenti", landscape: true, render: () => { drawHeader(doc, "Registro abbattimenti", label, logo); if (blast.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else blastTable(doc, blast); } });
+      sections.push({ title: "Mantenimento caldo/freddo", landscape: true, render: () => { drawHeader(doc, "Mantenimento caldo/freddo", label, logo); if (hold.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else holdingTable(doc, hold); } });
+      sections.push({ title: "Controllo olio frittura", landscape: true, render: () => { drawHeader(doc, "Controllo olio frittura", label, logo); if (oils.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else oilTable(doc, oils); } });
+      sections.push({ title: "Preparazioni / mise en place", landscape: true, render: () => { drawHeader(doc, "Preparazioni / mise en place", label, logo); if (preps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else preparationsTable(doc, preps); } });
+
+      if (aslIncludeNc) {
+        sections.push({
+          title: "Non conformità e azioni correttive",
+          landscape: true,
+          render: () => {
+            drawHeader(doc, "Non conformità e azioni correttive", label, logo);
+            if (ncs.length === 0) emptyMsg(doc, "Nessuna non conformità rilevata nel periodo selezionato.");
+            else ncTable(doc, ncs);
+          },
+        });
+      }
+
+      sections.push({
+        title: "Dichiarazione e firma",
+        landscape: false,
+        render: () => drawSignaturePage(doc, aslSignatureData),
+      });
+
+      // Reserve index page (page 2)
+      doc.addPage("a4", "portrait");
+      const indexPageNumber = doc.getNumberOfPages();
+
+      // Render sections, recording page numbers
+      const indexEntries: { title: string; page: number }[] = [];
+      for (const s of sections) {
+        doc.addPage("a4", s.landscape ? "landscape" : "portrait");
+        indexEntries.push({ title: s.title, page: doc.getNumberOfPages() });
+        s.render();
+      }
+
+      // Photo appendix
+      if (aslIncludePhotos) {
+        const withPhotos = (inc as any[]).filter((r) => r.document_image_url).slice(0, 30);
+        if (withPhotos.length > 0) {
+          doc.addPage("a4", "portrait");
+          indexEntries.push({ title: "Allegati fotografici DDT", page: doc.getNumberOfPages() });
+          drawHeader(doc, "Allegati fotografici DDT", label, logo);
+          let py = 56;
+          const pageW = doc.internal.pageSize.getWidth();
+          const pageH = doc.internal.pageSize.getHeight();
+          for (const r of withPhotos) {
+            try {
+              const res = await fetch(r.document_image_url);
+              const blob = await res.blob();
+              const data: string = await new Promise((resolve, reject) => {
+                const fr = new FileReader();
+                fr.onloadend = () => resolve(fr.result as string);
+                fr.onerror = reject;
+                fr.readAsDataURL(blob);
+              });
+              const img = await new Promise<HTMLImageElement>((resolve, reject) => {
+                const i = new Image();
+                i.onload = () => resolve(i);
+                i.onerror = reject;
+                i.src = data;
+              });
+              const maxW = pageW - 28;
+              const maxH = 80;
+              const ratio = img.naturalWidth / img.naturalHeight;
+              let w = maxW, h = maxW / ratio;
+              if (h > maxH) { h = maxH; w = h * ratio; }
+              if (py + h + 16 > pageH - 14) {
+                doc.addPage("a4", "portrait");
+                drawHeader(doc, "Allegati fotografici DDT", label, logo);
+                py = 56;
+              }
+              doc.setFontSize(9);
+              doc.setFont("helvetica", "bold");
+              doc.text(`${r.supplier_name ?? "—"} — DDT ${r.document_number ?? "—"} (${formatDate(r.document_date ?? r.created_at)})`, 14, py);
+              try { doc.addImage(data, "JPEG", 14, py + 3, w, h); } catch {
+                try { doc.addImage(data, "PNG", 14, py + 3, w, h); } catch {}
+              }
+              py += h + 12;
+            } catch { /* skip broken image */ }
+          }
+        }
+      }
+
+      // Now render the index on the reserved page
+      doc.setPage(indexPageNumber);
+      drawAslIndex(doc, indexEntries);
+
+      // Footer on all pages (skip cover)
+      drawFooter(doc);
+
+      const company_slug = (company.business_name ?? "azienda").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      const fileLabel = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
+      doc.save(`HACCP_ispezione-asl_${fileLabel}_${company_slug}.pdf`);
+      toast.success("Pacchetto Ispezione ASL generato");
+    } catch (e: any) {
+      toast.error(e?.message ?? "Errore nella generazione");
+    } finally {
+      setAslBusy(false);
+    }
+  }
+
+  // ====================== /ASL PACKAGE ======================
+
   async function generate(kind: ReportKey) {
     if (!user) return;
     setBusy(kind);
