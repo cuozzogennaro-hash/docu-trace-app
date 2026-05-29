@@ -27,6 +27,7 @@ import {
 } from "@/components/ui/alert-dialog";
 import { ChefHat, Printer, ShieldCheck, AlertTriangle, Trash2, Repeat, Search, X, BookMarked } from "lucide-react";
 import { toast } from "sonner";
+import { generateInternalLot } from "@/lib/lot";
 
 const SHELF_DEFAULTS: Record<string, number> = { frigo: 72, freezer: 24 * 30, ambiente: 24 };
 
@@ -71,6 +72,7 @@ export default function Preparations({ embedded = false }: { embedded?: boolean 
   const [notes, setNotes] = useState("");
   const [saveAsRecipe, setSaveAsRecipe] = useState(false);
   const [selectedRecipe, setSelectedRecipe] = useState<string>("");
+  const [requiresBlast, setRequiresBlast] = useState(false);
 
   const [pinOpen, setPinOpen] = useState(false);
   const [printItem, setPrintItem] = useState<Preparation | null>(null);
@@ -130,6 +132,7 @@ export default function Preparations({ embedded = false }: { embedded?: boolean 
   function reset() {
     setName(""); setNotes(""); setAllergenIds([]); setRawMaterialIds([]); setIngredientsText("");
     setSaveAsRecipe(false); setSelectedRecipe("");
+    setRequiresBlast(false);
     const n = nowLocal();
     setPreparedAt(n);
     setExpiry(addHoursLocal(n, SHELF_DEFAULTS[storage]));
@@ -143,6 +146,11 @@ export default function Preparations({ embedded = false }: { embedded?: boolean 
   async function saveWithOperator(op: { id: string; name: string }) {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return toast.error("Sessione scaduta");
+    if (!storage) return toast.error("Indica il tipo di conservazione");
+    const lot = generateInternalLot("R", new Date(preparedAt));
+    const holdingMode: "hot" | "cold" = storage === "ambiente" ? "hot" : "cold";
+    const cycleType: "positive" | "negative" = storage === "freezer" ? "negative" : "positive";
+    const labelName = `${name} • Lotto ${lot}`;
     const { error } = await supabase.from("preparations" as any).insert({
       user_id: user.id,
       operator_id: op.id,
@@ -153,9 +161,35 @@ export default function Preparations({ embedded = false }: { embedded?: boolean 
       allergen_ids: allergenIds,
       raw_material_ids: rawMaterialIds,
       ingredients_text: ingredientsText || null,
-      notes: notes || null,
+      notes: notes ? `${notes} • Lotto ${lot}` : `Lotto ${lot}`,
     });
     if (error) return toast.error(error.message);
+
+    // Apri scheda Abbattimento (se richiesto) o direttamente Mantenimento.
+    // Se richiede entrambi, apri solo abbattimento ora; la scheda Mantenimento
+    // viene creata automaticamente al completamento dell'abbattimento.
+    if (requiresBlast) {
+      await (supabase as any).from("blast_chillings").insert({
+        user_id: user.id,
+        operator_id: op.id,
+        product_name: labelName,
+        cycle_type: cycleType,
+        outcome: "ok",
+        started_at: new Date().toISOString(),
+        notes: `Da completare — generato da Cucina [CONS:${holdingMode}]`,
+      });
+      toast.message("Scheda abbattimento aperta", { description: "Completa il ciclo in Abbattimenti." });
+    } else {
+      await (supabase as any).from("holding_records").insert({
+        user_id: user.id,
+        operator_id: op.id,
+        product_name: labelName,
+        mode: holdingMode,
+        outcome: "ok",
+        notes: `Generato da Cucina • Lotto ${lot}`,
+      });
+      toast.message("Scheda mantenimento aperta", { description: "Registra le rilevazioni in Mantenimento." });
+    }
 
     if (selectedRecipe) {
       try { await touchRecurring(selectedRecipe); } catch {}
@@ -249,6 +283,9 @@ export default function Preparations({ embedded = false }: { embedded?: boolean 
                 <SelectItem value="ambiente">Temperatura ambiente</SelectItem>
               </SelectContent>
             </Select>
+            <p className="text-[11px] text-muted-foreground">
+              Obbligatorio. Al salvataggio viene aperta una scheda in <strong>Mantenimento</strong>.
+            </p>
           </div>
           <div className="space-y-2">
             <Label>Preparato il</Label>
@@ -342,6 +379,18 @@ export default function Preparations({ embedded = false }: { embedded?: boolean 
               </Label>
             </div>
           )}
+
+          <div className="lg:col-span-2 flex items-start gap-2 p-3 rounded-lg bg-sky-50 border border-sky-200">
+            <Checkbox id="needs-blast" checked={requiresBlast} onCheckedChange={(v) => setRequiresBlast(!!v)} className="mt-0.5" />
+            <div className="flex-1">
+              <Label htmlFor="needs-blast" className="cursor-pointer text-sm font-medium text-sky-900">
+                Prevede abbattimento
+              </Label>
+              <p className="text-[11px] text-sky-900/80 mt-0.5">
+                Se attivo, al salvataggio viene aperta una scheda in <strong>Abbattimenti</strong> con nome e lotto. La scheda <strong>Mantenimento</strong> verrà creata automaticamente al termine del ciclo.
+              </p>
+            </div>
+          </div>
         </div>
         <Button onClick={handleSave} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
           <ShieldCheck size={16} /> Identifica e registra
