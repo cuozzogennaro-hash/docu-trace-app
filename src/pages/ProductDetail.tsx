@@ -679,6 +679,17 @@ export default function ProductDetail() {
         fontPt: noticePt, align: "center", lineHeight: lh,
         segments: [{ text: noticeText, bold: false }],
       });
+      // Riga allergeni (Reg. UE 1169/2011) — sopra l'avviso, in grassetto.
+      if (data.allergensLine) {
+        const allergPt = fitPt(data.allergensLine, wMm - 2 * p - safetyR, Math.max(5, footerPt * 0.85), 4, true);
+        const allergH = ptMm(allergPt) * lh;
+        const allergY = noticeY - allergH - 0.4;
+        items.push({
+          x: p, y: allergY, w: wMm - 2 * p - safetyR,
+          fontPt: allergPt, align: "left", lineHeight: lh,
+          segments: [{ text: data.allergensLine, bold: true }],
+        });
+      }
     }
 
     items.push({
