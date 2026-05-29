@@ -40,6 +40,8 @@ export default function ProductDetail() {
   const [preservationOverride, setPreservationOverride] = useState<"fresh" | "vacuum" | "">("");
   const [allergenKeywordsDb, setAllergenKeywordsDb] = useState<string[] | null>(null);
   const [allergenNamesDb, setAllergenNamesDb] = useState<string[]>([]);
+  // Mappa keyword(lowercase) -> nome canonico dell'allergene (es. "grano" -> "Glutine").
+  const [allergenKeyToName, setAllergenKeyToName] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -150,6 +152,18 @@ export default function ProductDetail() {
         .map((r) => (r.name || "").toLowerCase().trim())
         .filter(Boolean));
       setAllergenNamesDb(Array.from(new Set(names)));
+      const map: Record<string, string> = {};
+      for (const r of (data as any[]) ?? []) {
+        const canonical = (r.name || "").toString().trim();
+        if (!canonical) continue;
+        for (const kw of (r.keywords as string[]) || []) {
+          const k = (kw || "").toLowerCase().trim();
+          if (k && !map[k]) map[k] = canonical;
+        }
+        const nk = canonical.toLowerCase();
+        if (!map[nk]) map[nk] = canonical;
+      }
+      setAllergenKeyToName(map);
     })();
   }, [session?.user?.id]);
 
@@ -482,6 +496,36 @@ export default function ProductDetail() {
       const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
       traceLines.push(`Carne origine: ${allItaly ? "IT" : "UE"}`);
     }
+    // Allergeni (Reg. UE 1169/2011): se l'etichetta è "preparato/multicomponente"
+    // (Macelleria preparato o Cucina) elenchiamo in chiaro gli allergeni presenti,
+    // ricavati dai nomi e dai sotto-ingredienti delle materie prime selezionate.
+    let allergensLine = "";
+    if (effectiveMeatType === "preparato") {
+      const haystack: string[] = [];
+      for (const m of ingredients as any[]) {
+        if (m?.product_name) haystack.push(String(m.product_name));
+        if (m?.ingredients) haystack.push(String(m.ingredients));
+      }
+      const manualRaw = ((product as any)?.manual_ingredients || "").toString();
+      if (manualRaw) haystack.push(manualRaw);
+      const found = new Set<string>();
+      if (ALLERGEN_REGEX) {
+        const re = new RegExp(ALLERGEN_REGEX.source, ALLERGEN_REGEX.flags);
+        for (const text of haystack) {
+          let mm: RegExpExecArray | null;
+          re.lastIndex = 0;
+          while ((mm = re.exec(text)) !== null) {
+            const kw = mm[0].toLowerCase();
+            const canonical = allergenKeyToName[kw] || mm[0];
+            found.add(canonical);
+            if (mm[0].length === 0) re.lastIndex++;
+          }
+        }
+      }
+      if (found.size > 0) {
+        allergensLine = `Contiene: ${[...found].join(", ")}`;
+      }
+    }
     const data = {
       companyName: company?.business_name ?? "",
       companyAddress: [company?.address, (company as any)?.city]
@@ -495,6 +539,7 @@ export default function ProductDetail() {
       productionDate: formatDateDDMMYY(product?.production_date),
       internalLot: macelleriaFreshLot || product?.internal_lot || "—",
       salumeriaExpiry,
+      allergensLine,
     };
 
     // Padding proporzionale (min 1.2mm)
@@ -634,6 +679,17 @@ export default function ProductDetail() {
         fontPt: noticePt, align: "center", lineHeight: lh,
         segments: [{ text: noticeText, bold: false }],
       });
+      // Riga allergeni (Reg. UE 1169/2011) — sopra l'avviso, in grassetto.
+      if (data.allergensLine) {
+        const allergPt = fitPt(data.allergensLine, wMm - 2 * p - safetyR, Math.max(5, footerPt * 0.85), 4, true);
+        const allergH = ptMm(allergPt) * lh;
+        const allergY = noticeY - allergH - 0.4;
+        items.push({
+          x: p, y: allergY, w: wMm - 2 * p - safetyR,
+          fontPt: allergPt, align: "left", lineHeight: lh,
+          segments: [{ text: data.allergensLine, bold: true }],
+        });
+      }
     }
 
     items.push({
