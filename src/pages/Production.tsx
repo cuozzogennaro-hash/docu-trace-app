@@ -493,8 +493,11 @@ export default function Production() {
         <Button onClick={save} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
           <Factory size={16} /> Crea prodotto
         </Button>
+        </>
+        )}
       </Card>
 
+      {!isCucina(productDeptId) && (
       <div className="space-y-2">
         {rows.map((p) => (
           <Link key={p.id} to={`/archivio/prodotto/${p.id}`} className="block focus:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 rounded-lg">
@@ -517,6 +520,7 @@ export default function Production() {
         ))}
         {rows.length === 0 && <p className="text-center text-muted-foreground py-8">Nessun prodotto creato oggi.</p>}
       </div>
+      )}
     </>
   );
 }
