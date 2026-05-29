@@ -170,7 +170,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
     // come per gli altri reparti.
     if (departmentId) {
       try {
-        await (supabase as any).from("products").insert({
+        const { data: prodIns } = await (supabase as any).from("products").insert({
           user_id: user.id,
           operator_id: op.id,
           name,
@@ -181,7 +181,20 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           requires_blast_chilling: requiresBlast,
           manual_ingredients: ingredientsText || null,
           notes: notes || null,
-        });
+        }).select("id").single();
+        const newProductId = prodIns?.id as string | undefined;
+        // Collega le materie prime selezionate cosi l'etichetta del prodotto
+        // (Archivio → Cucina) riporta gli stessi ingredienti, come avviene per
+        // i preparati della Macelleria.
+        if (newProductId && rawMaterialIds.length > 0) {
+          await (supabase as any).from("product_ingredients").insert(
+            rawMaterialIds.map((rm) => ({
+              user_id: user.id,
+              product_id: newProductId,
+              raw_material_id: rm,
+            }))
+          );
+        }
       } catch {
         // non bloccante: la preparazione è gia stata salvata
       }
