@@ -40,6 +40,8 @@ export default function ProductDetail() {
   const [preservationOverride, setPreservationOverride] = useState<"fresh" | "vacuum" | "">("");
   const [allergenKeywordsDb, setAllergenKeywordsDb] = useState<string[] | null>(null);
   const [allergenNamesDb, setAllergenNamesDb] = useState<string[]>([]);
+  // Mappa keyword(lowercase) -> nome canonico dell'allergene (es. "grano" -> "Glutine").
+  const [allergenKeyToName, setAllergenKeyToName] = useState<Record<string, string>>({});
 
   useEffect(() => {
     if (!id) return;
@@ -150,6 +152,18 @@ export default function ProductDetail() {
         .map((r) => (r.name || "").toLowerCase().trim())
         .filter(Boolean));
       setAllergenNamesDb(Array.from(new Set(names)));
+      const map: Record<string, string> = {};
+      for (const r of (data as any[]) ?? []) {
+        const canonical = (r.name || "").toString().trim();
+        if (!canonical) continue;
+        for (const kw of (r.keywords as string[]) || []) {
+          const k = (kw || "").toLowerCase().trim();
+          if (k && !map[k]) map[k] = canonical;
+        }
+        const nk = canonical.toLowerCase();
+        if (!map[nk]) map[nk] = canonical;
+      }
+      setAllergenKeyToName(map);
     })();
   }, [session?.user?.id]);
 
