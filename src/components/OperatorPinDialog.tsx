@@ -1,6 +1,7 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useOperators, hashPin, type Operator } from "@/hooks/useOperators";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -18,6 +19,7 @@ type Props = {
 
 export default function OperatorPinDialog({ open, onOpenChange, onConfirm, title }: Props) {
   const { operators, loading } = useOperators();
+  const { operator: sessionOperator } = useOperatorSession();
   const [selected, setSelected] = useState<Operator | null>(null);
   const [pin, setPin] = useState("");
   const [verifying, setVerifying] = useState(false);
@@ -28,6 +30,18 @@ export default function OperatorPinDialog({ open, onOpenChange, onConfirm, title
       setPin("");
     }
   }, [open]);
+
+  // Auto-confirm using the currently logged-in operator, skipping the PIN prompt.
+  useEffect(() => {
+    if (!open || !sessionOperator) return;
+    onConfirm({
+      id: sessionOperator.id,
+      name: sessionOperator.name,
+      role: sessionOperator.role,
+      is_active: true,
+    });
+    onOpenChange(false);
+  }, [open, sessionOperator, onConfirm, onOpenChange]);
 
   async function verify() {
     if (!selected || pin.length < 4) return;
