@@ -1097,10 +1097,104 @@ export default function Reports() {
     <div>
       <PageHeader title="Report HACCP" subtitle="Esporta i registri mensili pronti per il controllo ASL" />
 
+      {/* ASL inspection package */}
+      <Card className="p-5 mb-6 shadow-elevated border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center shrink-0">
+            <ClipboardCheck className="text-primary-foreground" size={24} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-bold text-lg">Pacchetto Ispezione ASL</div>
+            <div className="text-sm text-muted-foreground">
+              Tutto quello che serve per il controllo in un unico PDF firmabile: copertina, anagrafiche, sintesi, registri, non conformità e pagina firma.
+            </div>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-4">
+          <div className="space-y-1.5">
+            <Label>Periodo</Label>
+            <Select value={aslPeriodKind} onValueChange={(v) => setAslPeriodKind(v as AslPeriodKind)}>
+              <SelectTrigger><SelectValue /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="month">Ultimo mese</SelectItem>
+                <SelectItem value="quarter">Trimestre in corso</SelectItem>
+                <SelectItem value="year">Anno in corso</SelectItem>
+                <SelectItem value="custom">Personalizzato</SelectItem>
+              </SelectContent>
+            </Select>
+          </div>
+          {aslPeriodKind === "custom" && (
+            <>
+              <div className="space-y-1.5">
+                <Label>Dal</Label>
+                <Input type="date" value={aslCustomStart} onChange={(e) => setAslCustomStart(e.target.value)} />
+              </div>
+              <div className="space-y-1.5">
+                <Label>Al</Label>
+                <Input type="date" value={aslCustomEnd} onChange={(e) => setAslCustomEnd(e.target.value)} />
+              </div>
+            </>
+          )}
+        </div>
+
+        <div className="grid grid-cols-2 md:grid-cols-4 gap-3 mb-4">
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={aslIncludeAnagrafiche} onCheckedChange={(v) => setAslIncludeAnagrafiche(!!v)} />
+            Anagrafiche
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={aslIncludeSummary} onCheckedChange={(v) => setAslIncludeSummary(!!v)} />
+            Sintesi & anomalie
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={aslIncludeNc} onCheckedChange={(v) => setAslIncludeNc(!!v)} />
+            Non conformità
+          </label>
+          <label className="flex items-center gap-2 text-sm cursor-pointer">
+            <Checkbox checked={aslIncludePhotos} onCheckedChange={(v) => setAslIncludePhotos(!!v)} />
+            Foto DDT allegate
+          </label>
+        </div>
+
+        <div className="flex flex-col sm:flex-row sm:items-center gap-3 mb-4">
+          <div className="flex items-center gap-2 text-sm font-medium">
+            <PenLine size={16} className="text-primary" />
+            Firma del responsabile (opzionale)
+          </div>
+          <div className="flex items-center gap-2 flex-1">
+            <Input
+              type="file"
+              accept="image/png,image/jpeg"
+              onChange={(e) => { const f = e.target.files?.[0]; if (f) handleSignatureFile(f); }}
+              className="max-w-xs"
+            />
+            {aslSignatureData && (
+              <>
+                <img src={aslSignatureData} alt="Anteprima firma" className="h-10 border rounded bg-white p-1" />
+                <Button variant="ghost" size="icon" onClick={() => setAslSignatureData(null)} aria-label="Rimuovi firma">
+                  <X size={16} />
+                </Button>
+              </>
+            )}
+          </div>
+        </div>
+
+        <Button
+          onClick={generateAslPackage}
+          disabled={aslBusy || !!busy}
+          size="lg"
+          className="w-full sm:w-auto bg-gradient-primary gap-2"
+        >
+          {aslBusy ? <Loader2 className="animate-spin" size={18} /> : <FileDown size={18} />}
+          Genera Pacchetto Ispezione ASL
+        </Button>
+      </Card>
+
       <Card className="p-4 mb-6 shadow-soft">
         <div className="flex flex-col sm:flex-row sm:items-end gap-4">
           <div className="space-y-1.5 flex-1 max-w-xs">
-            <Label>Mese di riferimento</Label>
+            <Label>Registri singoli — mese di riferimento</Label>
             <Input type="month" value={ym} onChange={(e) => setYm(e.target.value)} />
           </div>
           <Button
