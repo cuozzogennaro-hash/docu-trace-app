@@ -539,6 +539,7 @@ export default function ProductDetail() {
       productionDate: formatDateDDMMYY(product?.production_date),
       internalLot: macelleriaFreshLot || product?.internal_lot || "—",
       salumeriaExpiry,
+      allergensLine,
     };
 
     // Padding proporzionale (min 1.2mm)
