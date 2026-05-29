@@ -1,6 +1,6 @@
 import { useEffect, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
-import { useOperators, hashPin, type Operator } from "@/hooks/useOperators";
+import { useOperators, type Operator } from "@/hooks/useOperators";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -47,20 +47,17 @@ export default function OperatorPinDialog({ open, onOpenChange, onConfirm, title
     if (!selected || pin.length < 4) return;
     setVerifying(true);
     try {
-      const { data: { user } } = await supabase.auth.getUser();
-      if (!user) throw new Error("Non autenticato");
-      const expected = await hashPin(pin, user.id);
-      const { data } = await supabase
-        .from("operators")
-        .select("id, name, role, is_active, pin_hash")
-        .eq("id", selected.id)
-        .single();
-      if (data?.pin_hash !== expected) {
+      const { data, error } = await supabase.rpc("operator_verify_pin", {
+        p_operator_id: selected.id,
+        p_pin: pin,
+      });
+      const res = data as { ok: boolean; name?: string; role?: string | null; is_active?: boolean } | null;
+      if (error || !res?.ok) {
         toast.error("PIN errato");
         setPin("");
         return;
       }
-      onConfirm({ id: data.id, name: data.name, role: data.role, is_active: data.is_active });
+      onConfirm({ id: selected.id, name: res.name ?? selected.name, role: res.role ?? selected.role, is_active: res.is_active ?? true });
       onOpenChange(false);
     } finally {
       setVerifying(false);
