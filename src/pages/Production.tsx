@@ -244,10 +244,12 @@ export default function Production() {
               </SelectContent>
             </Select>
           </div>
+          {!isCucina(productDeptId) && (
           <div className="space-y-2">
             <Label>Nome prodotto</Label>
             <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Ragù della casa" />
           </div>
+          )}
           {!isCucina(productDeptId) && (
           <>
           <div className="space-y-2">
