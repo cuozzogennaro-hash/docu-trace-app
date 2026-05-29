@@ -1,86 +1,72 @@
+## Obiettivo
 
-# Integrazione reparto "Cucina"
+Trasformare l'attuale `Reports.tsx` (che già esporta i singoli registri) in un **Pacchetto Ispezione ASL**: un unico PDF "ufficiale", strutturato come un Manuale di Autocontrollo, con copertina, anagrafiche, sintesi, tutti i registri, non conformità e pagina firma. È il documento che il titolare stampa o invia al controllo ASL senza ulteriori manipolazioni.
 
-Obiettivo: trattare la **Cucina** come un reparto a tutti gli effetti per chi sceglie profilo *Ristorazione* o *Misto*, riusando le schermate esistenti senza duplicare voci di menu.
+## Cosa cambia (per l'utente)
 
-## 1. Profilo attività e sidebar
+In `/report` aggiungiamo un nuovo blocco in alto, sopra ai pulsanti attuali:
 
-- Quando il profilo è `ristorazione` o `misto`, garantire che esista (auto-seed se mancante) un **department** chiamato "Cucina" per l'utente.
-- **Sidebar** (`NAV_VISIBILITY` in `useActivityProfile.tsx`):
-  - `ristorazione`: rimuovere voci doppione (`/preparati`, `/mantenimento`, `/abbattimenti`, `/frittura` resteranno raggiungibili dall'archivio o da "Lavorazioni"); mostrare un'unica voce **Lavorazioni** (= `/produzione`) e **Archivio**, **Ingresso merci**, **Sanificazione**, **Temperature**, **Menu**, **Non conformità**, **Report**, **Impostazioni**.
-  - `misto`: stessa logica anti-ridondanza.
-  - `laboratorio`: invariato.
-- Etichetta dinamica voce sidebar:
-  - "Produzione" → **"Lavorazioni"** per tutti i profili (rename globale).
-  - In profilo `ristorazione` mostrare l'etichetta come **"Ricette"**.
-- "Prodotti ricorrenti" → **"Lavorazioni ricorrenti"** (e **"Ricette ricorrenti"** in ristorazione).
-
-## 2. Archivio
-
-- Aggiungere automaticamente la card/sezione **Cucina** nell'archivio quando esiste il department Cucina.
-- I prodotti/ricette creati con `department_id = Cucina` ricadono lì, esattamente come Macelleria/Salumeria.
-
-## 3. Ingresso merci + Non Conformità fornitore
-
-- Nel form di ingresso, se reparto = Cucina, mostrare campo **Temperatura di ingresso (°C)** (nuova colonna `intake_temperature numeric` su `raw_materials`).
-- Aggiungere campo `intake_temp_compliant boolean` (calcolato o impostato manualmente con soglia di default: ≤4°C refrigerato, ≤−18°C surgelato — chiediamo all'utente o usiamo default editabile).
-- Se non conforme → pulsante **"Apri contestazione fornitore"** che precompila una `non_conformities` con `area='fornitore'`, titolo, descrizione, e link al raw_material.
-- Le contestazioni restano consultabili nel registro `/non-conformita` (già esistente).
-
-## 4. Lavorazioni / Ricette
-
-Riusare `products` + `product_ingredients`. Aggiunte:
-
-- Nuova colonna `requires_blast_chilling boolean default false` su `products`.
-- Nuova colonna `manual_ingredients text` per ingredienti scritti a mano (oltre a `raw_material_ids`).
-- Nel form di creazione:
-  - Flag **"Richiede abbattimento / conservazione speciale"**.
-  - Se attivo → al salvataggio creare automaticamente una riga in `blast_chillings` (stato "da completare") collegata, e mostrare CTA "Completa abbattimento" → porta a `/abbattimenti` precompilato.
-- Ingredienti: selezione da `raw_materials` **oppure** testo libero (`manual_ingredients`).
-- Etichetta del bottone/pagina cambia in base al profilo (Lavorazione / Ricetta).
-
-## 5. Etichette per Cucina
-
-- Le ricette di Cucina seguono le regole **macelleria_preparato** (multi-prodotto): elenco ingredienti completo, allergeni in grassetto, additivi E…, conservazione configurabile.
-- Aggiungere chiave `cucina` in `label_rules` con seed identico a `macelleria_preparato` (modificabile poi dall'utente).
-
-## 6. Report / Stampa PDF
-
-- Estendere il generatore PDF in `/report` per includere sezione **Cucina** quando profilo = ristorazione/misto, con:
-  - report singolo (per ricetta / abbattimento / contestazione)
-  - report mensile generale
-- Riusare i componenti PDF esistenti (stessa libreria/route).
-
-## Dettagli tecnici (riassunto migrazioni)
-
-```text
-ALTER TABLE raw_materials
-  ADD COLUMN intake_temperature numeric,
-  ADD COLUMN intake_temp_compliant boolean;
-
-ALTER TABLE products
-  ADD COLUMN requires_blast_chilling boolean NOT NULL DEFAULT false,
-  ADD COLUMN manual_ingredients text;
-
--- seed dept "Cucina" per utenti con profilo risto/misto (lato client, non DB)
--- seed label_rules department_key='cucina' clonando macelleria_preparato
+```
+┌─────────────────────────────────────────────────────────┐
+│  📋  Pacchetto Ispezione ASL                            │
+│  Tutto quello che serve per il controllo,               │
+│  in un unico PDF firmabile.                             │
+│                                                          │
+│  Periodo:   [▾ Ultimo mese | Trimestre | Anno | Custom] │
+│  Includi:   [✓] Anagrafiche  [✓] Sintesi & anomalie    │
+│             [✓] Non conformità  [✓] Foto allegate       │
+│  Firma:     [Carica immagine firma]  (opzionale)        │
+│                                                          │
+│  [⬇ Genera Pacchetto Ispezione ASL]                     │
+└─────────────────────────────────────────────────────────┘
 ```
 
-Nessuna modifica a tabelle riservate. RLS già coperta dalle policy esistenti `auth.uid() = user_id`.
+I pulsanti per i singoli registri restano invariati sotto, per chi vuole solo una sezione.
 
-## Ordine di implementazione
+## Struttura del PDF generato
 
-1. Migrazione DB (colonne nuove + seed `label_rules` cucina).
-2. Auto-seed dept "Cucina" + revisione `NAV_VISIBILITY` e label dinamiche sidebar.
-3. Rinomina "Produzione" → "Lavorazioni/Ricette", "Ricorrenti" → "Lavorazioni/Ricette ricorrenti".
-4. Ingresso merci: campo temperatura + flusso contestazione.
-5. Form Lavorazione: flag abbattimento + ingredienti manuali.
-6. Archivio: card Cucina.
-7. Report PDF: sezione Cucina.
+1. **Copertina** — logo, ragione sociale, P.IVA, indirizzo, periodo, data emissione, "Documento di autocontrollo HACCP — Reg. CE 852/2004"
+2. **Indice cliccabile** (bookmarks PDF)
+3. **Anagrafica azienda** — dati completi + responsabile autocontrollo
+4. **Operatori abilitati** — tabella nome / ruolo / data attivazione (no PIN, ovviamente)
+5. **Attrezzature e punti di controllo** — tabella asset con range temperatura, reparto, prodotto sanificante
+6. **Fornitori** — elenco con P.IVA
+7. **Sintesi del periodo** — pagina riassuntiva con:
+   - # rilevazioni temperatura, % conformità, # anomalie evidenziate
+   - # sanificazioni eseguite vs programmate
+   - # produzioni / lotti emessi
+   - # abbattimenti, # holding records, # controlli olio
+   - # non conformità aperte / chiuse
+   - grafico semplice (mini-barre disegnate via jsPDF) conformità per settimana
+8. **Registri completi** (riusando le funzioni `tempTable`, `sanitTable`, ecc. già esistenti)
+9. **Non conformità & azioni correttive** — registro dedicato con data, descrizione, azione, esito, data chiusura
+10. **Dichiarazione e firma** finale — testo legale standard + riquadro firma con immagine caricata, oppure righe per firma manuale, data e luogo
 
-## Domande aperte (rispondi prima che parta)
+## Decisioni tecniche
 
-1. **Soglia temperatura di conformità** all'ingresso: vuoi un default fisso (es. refrigerato ≤+4°C, surgelato ≤−18°C) o un campo libero a tua scelta volta per volta?
-2. **Contestazione fornitore**: vuoi che si apra come dialog dentro Ingresso merci (consigliato), o ti porta direttamente alla pagina Non Conformità?
-3. **Voci doppione sidebar in profilo ristorazione**: ti propongo di **rimuovere** dalla sidebar `Preparati`, `Mantenimento`, `Abbattimenti`, `Frittura` come voci separate, accorpandole sotto "Lavorazioni" e "Archivio". Confermi? (Le pagine restano raggiungibili.)
-4. **Etichette ricette Cucina**: confermo il modello macelleria-preparato (allergeni in grassetto + E…), oppure vuoi un layout dedicato?
+- Tutto client-side con `jsPDF` + `jspdf-autotable` (già in uso), nessuna nuova dipendenza obbligatoria
+- Periodo flessibile: helper `periodRange(kind, customStart, customEnd)` che sostituisce l'attuale `monthRange`
+- Sintesi calcolata in memoria sui dati già fetchati, senza nuove query
+- Bookmarks PDF via `doc.outline.add(...)` di jsPDF
+- Foto allegate (es. `raw_materials.document_image_url`): scaricate e inserite in appendice solo se l'utente attiva il toggle, con limite a N immagini per evitare PDF da 50 MB
+- Firma: input `<Input type="file" accept="image/*">`, convertita a dataURL in memoria, mai salvata sul server
+- Nessuna modifica al database
+
+## File toccati
+
+- `src/pages/Reports.tsx` — refactor: estrarre `periodRange`, `drawCover`, `drawIndex`, `drawAnagrafica`, `drawOperatori`, `drawAssets`, `drawSuppliers`, `drawSummary`, `drawSignaturePage`, aggiungere `generateAslPackage()` e relativo blocco UI
+- `src/hooks/useCompany.tsx` — verifica che esponga già tutti i campi (city, phone, email); se manca qualcosa, query supplementare locale a `Reports.tsx`
+- Nessuna nuova migration
+
+## Fuori scopo (per ora)
+
+- Firma digitale qualificata (CAdES/PAdES) — richiede integrazione con Aruba/InfoCert, lo proponiamo come step 2
+- Invio diretto via email/PEC al consulente HACCP — step 2
+- Generazione del **Manuale HACCP** vero e proprio (analisi rischi, CCP, ecc.) — è un prodotto a sé
+- Multi-sede nel PDF (resta single-tenant come oggi)
+
+## Domande aperte (rispondi quando passiamo in build, oppure procedo con default)
+
+1. Periodi proposti: **Ultimo mese / Trimestre / Anno / Personalizzato** — ok così? Default: ultimo mese.
+2. Foto allegate: includerle **solo per le materie prime con anomalia** o **tutte quelle disponibili**? Default proposto: tutte, ma con tetto a 30 foto.
+3. Firma: vuoi anche la possibilità di caricare la firma del **consulente HACCP esterno** oltre a quella del titolare? Default: solo titolare.
