@@ -496,6 +496,36 @@ export default function ProductDetail() {
       const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
       traceLines.push(`Carne origine: ${allItaly ? "IT" : "UE"}`);
     }
+    // Allergeni (Reg. UE 1169/2011): se l'etichetta è "preparato/multicomponente"
+    // (Macelleria preparato o Cucina) elenchiamo in chiaro gli allergeni presenti,
+    // ricavati dai nomi e dai sotto-ingredienti delle materie prime selezionate.
+    let allergensLine = "";
+    if (effectiveMeatType === "preparato") {
+      const haystack: string[] = [];
+      for (const m of ingredients as any[]) {
+        if (m?.product_name) haystack.push(String(m.product_name));
+        if (m?.ingredients) haystack.push(String(m.ingredients));
+      }
+      const manualRaw = ((product as any)?.manual_ingredients || "").toString();
+      if (manualRaw) haystack.push(manualRaw);
+      const found = new Set<string>();
+      if (ALLERGEN_REGEX) {
+        const re = new RegExp(ALLERGEN_REGEX.source, ALLERGEN_REGEX.flags);
+        for (const text of haystack) {
+          let mm: RegExpExecArray | null;
+          re.lastIndex = 0;
+          while ((mm = re.exec(text)) !== null) {
+            const kw = mm[0].toLowerCase();
+            const canonical = allergenKeyToName[kw] || mm[0];
+            found.add(canonical);
+            if (mm[0].length === 0) re.lastIndex++;
+          }
+        }
+      }
+      if (found.size > 0) {
+        allergensLine = `Contiene: ${[...found].join(", ")}`;
+      }
+    }
     const data = {
       companyName: company?.business_name ?? "",
       companyAddress: [company?.address, (company as any)?.city]
