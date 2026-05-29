@@ -9,7 +9,9 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown, Snowflake, Flame, Droplet, ChefHat } from "lucide-react";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown, Snowflake, Flame, Droplet, ChefHat, ClipboardCheck, PenLine, X } from "lucide-react";
 import { toast } from "sonner";
 
 type ReportKey =
@@ -24,6 +26,8 @@ type ReportKey =
   | "kitchen"
   | "full";
 
+type AslPeriodKind = "month" | "quarter" | "year" | "custom";
+
 const MONTHS_IT = ["Gennaio","Febbraio","Marzo","Aprile","Maggio","Giugno","Luglio","Agosto","Settembre","Ottobre","Novembre","Dicembre"];
 
 function monthRange(ym: string) {
@@ -33,6 +37,37 @@ function monthRange(ym: string) {
   const end = new Date(Date.UTC(y, m, 1));
   const fmt = (d: Date) => d.toISOString().slice(0, 10);
   return { start: fmt(start), end: fmt(end), label: `${MONTHS_IT[m - 1]} ${y}` };
+}
+
+function fmtDay(d: Date) {
+  return d.toISOString().slice(0, 10);
+}
+
+function aslPeriodRange(kind: AslPeriodKind, customStart?: string, customEnd?: string) {
+  const today = new Date();
+  if (kind === "month") {
+    const start = new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1));
+    const end = new Date(Date.UTC(today.getFullYear(), today.getMonth() + 1, 1));
+    return { start: fmtDay(start), end: fmtDay(end), label: `${MONTHS_IT[today.getMonth()]} ${today.getFullYear()}` };
+  }
+  if (kind === "quarter") {
+    const qIdx = Math.floor(today.getMonth() / 3);
+    const start = new Date(Date.UTC(today.getFullYear(), qIdx * 3, 1));
+    const end = new Date(Date.UTC(today.getFullYear(), qIdx * 3 + 3, 1));
+    return { start: fmtDay(start), end: fmtDay(end), label: `${MONTHS_IT[qIdx * 3]} – ${MONTHS_IT[qIdx * 3 + 2]} ${today.getFullYear()}` };
+  }
+  if (kind === "year") {
+    const start = new Date(Date.UTC(today.getFullYear(), 0, 1));
+    const end = new Date(Date.UTC(today.getFullYear() + 1, 0, 1));
+    return { start: fmtDay(start), end: fmtDay(end), label: `Anno ${today.getFullYear()}` };
+  }
+  // custom
+  const s = customStart || fmtDay(new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1)));
+  const eRaw = customEnd || fmtDay(today);
+  // end is exclusive in our queries -> add one day to include selected end day
+  const eDate = new Date(eRaw + "T00:00:00Z");
+  eDate.setUTCDate(eDate.getUTCDate() + 1);
+  return { start: s, end: fmtDay(eDate), label: `${formatDate(s)} – ${formatDate(eRaw)}` };
 }
 
 function formatDate(d: string | null | undefined) {
@@ -49,6 +84,17 @@ export default function Reports() {
   const defaultYm = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, "0")}`;
   const [ym, setYm] = useState(defaultYm);
   const [busy, setBusy] = useState<ReportKey | null>(null);
+
+  // ASL package state
+  const [aslPeriodKind, setAslPeriodKind] = useState<AslPeriodKind>("month");
+  const [aslCustomStart, setAslCustomStart] = useState<string>(fmtDay(new Date(Date.UTC(today.getFullYear(), today.getMonth(), 1))));
+  const [aslCustomEnd, setAslCustomEnd] = useState<string>(fmtDay(today));
+  const [aslIncludeAnagrafiche, setAslIncludeAnagrafiche] = useState(true);
+  const [aslIncludeSummary, setAslIncludeSummary] = useState(true);
+  const [aslIncludeNc, setAslIncludeNc] = useState(true);
+  const [aslIncludePhotos, setAslIncludePhotos] = useState(false);
+  const [aslSignatureData, setAslSignatureData] = useState<string | null>(null);
+  const [aslBusy, setAslBusy] = useState(false);
 
   async function logoDataUrl(): Promise<{ data: string; w: number; h: number } | null> {
     if (!company.logo_url) return null;
