@@ -56,7 +56,7 @@ function hoursBetween(from: string, to: string) {
   return Math.max(1, Math.round((new Date(to).getTime() - new Date(from).getTime()) / 3600000));
 }
 
-export default function Preparations() {
+export default function Preparations({ embedded = false }: { embedded?: boolean } = {}) {
   const { allergens } = useAllergens();
   const { rows, reload, remove } = usePreparations();
   const { rows: recurring, save: saveRecurring, touch: touchRecurring, remove: removeRecurring } = useRecurringPreparations();
@@ -203,7 +203,9 @@ export default function Preparations() {
 
   return (
     <>
-      <PageHeader title="Mise en place" subtitle="Preparati interni con ingredienti tracciati, allergeni e ricette ricorrenti" />
+      {!embedded && (
+        <PageHeader title="Mise en place" subtitle="Preparati interni con ingredienti tracciati, allergeni e ricette ricorrenti" />
+      )}
 
       <Card className="p-5 shadow-soft mb-6">
         {/* Ricetta ricorrente */}
