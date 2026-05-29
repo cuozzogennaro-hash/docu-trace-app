@@ -128,7 +128,7 @@ export default function Production() {
   }
 
   async function save() {
-    if (!name) return toast.error("Nome prodotto richiesto");
+    if (!isCucina(productDeptId) && !name) return toast.error("Nome prodotto richiesto");
     if (!productDeptId) return toast.error("Seleziona un reparto per il prodotto");
     if (selected.size === 0 && !manualIngredients.trim()) {
       return toast.error("Seleziona almeno un ingrediente o scrivili manualmente");
