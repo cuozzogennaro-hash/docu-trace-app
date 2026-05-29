@@ -273,7 +273,7 @@ export default function Production() {
 
         {isCucina(productDeptId) ? (
           <div className="mt-4">
-            <Preparations embedded />
+            <Preparations embedded departmentId={productDeptId} />
           </div>
         ) : (
         <>
