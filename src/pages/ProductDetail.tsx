@@ -29,6 +29,7 @@ export default function ProductDetail() {
   const [product, setProduct] = useState<any>(null);
   const [ingredients, setIngredients] = useState<any[]>([]);
   const [blastChillings, setBlastChillings] = useState<any[]>([]);
+  const [holdingRecords, setHoldingRecords] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
   const [labelTemplates, setLabelTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
@@ -78,13 +79,44 @@ export default function ProductDetail() {
 
       setIngredients((links ?? []).map((l: any) => l.raw_materials).filter(Boolean));
 
-      // Load related blast chillings
-      const { data: bcRows } = await (supabase as any)
+      // Load related blast chillings (per product_id o per lotto nel nome)
+      const lot = prod?.internal_lot;
+      const { data: bcById } = await (supabase as any)
         .from("blast_chillings")
         .select("*")
         .eq("product_id", id)
         .order("started_at", { ascending: false });
-      setBlastChillings(bcRows ?? []);
+      let bcRows = bcById ?? [];
+      if (lot) {
+        const { data: bcByLot } = await (supabase as any)
+          .from("blast_chillings")
+          .select("*")
+          .ilike("product_name", `%${lot}%`)
+          .order("started_at", { ascending: false });
+        const seen = new Set(bcRows.map((r: any) => r.id));
+        for (const r of (bcByLot ?? [])) if (!seen.has(r.id)) bcRows.push(r);
+      }
+      setBlastChillings(bcRows);
+
+      // Load related holding records (per lotto nel nome o note)
+      let hRows: any[] = [];
+      if (lot) {
+        const { data: hByName } = await (supabase as any)
+          .from("holding_records")
+          .select("*")
+          .ilike("product_name", `%${lot}%`)
+          .order("recorded_at", { ascending: false });
+        const { data: hByNotes } = await (supabase as any)
+          .from("holding_records")
+          .select("*")
+          .ilike("notes", `%${lot}%`)
+          .order("recorded_at", { ascending: false });
+        const seen = new Set<string>();
+        for (const r of [...(hByName ?? []), ...(hByNotes ?? [])]) {
+          if (!seen.has(r.id)) { seen.add(r.id); hRows.push(r); }
+        }
+      }
+      setHoldingRecords(hRows);
 
       // Load label templates
       const { data: { user } } = await supabase.auth.getUser();
@@ -1207,6 +1239,31 @@ ${labelsHtml}
             b.outcome === "ok" ? "Conforme" : "Anomalia",
           ];
         }),
+        styles: { fontSize: 9 },
+        headStyles: { fillColor: [59, 130, 246] },
+      });
+      y = (doc as any).lastAutoTable.finalY + 10;
+    }
+
+    if (holdingRecords.length > 0) {
+      doc.setFontSize(13);
+      doc.text("Mantenimento & Rigenerazione", 14, y);
+      y += 6;
+      const MODE_LBL: Record<string, string> = {
+        hot: "Caldo ≥60°C",
+        cold: "Freddo ≤4°C",
+        regeneration: "Rigenerazione ≥70°C",
+      };
+      autoTable(doc, {
+        startY: y,
+        head: [["Modalità", "°C", "Rilevato", "Esito", "Note"]],
+        body: holdingRecords.map((h) => [
+          MODE_LBL[h.mode] ?? h.mode,
+          h.temperature != null ? `${h.temperature}°C` : "—",
+          h.recorded_at ? new Date(h.recorded_at).toLocaleString("it-IT") : "—",
+          h.outcome === "ok" ? "Conforme" : h.outcome === "anomaly" ? "Anomalia" : "Da completare",
+          h.notes ?? "—",
+        ]),
         styles: { fontSize: 9 },
         headStyles: { fillColor: [59, 130, 246] },
       });
