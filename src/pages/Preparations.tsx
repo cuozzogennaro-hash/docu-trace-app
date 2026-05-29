@@ -177,7 +177,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           production_date: new Date(preparedAt).toISOString().slice(0, 10),
           internal_lot: lot,
           department_id: departmentId,
-          preservation_type: storage === "freezer" ? "freezer" : storage === "ambiente" ? "ambiente" : "frigo",
+          preservation_type: storage === "freezer" ? "surgelato" : storage === "ambiente" ? "fresh" : "refrigerato",
           requires_blast_chilling: requiresBlast,
           manual_ingredients: ingredientsText || null,
           notes: notes || null,
