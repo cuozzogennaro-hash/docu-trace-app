@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown, Snowflake, Flame, Droplet, ChefHat, ClipboardCheck, PenLine, X } from "lucide-react";
+import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown, Snowflake, Flame, Droplet, ChefHat, ClipboardCheck, PenLine, X, Archive, Upload, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type ReportKey =
