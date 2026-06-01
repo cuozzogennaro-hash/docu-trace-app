@@ -1309,6 +1309,97 @@ export default function Reports() {
         </Button>
       </Card>
 
+      {/* Archived ASL packages — with optional uploaded digital signature */}
+      <Card className="p-5 mb-6 shadow-soft">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <Archive className="text-muted-foreground" size={24} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-bold text-lg">Pacchetti ASL archiviati</div>
+            <div className="text-sm text-muted-foreground">
+              Ogni pacchetto generato viene archiviato qui. Puoi scaricare l'originale, firmarlo digitalmente (firma PAdES con il tuo dispositivo / software) e ricaricare il file <strong>.pdf</strong> firmato per conservarlo insieme all'originale.
+            </div>
+          </div>
+        </div>
+
+        {archivedLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="animate-spin" size={14} /> Caricamento…
+          </div>
+        ) : archivedPackages.length === 0 ? (
+          <div className="text-sm text-muted-foreground italic">Nessun pacchetto archiviato. Genera il primo qui sopra.</div>
+        ) : (
+          <div className="space-y-3">
+            {archivedPackages.map((pkg) => (
+              <div key={pkg.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{pkg.period_label}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Generato il {new Date(pkg.created_at).toLocaleString("it-IT")}
+                    {pkg.signed_uploaded_at && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-emerald-600">
+                        <ShieldCheck size={12} /> firmato il {new Date(pkg.signed_uploaded_at).toLocaleDateString("it-IT")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => downloadStorageFile(pkg.original_pdf_path, `ASL_${pkg.period_label}_originale.pdf`)}
+                  >
+                    <FileDown size={14} /> Originale
+                  </Button>
+                  {pkg.signed_pdf_path ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 border-emerald-300"
+                      onClick={() => downloadStorageFile(pkg.signed_pdf_path!, `ASL_${pkg.period_label}_firmato.pdf`)}
+                    >
+                      <ShieldCheck size={14} /> Firmato
+                    </Button>
+                  ) : (
+                    <label className="inline-flex">
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadSignedForPackage(pkg, f);
+                          e.target.value = "";
+                        }}
+                      />
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-1.5 pointer-events-none"
+                        disabled={signedUploadingId === pkg.id}
+                      >
+                        {signedUploadingId === pkg.id ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
+                        Carica PDF firmato
+                      </Button>
+                    </label>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Elimina pacchetto"
+                    onClick={() => deleteArchivedPackage(pkg)}
+                  >
+                    <Trash2 size={16} className="text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
+      </Card>
+
       <Card className="p-4 mb-6 shadow-soft">
         <div className="flex flex-col sm:flex-row sm:items-end gap-4">
           <div className="space-y-1.5 flex-1 max-w-xs">
