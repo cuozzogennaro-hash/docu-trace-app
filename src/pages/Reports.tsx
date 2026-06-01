@@ -96,6 +96,88 @@ export default function Reports() {
   const [aslSignatureData, setAslSignatureData] = useState<string | null>(null);
   const [aslBusy, setAslBusy] = useState(false);
 
+  // Archived ASL packages (with optional uploaded signed PDF)
+  type AslPackage = {
+    id: string;
+    period_label: string;
+    period_start: string;
+    period_end: string;
+    original_pdf_path: string;
+    signed_pdf_path: string | null;
+    signed_uploaded_at: string | null;
+    created_at: string;
+  };
+  const [archivedPackages, setArchivedPackages] = useState<AslPackage[]>([]);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const [signedUploadingId, setSignedUploadingId] = useState<string | null>(null);
+
+  const loadArchivedPackages = useCallback(async () => {
+    if (!user) return;
+    setArchivedLoading(true);
+    const { data, error } = await supabase
+      .from("asl_packages")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (!error && data) setArchivedPackages(data as AslPackage[]);
+    setArchivedLoading(false);
+  }, [user]);
+
+  useEffect(() => { loadArchivedPackages(); }, [loadArchivedPackages]);
+
+  async function downloadStorageFile(path: string, suggestedName: string) {
+    const { data, error } = await supabase.storage.from("documents").download(path);
+    if (error || !data) { toast.error("Impossibile scaricare il file"); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url; a.download = suggestedName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function uploadSignedForPackage(pkg: AslPackage, file: File) {
+    if (!user) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Carica un file PDF (.pdf)");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File troppo grande (max 20 MB)");
+      return;
+    }
+    setSignedUploadingId(pkg.id);
+    try {
+      const path = `${user.id}/asl-packages/${pkg.id}_firmato.pdf`;
+      const { error: upErr } = await supabase.storage.from("documents").upload(path, file, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+      if (upErr) throw upErr;
+      const { error: dbErr } = await supabase
+        .from("asl_packages")
+        .update({ signed_pdf_path: path, signed_uploaded_at: new Date().toISOString() })
+        .eq("id", pkg.id);
+      if (dbErr) throw dbErr;
+      toast.success("PDF firmato archiviato");
+      await loadArchivedPackages();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Errore nel caricamento");
+    } finally {
+      setSignedUploadingId(null);
+    }
+  }
+
+  async function deleteArchivedPackage(pkg: AslPackage) {
+    if (!confirm(`Eliminare il pacchetto "${pkg.period_label}"? L'azione è irreversibile.`)) return;
+    const paths = [pkg.original_pdf_path];
+    if (pkg.signed_pdf_path) paths.push(pkg.signed_pdf_path);
+    await supabase.storage.from("documents").remove(paths);
+    const { error } = await supabase.from("asl_packages").delete().eq("id", pkg.id);
+    if (error) { toast.error("Errore nell'eliminazione"); return; }
+    toast.success("Pacchetto eliminato");
+    await loadArchivedPackages();
+  }
+
   async function logoDataUrl(): Promise<{ data: string; w: number; h: number } | null> {
     if (!company.logo_url) return null;
     try {
