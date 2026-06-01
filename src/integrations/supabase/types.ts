@@ -47,6 +47,42 @@ export type Database = {
         }
         Relationships: []
       }
+      asl_packages: {
+        Row: {
+          created_at: string
+          id: string
+          original_pdf_path: string
+          period_end: string
+          period_label: string
+          period_start: string
+          signed_pdf_path: string | null
+          signed_uploaded_at: string | null
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: string
+          original_pdf_path: string
+          period_end: string
+          period_label: string
+          period_start: string
+          signed_pdf_path?: string | null
+          signed_uploaded_at?: string | null
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: string
+          original_pdf_path?: string
+          period_end?: string
+          period_label?: string
+          period_start?: string
+          signed_pdf_path?: string | null
+          signed_uploaded_at?: string | null
+          user_id?: string
+        }
+        Relationships: []
+      }
       assets: {
         Row: {
           asset_type: string

@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect, useCallback } from "react";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { supabase } from "@/integrations/supabase/client";
@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown, Snowflake, Flame, Droplet, ChefHat, ClipboardCheck, PenLine, X } from "lucide-react";
+import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown, Snowflake, Flame, Droplet, ChefHat, ClipboardCheck, PenLine, X, Archive, Upload, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 
 type ReportKey =
@@ -95,6 +95,88 @@ export default function Reports() {
   const [aslIncludePhotos, setAslIncludePhotos] = useState(false);
   const [aslSignatureData, setAslSignatureData] = useState<string | null>(null);
   const [aslBusy, setAslBusy] = useState(false);
+
+  // Archived ASL packages (with optional uploaded signed PDF)
+  type AslPackage = {
+    id: string;
+    period_label: string;
+    period_start: string;
+    period_end: string;
+    original_pdf_path: string;
+    signed_pdf_path: string | null;
+    signed_uploaded_at: string | null;
+    created_at: string;
+  };
+  const [archivedPackages, setArchivedPackages] = useState<AslPackage[]>([]);
+  const [archivedLoading, setArchivedLoading] = useState(false);
+  const [signedUploadingId, setSignedUploadingId] = useState<string | null>(null);
+
+  const loadArchivedPackages = useCallback(async () => {
+    if (!user) return;
+    setArchivedLoading(true);
+    const { data, error } = await supabase
+      .from("asl_packages")
+      .select("*")
+      .order("created_at", { ascending: false })
+      .limit(50);
+    if (!error && data) setArchivedPackages(data as AslPackage[]);
+    setArchivedLoading(false);
+  }, [user]);
+
+  useEffect(() => { loadArchivedPackages(); }, [loadArchivedPackages]);
+
+  async function downloadStorageFile(path: string, suggestedName: string) {
+    const { data, error } = await supabase.storage.from("documents").download(path);
+    if (error || !data) { toast.error("Impossibile scaricare il file"); return; }
+    const url = URL.createObjectURL(data);
+    const a = document.createElement("a");
+    a.href = url; a.download = suggestedName;
+    document.body.appendChild(a); a.click(); a.remove();
+    setTimeout(() => URL.revokeObjectURL(url), 1000);
+  }
+
+  async function uploadSignedForPackage(pkg: AslPackage, file: File) {
+    if (!user) return;
+    if (file.type !== "application/pdf" && !file.name.toLowerCase().endsWith(".pdf")) {
+      toast.error("Carica un file PDF (.pdf)");
+      return;
+    }
+    if (file.size > 20 * 1024 * 1024) {
+      toast.error("File troppo grande (max 20 MB)");
+      return;
+    }
+    setSignedUploadingId(pkg.id);
+    try {
+      const path = `${user.id}/asl-packages/${pkg.id}_firmato.pdf`;
+      const { error: upErr } = await supabase.storage.from("documents").upload(path, file, {
+        contentType: "application/pdf",
+        upsert: true,
+      });
+      if (upErr) throw upErr;
+      const { error: dbErr } = await supabase
+        .from("asl_packages")
+        .update({ signed_pdf_path: path, signed_uploaded_at: new Date().toISOString() })
+        .eq("id", pkg.id);
+      if (dbErr) throw dbErr;
+      toast.success("PDF firmato archiviato");
+      await loadArchivedPackages();
+    } catch (e: any) {
+      toast.error(e?.message ?? "Errore nel caricamento");
+    } finally {
+      setSignedUploadingId(null);
+    }
+  }
+
+  async function deleteArchivedPackage(pkg: AslPackage) {
+    if (!confirm(`Eliminare il pacchetto "${pkg.period_label}"? L'azione è irreversibile.`)) return;
+    const paths = [pkg.original_pdf_path];
+    if (pkg.signed_pdf_path) paths.push(pkg.signed_pdf_path);
+    await supabase.storage.from("documents").remove(paths);
+    const { error } = await supabase.from("asl_packages").delete().eq("id", pkg.id);
+    if (error) { toast.error("Errore nell'eliminazione"); return; }
+    toast.success("Pacchetto eliminato");
+    await loadArchivedPackages();
+  }
 
   async function logoDataUrl(): Promise<{ data: string; w: number; h: number } | null> {
     if (!company.logo_url) return null;
@@ -1010,8 +1092,44 @@ export default function Reports() {
 
       const company_slug = (company.business_name ?? "azienda").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const fileLabel = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      doc.save(`HACCP_ispezione-asl_${fileLabel}_${company_slug}.pdf`);
-      toast.success("Pacchetto Ispezione ASL generato");
+      const fileName = `HACCP_ispezione-asl_${fileLabel}_${company_slug}.pdf`;
+
+      // Get PDF as blob for storage + download
+      const pdfBlob: Blob = doc.output("blob");
+
+      // Archive to storage + DB (best-effort: never block local download)
+      try {
+        if (user) {
+          const pkgId = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+          const path = `${user.id}/asl-packages/${pkgId}_originale.pdf`;
+          const { error: upErr } = await supabase.storage.from("documents").upload(path, pdfBlob, {
+            contentType: "application/pdf",
+            upsert: false,
+          });
+          if (upErr) throw upErr;
+          const { error: insErr } = await supabase.from("asl_packages").insert({
+            id: pkgId,
+            user_id: user.id,
+            period_label: label,
+            period_start: start,
+            period_end: end,
+            original_pdf_path: path,
+          });
+          if (insErr) throw insErr;
+          await loadArchivedPackages();
+        }
+      } catch (archiveErr: any) {
+        console.error("ASL archive error", archiveErr);
+        toast.error("Pacchetto generato ma non archiviato: " + (archiveErr?.message ?? "errore"));
+      }
+
+      // Trigger local download
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success("Pacchetto Ispezione ASL generato e archiviato");
     } catch (e: any) {
       toast.error(e?.message ?? "Errore nella generazione");
     } finally {
@@ -1189,6 +1307,97 @@ export default function Reports() {
           {aslBusy ? <Loader2 className="animate-spin" size={18} /> : <FileDown size={18} />}
           Genera Pacchetto Ispezione ASL
         </Button>
+      </Card>
+
+      {/* Archived ASL packages — with optional uploaded digital signature */}
+      <Card className="p-5 mb-6 shadow-soft">
+        <div className="flex items-start gap-4 mb-4">
+          <div className="h-12 w-12 rounded-xl bg-muted flex items-center justify-center shrink-0">
+            <Archive className="text-muted-foreground" size={24} />
+          </div>
+          <div className="flex-1 min-w-0">
+            <div className="font-display font-bold text-lg">Pacchetti ASL archiviati</div>
+            <div className="text-sm text-muted-foreground">
+              Ogni pacchetto generato viene archiviato qui. Puoi scaricare l'originale, firmarlo digitalmente (firma PAdES con il tuo dispositivo / software) e ricaricare il file <strong>.pdf</strong> firmato per conservarlo insieme all'originale.
+            </div>
+          </div>
+        </div>
+
+        {archivedLoading ? (
+          <div className="flex items-center gap-2 text-sm text-muted-foreground">
+            <Loader2 className="animate-spin" size={14} /> Caricamento…
+          </div>
+        ) : archivedPackages.length === 0 ? (
+          <div className="text-sm text-muted-foreground italic">Nessun pacchetto archiviato. Genera il primo qui sopra.</div>
+        ) : (
+          <div className="space-y-3">
+            {archivedPackages.map((pkg) => (
+              <div key={pkg.id} className="flex flex-col sm:flex-row sm:items-center gap-3 p-3 border rounded-lg">
+                <div className="flex-1 min-w-0">
+                  <div className="font-medium truncate">{pkg.period_label}</div>
+                  <div className="text-xs text-muted-foreground">
+                    Generato il {new Date(pkg.created_at).toLocaleString("it-IT")}
+                    {pkg.signed_uploaded_at && (
+                      <span className="ml-2 inline-flex items-center gap-1 text-emerald-600">
+                        <ShieldCheck size={12} /> firmato il {new Date(pkg.signed_uploaded_at).toLocaleDateString("it-IT")}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="flex flex-wrap items-center gap-2">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    className="gap-1.5"
+                    onClick={() => downloadStorageFile(pkg.original_pdf_path, `ASL_${pkg.period_label}_originale.pdf`)}
+                  >
+                    <FileDown size={14} /> Originale
+                  </Button>
+                  {pkg.signed_pdf_path ? (
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      className="gap-1.5 border-emerald-300"
+                      onClick={() => downloadStorageFile(pkg.signed_pdf_path!, `ASL_${pkg.period_label}_firmato.pdf`)}
+                    >
+                      <ShieldCheck size={14} /> Firmato
+                    </Button>
+                  ) : (
+                    <label className="inline-flex">
+                      <input
+                        type="file"
+                        accept="application/pdf,.pdf"
+                        className="hidden"
+                        onChange={(e) => {
+                          const f = e.target.files?.[0];
+                          if (f) uploadSignedForPackage(pkg, f);
+                          e.target.value = "";
+                        }}
+                      />
+                      <Button
+                        variant="default"
+                        size="sm"
+                        className="gap-1.5 pointer-events-none"
+                        disabled={signedUploadingId === pkg.id}
+                      >
+                        {signedUploadingId === pkg.id ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
+                        Carica PDF firmato
+                      </Button>
+                    </label>
+                  )}
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    aria-label="Elimina pacchetto"
+                    onClick={() => deleteArchivedPackage(pkg)}
+                  >
+                    <Trash2 size={16} className="text-destructive" />
+                  </Button>
+                </div>
+              </div>
+            ))}
+          </div>
+        )}
       </Card>
 
       <Card className="p-4 mb-6 shadow-soft">
