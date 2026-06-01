@@ -8,6 +8,7 @@ type TaskAssignment = {
   task_type: string;
   due_time: string;
   frequency: string;
+  last_notified_at: string | null;
 };
 
 const corsHeaders = {
@@ -60,17 +61,9 @@ Deno.serve(async (req) => {
 
     const { data: allTasks, error: taskError } = await supabase
       .from("task_assignments")
-      .select("id, user_id, operator_id, asset_id, task_type, due_time, frequency")
+      .select("id, user_id, operator_id, asset_id, task_type, due_time, frequency, last_notified_at")
       .not("due_time", "is", null)
       .lte("due_time", thresholdTime);
-
-    if (taskError) {
-      console.error("Error fetching tasks:", taskError);
-      return new Response(JSON.stringify({ error: taskError.message }), {
-        status: 500,
-        headers: { ...corsHeaders, "Content-Type": "application/json" },
-      });
-    }
 
     if (taskError) {
       console.error("Error fetching tasks:", taskError);
@@ -121,8 +114,23 @@ Deno.serve(async (req) => {
       });
     }
 
+    // Throttle: max 1 push per 10 minutes per task_assignment
+    const COOLDOWN_MS = 10 * 60 * 1000;
+    const cooldownCutoff = new Date(Date.now() - COOLDOWN_MS);
+    const tasksToNotify = overdueTasks.filter((t) => {
+      if (!t.last_notified_at) return true;
+      return new Date(t.last_notified_at) < cooldownCutoff;
+    });
+
+    if (tasksToNotify.length === 0) {
+      return new Response(
+        JSON.stringify({ sent: 0, total: overdueTasks.length, message: "All overdue tasks within cooldown" }),
+        { headers: { ...corsHeaders, "Content-Type": "application/json" } },
+      );
+    }
+
     // Get unique operator_ids from overdue tasks
-    const operatorIds = [...new Set(overdueTasks.map((t) => t.operator_id))];
+    const operatorIds = [...new Set(tasksToNotify.map((t) => t.operator_id))];
 
     // Get push tokens for those operators
     const { data: operators, error: opError } = await supabase
@@ -145,7 +153,7 @@ Deno.serve(async (req) => {
     }
 
     // Admin push tokens
-    const adminUserIds = [...new Set(overdueTasks.map((t) => t.user_id).filter(Boolean))];
+    const adminUserIds = [...new Set(tasksToNotify.map((t) => t.user_id).filter(Boolean))];
     const adminTokenMap = new Map<string, any>();
     if (adminUserIds.length > 0) {
       const { data: profiles } = await supabase
@@ -167,7 +175,7 @@ Deno.serve(async (req) => {
     for (const o of opNames || []) opNameMap.set(o.id, o.name);
 
     // Get asset names for the notifications
-    const assetIds = [...new Set(overdueTasks.map((t) => t.asset_id))];
+    const assetIds = [...new Set(tasksToNotify.map((t) => t.asset_id))];
     const { data: assets } = await supabase
       .from("assets")
       .select("id, name")
@@ -179,11 +187,13 @@ Deno.serve(async (req) => {
     }
 
     let sent = 0;
-    for (const task of overdueTasks) {
+    const notifiedIds: string[] = [];
+    for (const task of tasksToNotify) {
       const assetName = assetMap.get(task.asset_id) || "Attrezzatura";
       const taskLabel = task.task_type === "sanitation" ? "Sanificazione" : "Rilevazione temperatura";
       const opName = opNameMap.get(task.operator_id) || "Operatore";
 
+      let taskNotified = false;
       const sub = tokenMap.get(task.operator_id);
       if (sub) {
         const payload = JSON.stringify({
@@ -194,6 +204,7 @@ Deno.serve(async (req) => {
         try {
           await sendWebPush(sub, payload, vapidPrivateKey, vapidPublicKey);
           sent++;
+          taskNotified = true;
         } catch (pushErr: any) {
           console.error("Push send error (operator):", pushErr?.message || pushErr);
         }
@@ -209,13 +220,26 @@ Deno.serve(async (req) => {
         try {
           await sendWebPush(adminSub, adminPayload, vapidPrivateKey, vapidPublicKey);
           sent++;
+          taskNotified = true;
         } catch (pushErr: any) {
           console.error("Push send error (admin):", pushErr?.message || pushErr);
         }
       }
+
+      if (taskNotified) {
+        notifiedIds.push(task.id);
+      }
     }
 
-    return new Response(JSON.stringify({ sent, total: overdueTasks.length }), {
+    if (notifiedIds.length > 0) {
+      const { error: updErr } = await supabase
+        .from("task_assignments")
+        .update({ last_notified_at: new Date().toISOString() })
+        .in("id", notifiedIds);
+      if (updErr) console.error("Failed to update last_notified_at:", updErr.message);
+    }
+
+    return new Response(JSON.stringify({ sent, total: overdueTasks.length, notified: notifiedIds.length }), {
       headers: { ...corsHeaders, "Content-Type": "application/json" },
     });
   } catch (err: any) {
