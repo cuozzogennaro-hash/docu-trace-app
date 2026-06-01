@@ -1,0 +1,1 @@
+ALTER TABLE public.task_assignments ADD COLUMN IF NOT EXISTS last_notified_at timestamptz;

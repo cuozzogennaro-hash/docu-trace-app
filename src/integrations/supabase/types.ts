@@ -1006,6 +1006,7 @@ export type Database = {
           due_time: string | null
           frequency: string
           id: string
+          last_notified_at: string | null
           operator_id: string
           status: string
           task_type: string
@@ -1017,6 +1018,7 @@ export type Database = {
           due_time?: string | null
           frequency?: string
           id?: string
+          last_notified_at?: string | null
           operator_id: string
           status?: string
           task_type: string
@@ -1028,6 +1030,7 @@ export type Database = {
           due_time?: string | null
           frequency?: string
           id?: string
+          last_notified_at?: string | null
           operator_id?: string
           status?: string
           task_type?: string

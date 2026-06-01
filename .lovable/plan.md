@@ -1,72 +1,58 @@
 ## Obiettivo
 
-Trasformare l'attuale `Reports.tsx` (che già esporta i singoli registri) in un **Pacchetto Ispezione ASL**: un unico PDF "ufficiale", strutturato come un Manuale di Autocontrollo, con copertina, anagrafiche, sintesi, tutti i registri, non conformità e pagina firma. È il documento che il titolare stampa o invia al controllo ASL senza ulteriori manipolazioni.
+Oggi `check-overdue-tasks` viene invocato dal cron molto frequentemente (dai log, ogni ~20-60s) e re-invia la push per **ogni** task scaduto a **ogni** tick, finché l'operatore non completa l'azione. Risultato: notifiche martellanti. Vogliamo **massimo 1 push ogni 10 minuti per coppia (task_assignment)**.
 
-## Cosa cambia (per l'utente)
+## Soluzione
 
-In `/report` aggiungiamo un nuovo blocco in alto, sopra ai pulsanti attuali:
+### 1. Migration
 
-```
-┌─────────────────────────────────────────────────────────┐
-│  📋  Pacchetto Ispezione ASL                            │
-│  Tutto quello che serve per il controllo,               │
-│  in un unico PDF firmabile.                             │
-│                                                          │
-│  Periodo:   [▾ Ultimo mese | Trimestre | Anno | Custom] │
-│  Includi:   [✓] Anagrafiche  [✓] Sintesi & anomalie    │
-│             [✓] Non conformità  [✓] Foto allegate       │
-│  Firma:     [Carica immagine firma]  (opzionale)        │
-│                                                          │
-│  [⬇ Genera Pacchetto Ispezione ASL]                     │
-└─────────────────────────────────────────────────────────┘
+Aggiungere una colonna su `task_assignments`:
+
+```sql
+ALTER TABLE public.task_assignments
+  ADD COLUMN last_notified_at timestamptz;
 ```
 
-I pulsanti per i singoli registri restano invariati sotto, per chi vuole solo una sezione.
+Nessuna RLS da toccare (la tabella ha già la policy `own task_assignments`), nessun GRANT aggiuntivo. La edge function scrive con `service_role`, bypassa RLS.
 
-## Struttura del PDF generato
+### 2. Modifica `supabase/functions/check-overdue-tasks/index.ts`
 
-1. **Copertina** — logo, ragione sociale, P.IVA, indirizzo, periodo, data emissione, "Documento di autocontrollo HACCP — Reg. CE 852/2004"
-2. **Indice cliccabile** (bookmarks PDF)
-3. **Anagrafica azienda** — dati completi + responsabile autocontrollo
-4. **Operatori abilitati** — tabella nome / ruolo / data attivazione (no PIN, ovviamente)
-5. **Attrezzature e punti di controllo** — tabella asset con range temperatura, reparto, prodotto sanificante
-6. **Fornitori** — elenco con P.IVA
-7. **Sintesi del periodo** — pagina riassuntiva con:
-   - # rilevazioni temperatura, % conformità, # anomalie evidenziate
-   - # sanificazioni eseguite vs programmate
-   - # produzioni / lotti emessi
-   - # abbattimenti, # holding records, # controlli olio
-   - # non conformità aperte / chiuse
-   - grafico semplice (mini-barre disegnate via jsPDF) conformità per settimana
-8. **Registri completi** (riusando le funzioni `tempTable`, `sanitTable`, ecc. già esistenti)
-9. **Non conformità & azioni correttive** — registro dedicato con data, descrizione, azione, esito, data chiusura
-10. **Dichiarazione e firma** finale — testo legale standard + riquadro firma con immagine caricata, oppure righe per firma manuale, data e luogo
+- Includere `last_notified_at` nella select iniziale.
+- Dopo aver costruito la lista `overdueTasks` (già filtrata per non-completati), applicare il filtro cooldown:
+  ```ts
+  const COOLDOWN_MS = 10 * 60 * 1000;
+  const cooldownIso = new Date(Date.now() - COOLDOWN_MS).toISOString();
+  const tasksToNotify = overdueTasks.filter(t =>
+    !t.last_notified_at || t.last_notified_at < cooldownIso
+  );
+  ```
+- Iterare su `tasksToNotify` per inviare push a operatore + admin (logica attuale invariata).
+- Per ogni task in cui almeno una delle due push è stata accettata dal push service, accumulare l'id; alla fine, singolo UPDATE batch:
+  ```ts
+  if (notifiedIds.length > 0) {
+    await supabase
+      .from("task_assignments")
+      .update({ last_notified_at: new Date().toISOString() })
+      .in("id", notifiedIds);
+  }
+  ```
+- Rimuovere il blocco `if (taskError)` duplicato (refuso esistente nel file).
 
-## Decisioni tecniche
+## Comportamento risultante
 
-- Tutto client-side con `jsPDF` + `jspdf-autotable` (già in uso), nessuna nuova dipendenza obbligatoria
-- Periodo flessibile: helper `periodRange(kind, customStart, customEnd)` che sostituisce l'attuale `monthRange`
-- Sintesi calcolata in memoria sui dati già fetchati, senza nuove query
-- Bookmarks PDF via `doc.outline.add(...)` di jsPDF
-- Foto allegate (es. `raw_materials.document_image_url`): scaricate e inserite in appendice solo se l'utente attiva il toggle, con limite a N immagini per evitare PDF da 50 MB
-- Firma: input `<Input type="file" accept="image/*">`, convertita a dataURL in memoria, mai salvata sul server
-- Nessuna modifica al database
+- **Task appena diventato scaduto** (30+ min oltre `due_time`): prima push parte al primo tick utile, `last_notified_at = now()`.
+- **Cron continua a girare ogni minuto**: per i 10 minuti successivi il task viene scartato dal filtro.
+- **Operatore completa l'azione**: il task esce dalla query degli scaduti (controllo già esistente su `sanitations`/`temperatures`), nessuna ulteriore push.
+- **Task ancora aperto dopo 10 min**: nuova push, e così via, max 6 push/ora per task.
+- **Nuovo giorno (frequency `daily`)**: il task torna scaduto, `last_notified_at` è di ieri → parte la prima push del giorno regolarmente.
 
 ## File toccati
 
-- `src/pages/Reports.tsx` — refactor: estrarre `periodRange`, `drawCover`, `drawIndex`, `drawAnagrafica`, `drawOperatori`, `drawAssets`, `drawSuppliers`, `drawSummary`, `drawSignaturePage`, aggiungere `generateAslPackage()` e relativo blocco UI
-- `src/hooks/useCompany.tsx` — verifica che esponga già tutti i campi (city, phone, email); se manca qualcosa, query supplementare locale a `Reports.tsx`
-- Nessuna nuova migration
+- **Nuova migration**: aggiunta colonna `last_notified_at` a `task_assignments`.
+- **`supabase/functions/check-overdue-tasks/index.ts`**: select estesa, filtro cooldown, UPDATE batch finale, rimozione blocco duplicato.
 
-## Fuori scopo (per ora)
+## Fuori scopo
 
-- Firma digitale qualificata (CAdES/PAdES) — richiede integrazione con Aruba/InfoCert, lo proponiamo come step 2
-- Invio diretto via email/PEC al consulente HACCP — step 2
-- Generazione del **Manuale HACCP** vero e proprio (analisi rischi, CCP, ecc.) — è un prodotto a sé
-- Multi-sede nel PDF (resta single-tenant come oggi)
-
-## Domande aperte (rispondi quando passiamo in build, oppure procedo con default)
-
-1. Periodi proposti: **Ultimo mese / Trimestre / Anno / Personalizzato** — ok così? Default: ultimo mese.
-2. Foto allegate: includerle **solo per le materie prime con anomalia** o **tutte quelle disponibili**? Default proposto: tutte, ma con tetto a 30 foto.
-3. Firma: vuoi anche la possibilità di caricare la firma del **consulente HACCP esterno** oltre a quella del titolare? Default: solo titolare.
+- Banner "Installa come PWA" per sbloccare push su iOS Safari (lo trattiamo come task separato se vuoi).
+- Migrazione a push native APN/FCM via Capacitor.
+- Configurazione cron `pg_cron`: dai log risulta già attivo.
