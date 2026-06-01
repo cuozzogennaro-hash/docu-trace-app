@@ -66,7 +66,7 @@ const App = () => (
           <OperatorSessionProvider>
             <Routes>
             <Route path="/auth" element={<AuthPage />} />
-            <Route path="/abbonamento" element={<AuthOnly><SubscriptionPage /></AuthOnly>} />
+            <Route path="/abbonamento" element={<SubscriptionPage />} />
             <Route path="/termini" element={<TermsPage />} />
             <Route path="/rimborsi" element={<RefundPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />

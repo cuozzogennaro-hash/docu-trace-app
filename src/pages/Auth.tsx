@@ -142,6 +142,12 @@ export default function AuthPage() {
             </TabsContent>
           </Tabs>
         </Card>
+        <div className="mt-6 text-center text-xs text-muted-foreground space-x-3">
+          <a href="/abbonamento" className="underline hover:text-foreground">Prezzi</a>
+          <a href="/termini" className="underline hover:text-foreground">Termini</a>
+          <a href="/rimborsi" className="underline hover:text-foreground">Rimborsi</a>
+          <a href="/privacy" className="underline hover:text-foreground">Privacy</a>
+        </div>
       </div>
     </div>
   );
