@@ -37,7 +37,10 @@ export default function SubscriptionPage() {
   }, [searchParams, refetch]);
 
   async function startCheckout() {
-    if (!user) return;
+    if (!user) {
+      navigate("/auth");
+      return;
+    }
     try {
       await openCheckout({
         priceId: "haccp_pro_monthly",
