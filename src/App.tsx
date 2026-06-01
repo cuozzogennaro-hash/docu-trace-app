@@ -27,6 +27,12 @@ import Menu from "./pages/Menu";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { OperatorSessionProvider, useOperatorSession } from "./hooks/useOperatorSession";
+import SubscriptionPage from "./pages/Subscription";
+import TermsPage from "./pages/legal/Terms";
+import RefundPage from "./pages/legal/Refund";
+import PrivacyPage from "./pages/legal/Privacy";
+import SubscriptionGate from "./components/SubscriptionGate";
+import { PaymentTestModeBanner } from "./components/PaymentTestModeBanner";
 
 const queryClient = new QueryClient();
 
@@ -35,7 +41,19 @@ function Protected() {
   const { operator } = useOperatorSession();
   if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Caricamento…</div>;
   if (!session && !operator) return <Navigate to="/auth" replace />;
-  return <AppShell />;
+  return (
+    <SubscriptionGate>
+      <PaymentTestModeBanner />
+      <AppShell />
+    </SubscriptionGate>
+  );
+}
+
+function AuthOnly({ children }: { children: React.ReactNode }) {
+  const { session, loading } = useAuth();
+  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Caricamento…</div>;
+  if (!session) return <Navigate to="/auth" replace />;
+  return <>{children}</>;
 }
 
 const App = () => (
@@ -48,6 +66,10 @@ const App = () => (
           <OperatorSessionProvider>
             <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/abbonamento" element={<AuthOnly><SubscriptionPage /></AuthOnly>} />
+            <Route path="/termini" element={<TermsPage />} />
+            <Route path="/rimborsi" element={<RefundPage />} />
+            <Route path="/privacy" element={<PrivacyPage />} />
             <Route element={<Protected />}>
               <Route path="/" element={<Index />} />
               <Route path="/sanificazione" element={<Sanitations />} />
