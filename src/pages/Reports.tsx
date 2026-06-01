@@ -1092,8 +1092,44 @@ export default function Reports() {
 
       const company_slug = (company.business_name ?? "azienda").toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
       const fileLabel = label.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
-      doc.save(`HACCP_ispezione-asl_${fileLabel}_${company_slug}.pdf`);
-      toast.success("Pacchetto Ispezione ASL generato");
+      const fileName = `HACCP_ispezione-asl_${fileLabel}_${company_slug}.pdf`;
+
+      // Get PDF as blob for storage + download
+      const pdfBlob: Blob = doc.output("blob");
+
+      // Archive to storage + DB (best-effort: never block local download)
+      try {
+        if (user) {
+          const pkgId = (globalThis.crypto?.randomUUID?.() ?? `${Date.now()}-${Math.random().toString(36).slice(2)}`);
+          const path = `${user.id}/asl-packages/${pkgId}_originale.pdf`;
+          const { error: upErr } = await supabase.storage.from("documents").upload(path, pdfBlob, {
+            contentType: "application/pdf",
+            upsert: false,
+          });
+          if (upErr) throw upErr;
+          const { error: insErr } = await supabase.from("asl_packages").insert({
+            id: pkgId,
+            user_id: user.id,
+            period_label: label,
+            period_start: start,
+            period_end: end,
+            original_pdf_path: path,
+          });
+          if (insErr) throw insErr;
+          await loadArchivedPackages();
+        }
+      } catch (archiveErr: any) {
+        console.error("ASL archive error", archiveErr);
+        toast.error("Pacchetto generato ma non archiviato: " + (archiveErr?.message ?? "errore"));
+      }
+
+      // Trigger local download
+      const url = URL.createObjectURL(pdfBlob);
+      const a = document.createElement("a");
+      a.href = url; a.download = fileName;
+      document.body.appendChild(a); a.click(); a.remove();
+      setTimeout(() => URL.revokeObjectURL(url), 1000);
+      toast.success("Pacchetto Ispezione ASL generato e archiviato");
     } catch (e: any) {
       toast.error(e?.message ?? "Errore nella generazione");
     } finally {
