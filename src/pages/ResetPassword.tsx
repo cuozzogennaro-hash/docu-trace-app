@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,18 +12,6 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
-  const [ready, setReady] = useState(false);
-
-  useEffect(() => {
-    // Supabase parses the recovery hash automatically and emits a PASSWORD_RECOVERY event
-    const { data: sub } = supabase.auth.onAuthStateChange((event) => {
-      if (event === "PASSWORD_RECOVERY" || event === "SIGNED_IN") setReady(true);
-    });
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setReady(true);
-    });
-    return () => sub.subscription.unsubscribe();
-  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
@@ -50,12 +38,7 @@ export default function ResetPasswordPage() {
           <h1 className="font-display text-2xl font-bold">Reimposta password</h1>
         </div>
         <Card className="p-6 shadow-elevated">
-          {!ready ? (
-            <p className="text-sm text-muted-foreground text-center">
-              Apri il link che ti è arrivato via email per continuare.
-            </p>
-          ) : (
-            <form onSubmit={submit} className="space-y-4">
+          <form onSubmit={submit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Nuova password</Label>
                 <Input
@@ -69,8 +52,7 @@ export default function ResetPasswordPage() {
               <Button type="submit" disabled={busy} className="w-full bg-gradient-primary">
                 {busy ? "Attendi…" : "Aggiorna password"}
               </Button>
-            </form>
-          )}
+          </form>
         </Card>
       </div>
     </div>
