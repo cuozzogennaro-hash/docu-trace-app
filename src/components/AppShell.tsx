@@ -13,6 +13,7 @@ import { NAV_VISIBILITY, useActivityProfile, productionLabel, recurringLabel, ha
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 
 type NavItem = { to: string; icon: any; label: string; end?: boolean };
 type NavGroup = { key: string; label: string | null; items: NavItem[] };
@@ -88,6 +89,7 @@ export default function AppShell() {
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false);
   const { profile } = useActivityProfile();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
+  const { isSuperAdmin } = useSuperAdmin();
 
   // Mostra il dialog scelta profilo al primo accesso (titolare loggato, profilo non ancora scelto)
   useEffect(() => {
@@ -139,6 +141,14 @@ export default function AppShell() {
         }))
         .filter((g) => g.items.length > 0)
     : [{ key: "operator", label: null, items: operatorNav }];
+
+  if (isSuperAdmin && (!operator || isAdminOperator)) {
+    groups.push({
+      key: "supervisor",
+      label: "Supervisore",
+      items: [{ to: "/admin", icon: ShieldCheck, label: "Dashboard supervisore" }],
+    });
+  }
 
   async function handleLogout() {
     signOutOperator();
