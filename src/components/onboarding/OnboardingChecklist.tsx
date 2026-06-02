@@ -5,12 +5,14 @@ import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Building2, Layers, Refrigerator, UserPlus, Check, ChevronRight, X, Sparkles } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 type Status = { company: boolean; departments: boolean; assets: boolean; operators: boolean };
 
 const STORAGE_KEY = "haccp.checklist.dismissed";
 
 export default function OnboardingChecklist({ onRestart }: { onRestart: () => void }) {
+  const { t } = useTranslation();
   const { user } = useAuth();
   const [status, setStatus] = useState<Status | null>(null);
   const [dismissed, setDismissed] = useState(() => localStorage.getItem(STORAGE_KEY) === "1");
@@ -39,10 +41,10 @@ export default function OnboardingChecklist({ onRestart }: { onRestart: () => vo
   if (done === total) return null;
 
   const items = [
-    { key: "company", label: "Dati azienda", icon: Building2, done: status.company, href: "/impostazioni?tab=azienda" },
-    { key: "departments", label: "Reparti", icon: Layers, done: status.departments, href: "/impostazioni?tab=reparti" },
-    { key: "assets", label: "Attrezzature", icon: Refrigerator, done: status.assets, href: "/impostazioni?tab=attrezzature" },
-    { key: "operators", label: "Operatori", icon: UserPlus, done: status.operators, href: "/impostazioni?tab=operatori" },
+    { key: "company", label: t("Dati azienda"), icon: Building2, done: status.company, href: "/impostazioni?tab=azienda" },
+    { key: "departments", label: t("Reparti"), icon: Layers, done: status.departments, href: "/impostazioni?tab=reparti" },
+    { key: "assets", label: t("Attrezzature"), icon: Refrigerator, done: status.assets, href: "/impostazioni?tab=attrezzature" },
+    { key: "operators", label: t("Operatori"), icon: UserPlus, done: status.operators, href: "/impostazioni?tab=operatori" },
   ];
 
   function dismiss() {
@@ -58,13 +60,13 @@ export default function OnboardingChecklist({ onRestart }: { onRestart: () => vo
             <Sparkles className="text-primary-foreground" size={18} />
           </div>
           <div className="min-w-0">
-            <div className="font-display font-semibold">Completa la configurazione</div>
-            <div className="text-xs text-muted-foreground">{done} di {total} passi completati</div>
+            <div className="font-display font-semibold">{t("Completa la configurazione")}</div>
+            <div className="text-xs text-muted-foreground">{t("{{n}} di {{total}} passi completati", { n: done, total })}</div>
           </div>
         </div>
         <div className="flex items-center gap-1">
-          <Button size="sm" variant="outline" onClick={onRestart}>Riprendi tour</Button>
-          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={dismiss} title="Nascondi">
+          <Button size="sm" variant="outline" onClick={onRestart}>{t("Riprendi tour")}</Button>
+          <Button size="icon" variant="ghost" className="h-8 w-8" onClick={dismiss} title={t("Nascondi")}>
             <X size={14} />
           </Button>
         </div>
