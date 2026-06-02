@@ -9,13 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { hashPin } from "@/hooks/useOperators";
 import { toast } from "sonner";
-import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell, FileDown, ShieldCheck } from "lucide-react";
+import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell, FileDown, ShieldCheck, HeartPulse, EyeOff, Settings2, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useCompany } from "@/hooks/useCompany";
 
-type Op = { id: string; name: string; role: string | null; is_active: boolean; login_handle: string; is_admin: boolean };
+type Op = {
+  id: string;
+  name: string;
+  role: string | null;
+  is_active: boolean;
+  login_handle: string;
+  is_admin: boolean;
+  health_cert_expiry: string | null;
+  health_cert_reminder_days: number;
+  hide_in_reports: boolean;
+};
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null };
 type Assignment = {
   id: string;
@@ -49,9 +59,16 @@ export default function OperatorsTab() {
   const [editingHandle, setEditingHandle] = useState<Op | null>(null);
   const [handleDraft, setHandleDraft] = useState("");
 
+  // edit operator details dialog (health cert + report visibility)
+  const [editingOp, setEditingOp] = useState<Op | null>(null);
+  const [healthDate, setHealthDate] = useState<string>("");
+  const [reminderDays, setReminderDays] = useState<number>(30);
+  const [hideInReports, setHideInReports] = useState<boolean>(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+
   async function load() {
     const [ops, ass, ta] = await Promise.all([
-      supabase.from("operators").select("id, name, role, is_active, login_handle, is_admin").order("name"),
+      supabase.from("operators").select("id, name, role, is_active, login_handle, is_admin, health_cert_expiry, health_cert_reminder_days, hide_in_reports").order("name"),
       supabase.from("assets").select("id, name, asset_type, cleaning_product").order("name"),
       supabase.from("task_assignments").select("*"),
     ]);
@@ -122,6 +139,39 @@ export default function OperatorsTab() {
   function copyHandle(handle: string) {
     navigator.clipboard.writeText(handle);
     toast.success("Copiato");
+  }
+
+  function openDetails(op: Op) {
+    setEditingOp(op);
+    setHealthDate(op.health_cert_expiry ?? "");
+    setReminderDays(op.health_cert_reminder_days ?? 30);
+    setHideInReports(!!op.hide_in_reports);
+  }
+
+  async function saveDetails() {
+    if (!editingOp) return;
+    setSavingDetails(true);
+    const { error } = await supabase.from("operators").update({
+      health_cert_expiry: healthDate || null,
+      health_cert_reminder_days: Number.isFinite(reminderDays) && reminderDays >= 0 ? reminderDays : 30,
+      hide_in_reports: hideInReports,
+    }).eq("id", editingOp.id);
+    setSavingDetails(false);
+    if (error) return toast.error(error.message);
+    toast.success("Scheda operatore aggiornata");
+    setEditingOp(null);
+    load();
+  }
+
+  function healthStatus(op: Op): { label: string; tone: "ok" | "soon" | "expired" } | null {
+    if (!op.health_cert_expiry) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const exp = new Date(op.health_cert_expiry + "T00:00:00");
+    const diff = Math.round((exp.getTime() - today.getTime()) / 86400000);
+    const fmt = exp.toLocaleDateString("it-IT");
+    if (diff < 0) return { label: `Libretto scaduto il ${fmt}`, tone: "expired" };
+    if (diff <= (op.health_cert_reminder_days ?? 30)) return { label: `Libretto scade il ${fmt} (${diff}g)`, tone: "soon" };
+    return { label: `Libretto valido fino al ${fmt}`, tone: "ok" };
   }
 
   async function toggleAssignment(operatorId: string, assetId: string, taskType: "sanitation" | "temperature", checked: boolean) {
@@ -233,6 +283,9 @@ export default function OperatorsTab() {
                     <Button size="icon" variant="ghost" onClick={() => setTasksFor(op)} title="Mansioni">
                       <ListChecks size={16} />
                     </Button>
+                    <Button size="icon" variant="ghost" onClick={() => openDetails(op)} title="Scheda operatore">
+                      <Settings2 size={16} />
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => resetPin(op)} title="Reset PIN">
                       <KeyRound size={16} />
                     </Button>
@@ -241,6 +294,29 @@ export default function OperatorsTab() {
                     </Button>
                   </div>
                 </div>
+                {(() => {
+                  const h = healthStatus(op);
+                  if (!h && !op.hide_in_reports) return null;
+                  return (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {h && (
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                          h.tone === "expired" ? "bg-destructive/10 text-destructive border-destructive/30" :
+                          h.tone === "soon" ? "bg-orange-500/10 text-orange-600 border-orange-500/30" :
+                          "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                        }`}>
+                          {h.tone === "ok" ? <HeartPulse size={11} /> : <AlertTriangle size={11} />}
+                          {h.label}
+                        </span>
+                      )}
+                      {op.hide_in_reports && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
+                          <EyeOff size={11} /> Mascherato nei report
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
                   <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer mr-2">
                     <Checkbox
@@ -423,6 +499,68 @@ export default function OperatorsTab() {
           <DialogFooter>
             <Button variant="ghost" onClick={() => setEditingHandle(null)}>Annulla</Button>
             <Button onClick={saveHandle} className="bg-gradient-primary">Salva</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Edit operator details dialog */}
+      <Dialog open={!!editingOp} onOpenChange={(v) => !v && setEditingOp(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 size={18} /> Scheda di {editingOp?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <HeartPulse size={14} /> Scadenza libretto sanitario
+              </Label>
+              <Input
+                type="date"
+                value={healthDate}
+                onChange={(e) => setHealthDate(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Lascia vuoto se non gestito.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Bell size={14} /> Promemoria (giorni prima della scadenza)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                max={365}
+                value={reminderDays}
+                onChange={(e) => setReminderDays(parseInt(e.target.value || "0", 10))}
+                disabled={!healthDate}
+              />
+              <p className="text-xs text-muted-foreground">
+                Ti avviseremo nella scheda operatori quando la scadenza è entro questo numero di giorni.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3 flex items-start gap-3">
+              <Checkbox
+                id="hide-reports"
+                checked={hideInReports}
+                onCheckedChange={(c) => setHideInReports(!!c)}
+                className="mt-0.5"
+              />
+              <label htmlFor="hide-reports" className="text-sm cursor-pointer flex-1">
+                <div className="font-medium flex items-center gap-1.5">
+                  <EyeOff size={14} /> Nascondi nei report
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Nei PDF e nelle stampe il nome di questo operatore verrà sostituito con <strong>“Amministratore”</strong>.
+                </div>
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingOp(null)}>Annulla</Button>
+            <Button onClick={saveDetails} disabled={savingDetails} className="bg-gradient-primary">
+              {savingDetails ? <Loader2 className="animate-spin" size={16} /> : "Salva"}
+            </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
