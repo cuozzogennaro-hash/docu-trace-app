@@ -45,10 +45,10 @@ export default function ResetPasswordPage() {
         if (data.session && (code || tokenHash || accessToken)) {
           window.history.replaceState(null, "", "/reset-password");
         }
-      } catch (err: any) {
+      } catch (err: unknown) {
         if (active) {
           setHasSession(false);
-          toast.error(err?.message ?? "Link di recupero non valido o scaduto");
+          toast.error(err instanceof Error ? err.message : "Link di recupero non valido o scaduto");
         }
       } finally {
         if (active) setChecking(false);
@@ -80,8 +80,8 @@ export default function ResetPasswordPage() {
       toast.success("Password aggiornata. Sei dentro.");
       // Force fresh session so the new password is the only valid one
       navigate("/", { replace: true });
-    } catch (err: any) {
-      toast.error(err?.message ?? "Errore aggiornamento password");
+    } catch (err: unknown) {
+      toast.error(err instanceof Error ? err.message : "Errore aggiornamento password");
     } finally {
       setBusy(false);
     }
