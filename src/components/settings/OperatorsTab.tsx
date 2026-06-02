@@ -9,13 +9,23 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Checkbox } from "@/components/ui/checkbox";
 import { hashPin } from "@/hooks/useOperators";
 import { toast } from "sonner";
-import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell, FileDown, ShieldCheck } from "lucide-react";
+import { UserPlus, UserCircle2, Trash2, KeyRound, Loader2, ListChecks, Sparkles, Thermometer, Pencil, Copy, AtSign, Bell, FileDown, ShieldCheck, HeartPulse, EyeOff, Settings2, AlertTriangle } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { useCompany } from "@/hooks/useCompany";
 
-type Op = { id: string; name: string; role: string | null; is_active: boolean; login_handle: string; is_admin: boolean };
+type Op = {
+  id: string;
+  name: string;
+  role: string | null;
+  is_active: boolean;
+  login_handle: string;
+  is_admin: boolean;
+  health_cert_expiry: string | null;
+  health_cert_reminder_days: number;
+  hide_in_reports: boolean;
+};
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null };
 type Assignment = {
   id: string;
@@ -49,9 +59,16 @@ export default function OperatorsTab() {
   const [editingHandle, setEditingHandle] = useState<Op | null>(null);
   const [handleDraft, setHandleDraft] = useState("");
 
+  // edit operator details dialog (health cert + report visibility)
+  const [editingOp, setEditingOp] = useState<Op | null>(null);
+  const [healthDate, setHealthDate] = useState<string>("");
+  const [reminderDays, setReminderDays] = useState<number>(30);
+  const [hideInReports, setHideInReports] = useState<boolean>(false);
+  const [savingDetails, setSavingDetails] = useState(false);
+
   async function load() {
     const [ops, ass, ta] = await Promise.all([
-      supabase.from("operators").select("id, name, role, is_active, login_handle, is_admin").order("name"),
+      supabase.from("operators").select("id, name, role, is_active, login_handle, is_admin, health_cert_expiry, health_cert_reminder_days, hide_in_reports").order("name"),
       supabase.from("assets").select("id, name, asset_type, cleaning_product").order("name"),
       supabase.from("task_assignments").select("*"),
     ]);
@@ -122,6 +139,39 @@ export default function OperatorsTab() {
   function copyHandle(handle: string) {
     navigator.clipboard.writeText(handle);
     toast.success("Copiato");
+  }
+
+  function openDetails(op: Op) {
+    setEditingOp(op);
+    setHealthDate(op.health_cert_expiry ?? "");
+    setReminderDays(op.health_cert_reminder_days ?? 30);
+    setHideInReports(!!op.hide_in_reports);
+  }
+
+  async function saveDetails() {
+    if (!editingOp) return;
+    setSavingDetails(true);
+    const { error } = await supabase.from("operators").update({
+      health_cert_expiry: healthDate || null,
+      health_cert_reminder_days: Number.isFinite(reminderDays) && reminderDays >= 0 ? reminderDays : 30,
+      hide_in_reports: hideInReports,
+    }).eq("id", editingOp.id);
+    setSavingDetails(false);
+    if (error) return toast.error(error.message);
+    toast.success("Scheda operatore aggiornata");
+    setEditingOp(null);
+    load();
+  }
+
+  function healthStatus(op: Op): { label: string; tone: "ok" | "soon" | "expired" } | null {
+    if (!op.health_cert_expiry) return null;
+    const today = new Date(); today.setHours(0, 0, 0, 0);
+    const exp = new Date(op.health_cert_expiry + "T00:00:00");
+    const diff = Math.round((exp.getTime() - today.getTime()) / 86400000);
+    const fmt = exp.toLocaleDateString("it-IT");
+    if (diff < 0) return { label: `Libretto scaduto il ${fmt}`, tone: "expired" };
+    if (diff <= (op.health_cert_reminder_days ?? 30)) return { label: `Libretto scade il ${fmt} (${diff}g)`, tone: "soon" };
+    return { label: `Libretto valido fino al ${fmt}`, tone: "ok" };
   }
 
   async function toggleAssignment(operatorId: string, assetId: string, taskType: "sanitation" | "temperature", checked: boolean) {
