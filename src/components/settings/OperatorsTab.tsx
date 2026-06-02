@@ -283,6 +283,9 @@ export default function OperatorsTab() {
                     <Button size="icon" variant="ghost" onClick={() => setTasksFor(op)} title="Mansioni">
                       <ListChecks size={16} />
                     </Button>
+                    <Button size="icon" variant="ghost" onClick={() => openDetails(op)} title="Scheda operatore">
+                      <Settings2 size={16} />
+                    </Button>
                     <Button size="icon" variant="ghost" onClick={() => resetPin(op)} title="Reset PIN">
                       <KeyRound size={16} />
                     </Button>
@@ -291,6 +294,29 @@ export default function OperatorsTab() {
                     </Button>
                   </div>
                 </div>
+                {(() => {
+                  const h = healthStatus(op);
+                  if (!h && !op.hide_in_reports) return null;
+                  return (
+                    <div className="mt-2 flex flex-wrap gap-1.5">
+                      {h && (
+                        <span className={`inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border ${
+                          h.tone === "expired" ? "bg-destructive/10 text-destructive border-destructive/30" :
+                          h.tone === "soon" ? "bg-orange-500/10 text-orange-600 border-orange-500/30" :
+                          "bg-emerald-500/10 text-emerald-700 border-emerald-500/30"
+                        }`}>
+                          {h.tone === "ok" ? <HeartPulse size={11} /> : <AlertTriangle size={11} />}
+                          {h.label}
+                        </span>
+                      )}
+                      {op.hide_in_reports && (
+                        <span className="inline-flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border bg-muted text-muted-foreground border-border">
+                          <EyeOff size={11} /> Mascherato nei report
+                        </span>
+                      )}
+                    </div>
+                  );
+                })()}
                 <div className="mt-3 pt-3 border-t border-border flex items-center gap-2">
                   <label className="flex items-center gap-1.5 text-xs text-muted-foreground cursor-pointer mr-2">
                     <Checkbox
