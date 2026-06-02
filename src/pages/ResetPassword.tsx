@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
@@ -12,17 +12,35 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [hasSession, setHasSession] = useState(false);
+
+  useEffect(() => {
+    // Supabase parses the recovery hash automatically on mount.
+    supabase.auth.getSession().then(({ data }) => {
+      if (data.session) setHasSession(true);
+    });
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      if (sess) setHasSession(true);
+      if (event === "PASSWORD_RECOVERY") setHasSession(true);
+    });
+    return () => sub.subscription.unsubscribe();
+  }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
+    if (!hasSession) {
+      toast.error("Link di recupero scaduto o non valido. Richiedine uno nuovo dalla pagina di accesso.");
+      return;
+    }
     setBusy(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       toast.success("Password aggiornata. Sei dentro.");
+      // Force fresh session so the new password is the only valid one
       navigate("/", { replace: true });
     } catch (err: any) {
-      toast.error(err.message ?? "Errore");
+      toast.error(err?.message ?? "Errore aggiornamento password");
     } finally {
       setBusy(false);
     }
@@ -39,6 +57,12 @@ export default function ResetPasswordPage() {
         </div>
         <Card className="p-6 shadow-elevated">
           <form onSubmit={submit} className="space-y-4">
+              {!hasSession && (
+                <p className="text-xs text-destructive">
+                  Sessione di recupero non rilevata. Apri questa pagina cliccando il link nell'email,
+                  altrimenti la nuova password non verrà salvata.
+                </p>
+              )}
               <div className="space-y-2">
                 <Label>Nuova password</Label>
                 <Input
@@ -49,7 +73,7 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <Button type="submit" disabled={busy} className="w-full bg-gradient-primary">
+              <Button type="submit" disabled={busy || !hasSession} className="w-full bg-gradient-primary">
                 {busy ? "Attendi…" : "Aggiorna password"}
               </Button>
           </form>
