@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { AlertCircle, Package, Factory, ChefHat, Trash2, AlertTriangle, ExternalLink } from "lucide-react";
+import { AlertCircle, Package, Factory, ChefHat, PackageX, AlertTriangle, ExternalLink, ShieldAlert } from "lucide-react";
 import { toast } from "sonner";
 import {
   computeProductExpiry,
@@ -59,10 +59,12 @@ export default function Expiries() {
           .eq("is_out_of_stock", false),
         supabase
           .from("products")
-          .select("id, name, internal_lot, production_date, preservation_type, department_id"),
+          .select("id, name, internal_lot, production_date, preservation_type, department_id, is_out_of_stock")
+          .eq("is_out_of_stock", false),
         supabase
           .from("preparations")
-          .select("id, name, internal_expiry"),
+          .select("id, name, internal_expiry, is_out_of_stock")
+          .eq("is_out_of_stock", false),
         supabase.from("departments").select("id, name"),
         supabase
           .from("label_rules" as any)
@@ -172,11 +174,11 @@ export default function Expiries() {
   }, [rows, filter, typeFilter, deptFilter]);
 
   async function markOutOfStock(row: Row) {
-    if (row.kind !== "raw") return;
-    const { error } = await supabase.from("raw_materials").update({ is_out_of_stock: true }).eq("id", row.id);
+    const table = row.kind === "raw" ? "raw_materials" : row.kind === "product" ? "products" : "preparations";
+    const { error } = await supabase.from(table as any).update({ is_out_of_stock: true }).eq("id", row.id);
     if (error) return toast.error(error.message);
     toast.success(t("Segnato come esaurito"));
-    load();
+    setRows((prev) => prev.filter((r) => !(r.id === row.id && r.kind === row.kind)));
   }
 
   async function createNonConformity(row: Row) {
@@ -268,14 +270,20 @@ export default function Expiries() {
                   {expiryLabel(r.status, r.days)}
                 </Badge>
                 <div className="flex items-center gap-1 shrink-0">
-                  {r.kind === "raw" && (
-                    <Button size="sm" variant="ghost" onClick={() => markOutOfStock(r)} title={t("Segna fuori stock")}>
-                      <Trash2 size={15} />
-                    </Button>
-                  )}
+                  <Button size="sm" variant="outline" onClick={() => markOutOfStock(r)} className="gap-1.5">
+                    <PackageX size={14} />
+                    <span className="hidden sm:inline">{t("Fuori stock")}</span>
+                  </Button>
                   {r.status === "expired" && (
-                    <Button size="sm" variant="ghost" onClick={() => createNonConformity(r)} title={t("Crea non conformità")}>
-                      <AlertCircle size={15} />
+                    <Button
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => createNonConformity(r)}
+                      className="gap-1.5"
+                      title={t("Registra non conformità per prodotto scaduto ancora in giacenza")}
+                    >
+                      <ShieldAlert size={14} />
+                      <span className="hidden sm:inline">{t("Non conformità")}</span>
                     </Button>
                   )}
                   {r.detailPath && (
