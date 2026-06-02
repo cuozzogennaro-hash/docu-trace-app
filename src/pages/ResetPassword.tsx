@@ -1,5 +1,6 @@
 import { useEffect, useState } from "react";
 import { useNavigate } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -7,9 +8,11 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
+import LanguageSwitcher from "@/components/LanguageSwitcher";
 
 export default function ResetPasswordPage() {
   const navigate = useNavigate();
+  const { t } = useTranslation();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
@@ -48,7 +51,7 @@ export default function ResetPasswordPage() {
       } catch (err: unknown) {
         if (active) {
           setHasSession(false);
-          toast.error(err instanceof Error ? err.message : "Link di recupero non valido o scaduto");
+          toast.error(err instanceof Error ? err.message : t("Link di recupero non valido o scaduto"));
         }
       } finally {
         if (active) setChecking(false);
@@ -70,18 +73,18 @@ export default function ResetPasswordPage() {
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!hasSession) {
-      toast.error("Link di recupero non valido o scaduto. Richiedine uno nuovo dalla pagina di accesso.");
+      toast.error(t("Link di recupero non valido o scaduto. Richiedine uno nuovo dalla pagina di accesso."));
       return;
     }
     setBusy(true);
     try {
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
-      toast.success("Password aggiornata. Sei dentro.");
+      toast.success(t("Password aggiornata. Sei dentro."));
       // Force fresh session so the new password is the only valid one
       navigate("/", { replace: true });
     } catch (err: unknown) {
-      toast.error(err instanceof Error ? err.message : "Errore aggiornamento password");
+      toast.error(err instanceof Error ? err.message : t("Errore aggiornamento password"));
     } finally {
       setBusy(false);
     }
@@ -89,27 +92,30 @@ export default function ResetPasswordPage() {
 
   return (
     <div className="min-h-screen flex items-center justify-center bg-gradient-surface p-4">
+      <div className="absolute top-4 right-4">
+        <LanguageSwitcher variant="full" />
+      </div>
       <div className="w-full max-w-md">
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="h-12 w-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-elevated">
             <ShieldCheck className="text-primary-foreground" />
           </div>
-          <h1 className="font-display text-2xl font-bold">Reimposta password</h1>
+          <h1 className="font-display text-2xl font-bold">{t("Reimposta password")}</h1>
         </div>
         <Card className="p-6 shadow-elevated">
           {checking ? (
-            <p className="text-sm text-muted-foreground text-center">Verifica del link in corso…</p>
+            <p className="text-sm text-muted-foreground text-center">{t("Verifica del link in corso…")}</p>
           ) : !hasSession ? (
             <div className="space-y-4 text-center">
-              <p className="text-sm text-destructive">Link di recupero non valido o scaduto.</p>
+              <p className="text-sm text-destructive">{t("Link di recupero non valido o scaduto.")}</p>
               <Button type="button" onClick={() => navigate("/auth", { replace: true })} className="w-full bg-gradient-primary">
-                Richiedi un nuovo link
+                {t("Richiedi un nuovo link")}
               </Button>
             </div>
           ) : (
             <form onSubmit={submit} className="space-y-4">
               <div className="space-y-2">
-                <Label>Nuova password</Label>
+                <Label>{t("Nuova password")}</Label>
                 <Input
                   type="password"
                   minLength={6}
@@ -119,7 +125,7 @@ export default function ResetPasswordPage() {
                 />
               </div>
               <Button type="submit" disabled={busy} className="w-full bg-gradient-primary">
-                {busy ? "Attendi…" : "Aggiorna password"}
+                {busy ? t("Attendi…") : t("Aggiorna password")}
               </Button>
             </form>
           )}

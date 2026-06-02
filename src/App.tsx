@@ -34,13 +34,14 @@ import RefundPage from "./pages/legal/Refund";
 import PrivacyPage from "./pages/legal/Privacy";
 import SubscriptionGate from "./components/SubscriptionGate";
 import { PaymentTestModeBanner } from "./components/PaymentTestModeBanner";
+import { useTranslation } from "react-i18next";
 
 const queryClient = new QueryClient();
 
 function Protected() {
   const { session, loading } = useAuth();
   const { operator } = useOperatorSession();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Caricamento…</div>;
+  if (loading) return <LoadingScreen />;
   if (!session && !operator) return <Navigate to="/auth" replace />;
   return (
     <SubscriptionGate>
@@ -52,9 +53,18 @@ function Protected() {
 
 function AuthOnly({ children }: { children: React.ReactNode }) {
   const { session, loading } = useAuth();
-  if (loading) return <div className="min-h-screen flex items-center justify-center text-muted-foreground">Caricamento…</div>;
+  if (loading) return <LoadingScreen />;
   if (!session) return <Navigate to="/auth" replace />;
   return <>{children}</>;
+}
+
+function LoadingScreen() {
+  const { t } = useTranslation();
+  return (
+    <div className="min-h-screen flex items-center justify-center text-muted-foreground">
+      {t("Caricamento…")}
+    </div>
+  );
 }
 
 const App = () => (
