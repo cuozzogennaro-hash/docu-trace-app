@@ -33,12 +33,12 @@ Deno.serve(async (req) => {
           {
             role: "system",
             content:
-              "Sei un assistente OCR per documenti italiani (fatture, DDT, scontrini). Estrai TUTTI i prodotti/articoli presenti nel documento con le relative quantità. Rispondi SOLO chiamando il tool extract_document_data.",
+              "Sei un assistente OCR per documenti italiani (fatture, DDT, scontrini, etichette di prodotto). Estrai TUTTI i prodotti/articoli presenti nel documento con le relative quantità. IMPORTANTE: la 'data documento' è SOLO la data di emissione di una fattura/DDT/scontrino (vicino al numero documento o all'intestazione del fornitore). La data di produzione stampata su un'etichetta di prodotto NON è la data del documento: va riportata SOLO nel campo production_date del singolo prodotto, e document_date deve restare vuoto se non c'è una vera fattura/DDT. Rispondi SOLO chiamando il tool extract_document_data.",
           },
           {
             role: "user",
             content: [
-              { type: "text", text: "Estrai fornitore, data documento, numero documento e TUTTI i prodotti da questa fattura/DDT/etichetta. Per ogni riga prodotto indica: nome, quantità con unità di misura, SOLO il codice lotto del fornitore (senza altri dati), l'origine/provenienza se indicata, e la lista ingredienti SOLO se scritta in italiano (ignora liste in altre lingue come EN/FR/DE/ES). Se l'unica lista ingredienti presente è in lingua straniera, lascia il campo ingredients vuoto." },
+              { type: "text", text: "Estrai fornitore, data documento (SOLO se è una fattura/DDT/scontrino con data di emissione esplicita; altrimenti lascia vuoto), numero documento e TUTTI i prodotti. Per ogni riga prodotto indica: nome, quantità con unità di misura, SOLO il codice lotto del fornitore, l'origine/provenienza se indicata, la lista ingredienti SOLO se in italiano (ignora EN/FR/DE/ES), e production_date in formato YYYY-MM-DD se sull'etichetta è riportata una data di produzione/confezionamento (es. 'Prod.', 'Confezionato il', 'Lot/Prod'). Non confondere MAI la data di produzione di un'etichetta con la data documento." },
               { type: "image_url", image_url: { url: dataUrl } },
             ],
           },
@@ -66,8 +66,9 @@ Deno.serve(async (req) => {
                         supplier_lot: { type: "string", description: "Solo il codice/numero di lotto del fornitore, senza altre informazioni. Stringa vuota se non presente." },
                         origin: { type: "string", description: "Origine/provenienza del prodotto (es. Italia, UE, Allevato in Italia, ecc.). Stringa vuota se non indicata." },
                         ingredients: { type: "string", description: "Lista ingredienti del prodotto SOLO se in lingua italiana, come riportata in etichetta (es. 'carne di suino, sale, spezie, destrosio'). Stringa vuota se non presente o se è in altra lingua." },
+                        production_date: { type: "string", description: "Data di produzione/confezionamento stampata sull'etichetta del prodotto, in formato YYYY-MM-DD. Stringa vuota se non presente. NON usare mai la data del documento qui." },
                       },
-                      required: ["product_name", "quantity", "supplier_lot", "origin", "ingredients"],
+                      required: ["product_name", "quantity", "supplier_lot", "origin", "ingredients", "production_date"],
                     },
                   },
                 },
