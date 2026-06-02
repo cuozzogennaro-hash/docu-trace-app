@@ -144,7 +144,9 @@ export default function AppShell() {
         .filter((g) => g.items.length > 0)
     : [{ key: "operator", label: null, items: operatorNav }];
 
-  if (isSuperAdmin && (!operator || isAdminOperator)) {
+  // La console supervisore è riservata SOLO al titolare loggato direttamente
+  // (nessuna sessione operatore attiva, nemmeno admin).
+  if (isSuperAdmin && !operator) {
     groups.push({
       key: "supervisor",
       label: "Supervisore",
