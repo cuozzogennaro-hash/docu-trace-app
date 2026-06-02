@@ -651,6 +651,10 @@ export default function Incoming() {
                   <Input value={line.internalLot} readOnly className="font-mono bg-muted text-xs" />
                 </div>
                 <div className="space-y-1">
+                  <Label className="text-xs">Data produzione</Label>
+                  <Input type="date" value={line.productionDate} onChange={(e) => updateLine(idx, { productionDate: e.target.value })} />
+                </div>
+                <div className="space-y-1">
                   <Label className="text-xs">Scadenza</Label>
                   <Input type="date" value={line.expiry} onChange={(e) => updateLine(idx, { expiry: e.target.value })} />
                 </div>
