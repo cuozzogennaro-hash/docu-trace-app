@@ -791,6 +791,7 @@ export type Database = {
           created_at: string
           email: string | null
           id: string
+          last_seen_at: string | null
           onboarding_completed: boolean
           push_token: Json | null
         }
@@ -799,6 +800,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id: string
+          last_seen_at?: string | null
           onboarding_completed?: boolean
           push_token?: Json | null
         }
@@ -807,6 +809,7 @@ export type Database = {
           created_at?: string
           email?: string | null
           id?: string
+          last_seen_at?: string | null
           onboarding_completed?: boolean
           push_token?: Json | null
         }
@@ -1448,10 +1451,12 @@ export type Database = {
       }
       slugify: { Args: { input: string }; Returns: string }
       start_local_trial: { Args: { p_env?: string }; Returns: Json }
+      super_admin_overview: { Args: never; Returns: Json }
+      touch_last_seen: { Args: never; Returns: undefined }
       unaccent_safe: { Args: { input: string }; Returns: string }
     }
     Enums: {
-      app_role: "platform_admin"
+      app_role: "platform_admin" | "super_admin"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1579,7 +1584,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["platform_admin"],
+      app_role: ["platform_admin", "super_admin"],
     },
   },
 } as const
