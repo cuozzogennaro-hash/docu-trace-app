@@ -34,13 +34,22 @@ export function useSubscription(): AccessState {
   const { user } = useAuth();
   const [loading, setLoading] = useState(true);
   const [subscription, setSubscription] = useState<SubscriptionRow | null>(null);
+  const [isPlatformAdmin, setIsPlatformAdmin] = useState(false);
 
   const fetchSub = useCallback(async () => {
     if (!user) {
       setSubscription(null);
+      setIsPlatformAdmin(false);
       setLoading(false);
       return;
     }
+    const { data: roleData } = await supabase
+      .from("user_roles")
+      .select("role")
+      .eq("user_id", user.id)
+      .eq("role", "platform_admin")
+      .maybeSingle();
+    setIsPlatformAdmin(!!roleData);
     const env = getPaddleEnvironment();
     const { data } = await supabase
       .from("subscriptions")
@@ -82,7 +91,9 @@ export function useSubscription(): AccessState {
     status === "past_due" && updatedMs !== null && now - updatedMs < 7 * 24 * 60 * 60 * 1000;
   const isCanceledWithAccess = status === "canceled" && endMs !== null && endMs > now;
   const isCanceled = status === "canceled";
-  const hasAccess = !!subscription && (isTrialing || isActive || isPastDue || isCanceledWithAccess);
+  const hasAccess =
+    isPlatformAdmin ||
+    (!!subscription && (isTrialing || isActive || isPastDue || isCanceledWithAccess));
 
   const trialDaysLeft =
     isTrialing && endMs ? Math.max(0, Math.ceil((endMs - now) / (24 * 60 * 60 * 1000))) : null;
