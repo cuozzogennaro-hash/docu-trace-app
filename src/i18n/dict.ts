@@ -130,7 +130,6 @@ export const en: Record<string, string> = {
   "Ricorrenti": "Recurring",
   "Preparati": "Preparations",
   "Preparazione": "Preparation",
-  "Scadenze": "Expiries",
   "Monitoraggio scadenze di materie prime, prodotti e preparazioni": "Track expiries of raw materials, products and preparations",
   "Oggi/Domani": "Today/Tomorrow",
   "Entro 3 giorni": "Within 3 days",
