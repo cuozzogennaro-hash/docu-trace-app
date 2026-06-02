@@ -129,15 +129,15 @@ export default function Dashboard() {
             </div>
           </div>
           <ul className="space-y-2 text-sm">
-            {overdue.map((t) => (
-              <li key={t.assignment_id} className="flex items-center justify-between gap-3 rounded-md bg-background/60 px-3 py-2">
+            {overdue.map((task) => (
+              <li key={task.assignment_id} className="flex items-center justify-between gap-3 rounded-md bg-background/60 px-3 py-2">
                 <div>
-                  <div className="font-medium">{t.operator_name}</div>
+                  <div className="font-medium">{task.operator_name}</div>
                   <div className="text-muted-foreground text-xs">
-                    {t.task_type === "sanitation" ? "Sanificazione" : "Rilevazione temperatura"} • {t.asset_name}
+                    {task.task_type === "sanitation" ? t("Sanificazione") : t("Rilevazione temperatura")} • {task.asset_name}
                   </div>
                 </div>
-                <div className="text-xs font-mono text-destructive shrink-0">h {t.due_time?.slice(0, 5)}</div>
+                <div className="text-xs font-mono text-destructive shrink-0">{t("h")} {task.due_time?.slice(0, 5)}</div>
               </li>
             ))}
           </ul>
@@ -145,14 +145,14 @@ export default function Dashboard() {
       )}
 
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
-        {tiles.map((t) => (
-          <Link key={t.to} to={t.to}>
+        {tiles.map((tile) => (
+          <Link key={tile.to} to={tile.to}>
             <Card className="p-4 lg:p-5 hover:shadow-elevated transition cursor-pointer h-full">
-              <div className={`h-11 w-11 rounded-xl ${t.color} flex items-center justify-center mb-3`}>
-                <t.icon className="text-primary-foreground" size={20} />
+              <div className={`h-11 w-11 rounded-xl ${tile.color} flex items-center justify-center mb-3`}>
+                <tile.icon className="text-primary-foreground" size={20} />
               </div>
-              <div className="font-display text-3xl font-bold">{t.value}</div>
-              <div className="text-xs text-muted-foreground mt-1">{t.label}</div>
+              <div className="font-display text-3xl font-bold">{tile.value}</div>
+              <div className="text-xs text-muted-foreground mt-1">{tile.label}</div>
             </Card>
           </Link>
         ))}
