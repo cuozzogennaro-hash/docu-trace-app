@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import OperatorPinDialog from "@/components/OperatorPinDialog";
@@ -33,6 +33,17 @@ export default function NonConformities() {
   const [corrective, setCorrective] = useState("");
   const [pinOpen, setPinOpen] = useState(false);
   const [resolveId, setResolveId] = useState<string | null>(null);
+  const [assetId, setAssetId] = useState<string>("none");
+  const [assets, setAssets] = useState<Array<{ id: string; name: string }>>([]);
+
+  useEffect(() => {
+    (async () => {
+      const { data } = await supabase.from("assets").select("id,name").order("name");
+      setAssets((data as any) ?? []);
+    })();
+  }, []);
+
+  const assetName = (id: string | null) => id ? (assets.find((a) => a.id === id)?.name ?? null) : null;
 
   const filtered = useMemo(() => filter === "open" ? rows.filter((r) => r.status === "open") : rows, [rows, filter]);
 
@@ -50,7 +61,7 @@ export default function NonConformities() {
         .update({ status: "resolved", resolved_at: new Date().toISOString(), corrective_action: corrective || null })
         .eq("id", resolveId);
       if (error) return toast.error(error.message);
-      toast.success(`Risolto da ${op.name}`);
+      toast.success(`Risolto da ${op.name} — routine ripristinata se collegata a un macchinario`);
       setResolveId(null); setCorrective("");
       reload();
       return;
@@ -59,6 +70,7 @@ export default function NonConformities() {
     const { error } = await supabase.from("non_conformities" as any).insert({
       user_id: user.id,
       operator_id: op.id,
+      asset_id: assetId === "none" ? null : assetId,
       title, area, severity,
       description: description || null,
       corrective_action: corrective || null,
@@ -66,7 +78,7 @@ export default function NonConformities() {
     });
     if (error) return toast.error(error.message);
     toast.success(`Non conformità registrata (${op.name})`);
-    setTitle(""); setDescription(""); setCorrective(""); setArea("altro"); setSeverity("low");
+    setTitle(""); setDescription(""); setCorrective(""); setArea("altro"); setSeverity("low"); setAssetId("none");
     reload();
   }
 
@@ -104,6 +116,17 @@ export default function NonConformities() {
                 <SelectItem value="high">Alta</SelectItem>
               </SelectContent>
             </Select>
+          </div>
+          <div className="space-y-2 lg:col-span-2">
+            <Label>Macchinario coinvolto (opzionale)</Label>
+            <Select value={assetId} onValueChange={setAssetId}>
+              <SelectTrigger><SelectValue placeholder="Nessuno" /></SelectTrigger>
+              <SelectContent>
+                <SelectItem value="none">Nessuno</SelectItem>
+                {assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+              </SelectContent>
+            </Select>
+            <p className="text-xs text-muted-foreground">Se colleghi un macchinario, la sua routine di sanificazione e temperatura viene sospesa finché la NC è aperta.</p>
           </div>
           <div className="space-y-2 lg:col-span-2">
             <Label>Descrizione</Label>
@@ -147,6 +170,9 @@ export default function NonConformities() {
                 {r.corrective_action && <p className="text-xs mt-1 text-muted-foreground"><b>Azione:</b> {r.corrective_action}</p>}
                 <div className="mt-2 flex gap-1.5 flex-wrap">
                   <Badge variant="outline">{AREA_LABEL[r.area]}</Badge>
+                  {r.asset_id && assetName(r.asset_id) && (
+                    <Badge variant="outline">🔧 {assetName(r.asset_id)}</Badge>
+                  )}
                   <Badge variant={r.severity === "high" ? "destructive" : r.severity === "medium" ? "default" : "secondary"}>
                     {r.severity === "high" ? "Alta" : r.severity === "medium" ? "Media" : "Bassa"}
                   </Badge>
