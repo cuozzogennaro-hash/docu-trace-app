@@ -1,3 +1,5 @@
+import LegalBackHeader from "@/components/LegalBackHeader";
+
 export default function PrivacyPage() {
   return (
     <div className="max-w-3xl mx-auto p-6 lg:p-10 prose prose-sm prose-neutral">
