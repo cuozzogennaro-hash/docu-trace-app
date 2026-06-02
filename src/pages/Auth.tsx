@@ -53,7 +53,10 @@ export default function AuthPage() {
           redirectTo: `${window.location.origin}/reset-password`,
         });
         if (error) throw error;
-        toast.success("Ti abbiamo inviato il link per reimpostare la password.");
+        toast.success(
+          "Email inviata. Attenzione: il link nell'email può apparire poco visibile — cliccalo comunque.",
+          { duration: 9000 },
+        );
         setMode("signin");
       }
     } catch (err: any) {
@@ -169,6 +172,16 @@ export default function AuthPage() {
                   <Label>Email</Label>
                   <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
+                {mode === "forgot" && (
+                  <div className="rounded-md border border-primary/30 bg-primary/5 p-3 text-xs space-y-1">
+                    <p className="font-medium text-foreground">Come funziona il recupero</p>
+                    <p className="text-muted-foreground">
+                      Riceverai un'email da Lovable. Il pulsante "Reset Password" potrebbe apparire
+                      poco visibile (testo chiaro su sfondo chiaro): cliccalo lo stesso o clicca
+                      sullo spazio vuoto sotto il messaggio per aprire la pagina di reimpostazione.
+                    </p>
+                  </div>
+                )}
                 {mode !== "forgot" && (
                   <div className="space-y-2">
                     <Label>Password</Label>
