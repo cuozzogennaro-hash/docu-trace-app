@@ -39,6 +39,7 @@ function buildAdminGroups(profile: ReturnType<typeof useActivityProfile>["profil
     label: "Magazzino",
     items: [
       { to: "/ingresso", icon: Package, label: "Ingresso merci" },
+      { to: "/produzione", icon: Factory, label: prodLabel },
       { to: "/archivio", icon: Archive, label: "Archivio Generale" },
       { to: "/ricorrenti", icon: Repeat, label: recLabel },
       { to: "/scadenze", icon: CalendarClock, label: "Scadenze" },
@@ -48,7 +49,6 @@ function buildAdminGroups(profile: ReturnType<typeof useActivityProfile>["profil
     key: "cucina",
     label: "Cucina",
     items: [
-      { to: "/produzione", icon: Factory, label: prodLabel },
       { to: "/abbattimenti", icon: Snowflake, label: "Abbattimenti" },
       { to: "/mantenimento", icon: Flame, label: "Mantenimento" },
       { to: "/frittura", icon: Droplets, label: "Olio frittura" },
