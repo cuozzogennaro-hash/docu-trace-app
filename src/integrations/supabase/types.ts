@@ -1451,6 +1451,8 @@ export type Database = {
       }
       slugify: { Args: { input: string }; Returns: string }
       start_local_trial: { Args: { p_env?: string }; Returns: Json }
+      super_admin_overview: { Args: never; Returns: Json }
+      touch_last_seen: { Args: never; Returns: undefined }
       unaccent_safe: { Args: { input: string }; Returns: string }
     }
     Enums: {
