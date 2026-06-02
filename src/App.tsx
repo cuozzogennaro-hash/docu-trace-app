@@ -34,6 +34,7 @@ import RefundPage from "./pages/legal/Refund";
 import PrivacyPage from "./pages/legal/Privacy";
 import SubscriptionGate from "./components/SubscriptionGate";
 import { PaymentTestModeBanner } from "./components/PaymentTestModeBanner";
+import { useTranslation } from "react-i18next";
 
 const queryClient = new QueryClient();
 
@@ -58,19 +59,12 @@ function AuthOnly({ children }: { children: React.ReactNode }) {
 }
 
 function LoadingScreen() {
-  const { t } = useTranslationSafe();
+  const { t } = useTranslation();
   return (
     <div className="min-h-screen flex items-center justify-center text-muted-foreground">
       {t("Caricamento…")}
     </div>
   );
-}
-
-// Local hook wrapper to avoid pulling i18next types up here
-function useTranslationSafe() {
-  // eslint-disable-next-line @typescript-eslint/no-require-imports
-  const { useTranslation } = require("react-i18next");
-  return useTranslation();
 }
 
 const App = () => (
