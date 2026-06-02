@@ -141,7 +141,11 @@ export default function SubscriptionPage() {
 
           {!subscription || isCanceled ? (
             <Button onClick={startCheckout} disabled={loading} size="lg" className="w-full">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : "Inizia la prova gratuita"}
+              {loading ? <Loader2 className="animate-spin" size={18} /> : isCanceled ? "Riattiva abbonamento" : "Inizia la prova gratuita"}
+            </Button>
+          ) : !hasAccess ? (
+            <Button onClick={startCheckout} disabled={loading} size="lg" className="w-full">
+              {loading ? <Loader2 className="animate-spin" size={18} /> : "Attiva abbonamento"}
             </Button>
           ) : (
             <div className="space-y-2">

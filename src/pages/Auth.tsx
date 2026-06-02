@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { Navigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { lovable } from "@/integrations/lovable";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { Button } from "@/components/ui/button";
@@ -10,10 +11,12 @@ import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { ShieldCheck, Building2, UserCircle2, AtSign, Loader2 } from "lucide-react";
+import { getPaddleEnvironment } from "@/lib/paddle";
 
 export default function AuthPage() {
   const { session, loading } = useAuth();
   const { operator, signIn: signInOperator } = useOperatorSession();
+  const [mode, setMode] = useState<"signin" | "signup" | "forgot">("signin");
   const [email, setEmail] = useState("");
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
@@ -29,11 +32,49 @@ export default function AuthPage() {
     e.preventDefault();
     setBusy(true);
     try {
-      const { error } = await supabase.auth.signInWithPassword({ email, password });
-      if (error) throw error;
+      if (mode === "signin") {
+        const { error } = await supabase.auth.signInWithPassword({ email, password });
+        if (error) throw error;
+      } else if (mode === "signup") {
+        const { data, error } = await supabase.auth.signUp({
+          email,
+          password,
+          options: { emailRedirectTo: `${window.location.origin}/` },
+        });
+        if (error) throw error;
+        if (data.session) {
+          await supabase.rpc("start_local_trial" as any, { p_env: getPaddleEnvironment() });
+          toast.success("Benvenuto! Hai 30 giorni di prova gratuita.");
+        } else {
+          toast.success("Account creato. Controlla la tua email per confermare.");
+        }
+      } else if (mode === "forgot") {
+        const { error } = await supabase.auth.resetPasswordForEmail(email, {
+          redirectTo: `${window.location.origin}/reset-password`,
+        });
+        if (error) throw error;
+        toast.success("Ti abbiamo inviato il link per reimpostare la password.");
+        setMode("signin");
+      }
     } catch (err: any) {
       toast.error(err.message ?? "Errore");
     } finally {
+      setBusy(false);
+    }
+  }
+
+  async function googleSignIn() {
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("google", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) throw result.error;
+      if (!result.redirected) {
+        await supabase.rpc("start_local_trial" as any, { p_env: getPaddleEnvironment() });
+      }
+    } catch (err: any) {
+      toast.error(err.message ?? "Errore accesso Google");
       setBusy(false);
     }
   }
@@ -128,16 +169,38 @@ export default function AuthPage() {
                   <Label>Email</Label>
                   <Input type="email" required value={email} onChange={(e) => setEmail(e.target.value)} />
                 </div>
-                <div className="space-y-2">
-                  <Label>Password</Label>
-                  <Input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
-                </div>
+                {mode !== "forgot" && (
+                  <div className="space-y-2">
+                    <Label>Password</Label>
+                    <Input type="password" required minLength={6} value={password} onChange={(e) => setPassword(e.target.value)} />
+                  </div>
+                )}
                 <Button type="submit" disabled={busy} className="w-full bg-gradient-primary">
-                  {busy ? "Attendi…" : "Accedi"}
+                  {busy ? "Attendi…" : mode === "signin" ? "Accedi" : mode === "signup" ? "Crea account (30gg gratis)" : "Invia link reset"}
                 </Button>
-                <p className="text-xs text-muted-foreground text-center pt-2">
-                  Le registrazioni sono disabilitate. Contatta l'amministratore per ricevere le credenziali.
-                </p>
+                <div className="relative my-2">
+                  <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
+                  <div className="relative flex justify-center text-xs"><span className="bg-card px-2 text-muted-foreground">oppure</span></div>
+                </div>
+                <Button type="button" variant="outline" onClick={googleSignIn} disabled={busy} className="w-full">
+                  Continua con Google
+                </Button>
+                <div className="flex justify-between text-xs pt-2">
+                  {mode !== "signin" ? (
+                    <button type="button" onClick={() => setMode("signin")} className="text-muted-foreground hover:text-foreground underline">
+                      Hai già un account? Accedi
+                    </button>
+                  ) : (
+                    <>
+                      <button type="button" onClick={() => setMode("signup")} className="text-muted-foreground hover:text-foreground underline">
+                        Registrati (30gg gratis)
+                      </button>
+                      <button type="button" onClick={() => setMode("forgot")} className="text-muted-foreground hover:text-foreground underline">
+                        Password dimenticata?
+                      </button>
+                    </>
+                  )}
+                </div>
               </form>
             </TabsContent>
           </Tabs>

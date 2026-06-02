@@ -6,6 +6,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import Index from "./pages/Index.tsx";
 import NotFound from "./pages/NotFound.tsx";
 import AuthPage from "./pages/Auth";
+import ResetPasswordPage from "./pages/ResetPassword";
 import Sanitations from "./pages/Sanitations";
 import Temperatures from "./pages/Temperatures";
 import Incoming from "./pages/Incoming";
@@ -66,6 +67,7 @@ const App = () => (
           <OperatorSessionProvider>
             <Routes>
             <Route path="/auth" element={<AuthPage />} />
+            <Route path="/reset-password" element={<ResetPasswordPage />} />
             <Route path="/abbonamento" element={<SubscriptionPage />} />
             <Route path="/termini" element={<TermsPage />} />
             <Route path="/rimborsi" element={<RefundPage />} />
