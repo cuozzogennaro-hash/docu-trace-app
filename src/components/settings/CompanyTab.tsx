@@ -116,7 +116,7 @@ export default function CompanyTab() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
-        toast.error("Sessione non valida");
+        toast.error(t("Sessione non valida"));
         return;
       }
       const { error } = await supabase.auth.signInWithPassword({
@@ -124,7 +124,7 @@ export default function CompanyTab() {
         password: adminPwd,
       });
       if (error) {
-        toast.error("Password amministratore errata");
+        toast.error(t("Password amministratore errata"));
         return;
       }
       setPwdOpen(false);
@@ -156,7 +156,7 @@ export default function CompanyTab() {
       );
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Impostazioni salvate");
+    toast.success(t("Impostazioni salvate"));
     reload();
   }
 
@@ -173,9 +173,9 @@ export default function CompanyTab() {
       if (error) throw error;
       const { data } = supabase.storage.from("logos").getPublicUrl(path);
       setForm((f) => ({ ...f, logo_url: data.publicUrl }));
-      toast.success("Logo caricato — ricordati di salvare");
+      toast.success(t("Logo caricato — ricordati di salvare"));
     } catch (err: any) {
-      toast.error(err.message ?? "Errore upload");
+      toast.error(err.message ?? t("Errore upload"));
     } finally {
       setUploading(false);
     }
