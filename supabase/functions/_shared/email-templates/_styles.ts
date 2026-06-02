@@ -1,0 +1,14 @@
+export const main = { backgroundColor: '#ffffff', fontFamily: '-apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, Arial, sans-serif', margin: 0, padding: '40px 0' }
+export const container = { maxWidth: '560px', margin: '0 auto', padding: '0 20px' }
+export const header = { padding: '0 0 24px', textAlign: 'center' as const }
+export const brand = { fontSize: '20px', fontWeight: 700 as const, color: '#168f6c', margin: 0, letterSpacing: '-0.01em' }
+export const card = { backgroundColor: '#f6fbf9', border: '1px solid #e2efe9', borderRadius: '14px', padding: '36px 32px' }
+export const h1 = { fontSize: '24px', fontWeight: 700 as const, color: '#173030', margin: '0 0 20px', lineHeight: '1.3' }
+export const text = { fontSize: '15px', color: '#3d5757', lineHeight: '1.6', margin: '0 0 18px' }
+export const link = { color: '#168f6c', textDecoration: 'underline' }
+export const buttonWrap = { textAlign: 'center' as const, margin: '28px 0 24px' }
+export const button = { backgroundColor: '#168f6c', color: '#ffffff', fontSize: '15px', fontWeight: 600 as const, borderRadius: '12px', padding: '14px 32px', textDecoration: 'none', display: 'inline-block' }
+export const buttonAccent = { backgroundColor: '#f78c2a', color: '#ffffff', fontSize: '15px', fontWeight: 600 as const, borderRadius: '12px', padding: '14px 32px', textDecoration: 'none', display: 'inline-block' }
+export const footer = { fontSize: '13px', color: '#7a9393', margin: '24px 0 0', lineHeight: '1.5' }
+export const signature = { fontSize: '12px', color: '#9eb3b3', textAlign: 'center' as const, margin: '24px 0 0' }
+export const codeStyle = { fontFamily: 'ui-monospace, SFMono-Regular, Menlo, monospace', fontSize: '28px', fontWeight: 700 as const, color: '#168f6c', letterSpacing: '0.3em', textAlign: 'center' as const, backgroundColor: '#ffffff', border: '1px solid #e2efe9', borderRadius: '12px', padding: '18px', margin: '0 0 24px' }
