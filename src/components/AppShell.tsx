@@ -291,6 +291,7 @@ export default function AppShell() {
 }
 
 function NavGroupBlock({ group, onItemClick }: { group: NavGroup; onItemClick?: () => void }) {
+  const { t } = useTranslation();
   const COLLAPSE_KEY = `haccp.navGroup.${group.key}`;
   const [open, setOpen] = useState<boolean>(() => {
     try {
@@ -323,7 +324,7 @@ function NavGroupBlock({ group, onItemClick }: { group: NavGroup; onItemClick?: 
           }
         >
           <item.icon size={18} />
-          {item.label}
+          {t(item.label)}
         </NavLink>
       ))}
     </div>
@@ -334,7 +335,7 @@ function NavGroupBlock({ group, onItemClick }: { group: NavGroup; onItemClick?: 
   return (
     <Collapsible open={open} onOpenChange={toggle}>
       <CollapsibleTrigger className="w-full flex items-center justify-between px-3 py-1.5 text-[11px] font-semibold uppercase tracking-wider text-muted-foreground hover:text-foreground transition">
-        <span>{group.label}</span>
+        <span>{t(group.label)}</span>
         <ChevronDown size={12} className={`transition-transform ${open ? "" : "-rotate-90"}`} />
       </CollapsibleTrigger>
       <CollapsibleContent className="pt-1">{items}</CollapsibleContent>
