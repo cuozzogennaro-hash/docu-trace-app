@@ -9,6 +9,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { Building2, Upload, Loader2, Save, Trash2, AlertTriangle, Sparkles, UserX } from "lucide-react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
+import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 
 export default function CompanyTab() {
+  const { t } = useTranslation();
   const { company, reload, loading } = useCompany();
   const [form, setForm] = useState(company);
   const [saving, setSaving] = useState(false);
