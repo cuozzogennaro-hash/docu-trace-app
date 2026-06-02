@@ -32,6 +32,7 @@ type ProductLine = {
   supplierLot: string;
   category: string;
   expiry: string;
+  productionDate: string;
   origin: string;
   internalLot: string;
   departmentId: string;
@@ -53,6 +54,7 @@ function newProductLine(date?: string): ProductLine {
     supplierLot: "",
     category: "materia_prima",
     expiry: "",
+    productionDate: "",
     origin: "",
     internalLot: generateInternalLot("L", d),
     departmentId: "",
@@ -182,6 +184,7 @@ export default function Incoming() {
       supplierLot: "",
       category: r.category ?? "materia_prima",
       expiry: "",
+      productionDate: "",
       origin: r.origin ?? "",
       internalLot: generateInternalLot("L", d),
       departmentId: r.department_id ?? departmentId ?? "",
@@ -274,6 +277,9 @@ export default function Incoming() {
       if (error) throw error;
       const d = data?.data ?? {};
       if (d.supplier_name) setSupplierName(d.supplier_name);
+      // La data documento viene impostata SOLO se l'OCR la trova esplicitamente
+      // (vera fattura/DDT). Per le etichette di prodotto resta la data odierna
+      // di default e l'eventuale data produzione finisce sulla singola riga.
       if (d.document_date) setDocumentDate(d.document_date);
       if (d.document_number) setDocumentNumber(d.document_number);
       if (Array.isArray(d.products) && d.products.length > 0) {
@@ -286,6 +292,7 @@ export default function Incoming() {
             supplierLot: p.supplier_lot || "",
             category: "materia_prima",
             expiry: "",
+            productionDate: p.production_date || "",
             origin: p.origin || "",
             internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
             departmentId: departmentId || "",
@@ -334,7 +341,8 @@ export default function Incoming() {
     if (isOperatorAdmin) {
       const rowsToInsert = validLines.map((l) => ({
         supplier_name: supplierName,
-        document_date: documentDate,
+        document_date: documentDate || new Date().toISOString().slice(0, 10),
+        production_date: l.productionDate || null,
         document_number: documentNumber,
         product_name: l.productName,
         supplier_lot: l.supplierLot,
@@ -380,7 +388,8 @@ export default function Incoming() {
     const inserts = validLines.map((l) => ({
       user_id: user!.id,
       supplier_name: supplierName || null,
-      document_date: documentDate || null,
+      document_date: documentDate || new Date().toISOString().slice(0, 10),
+      production_date: l.productionDate || null,
       document_number: documentNumber || null,
       product_name: l.productName,
       supplier_lot: l.supplierLot || null,
