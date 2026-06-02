@@ -100,14 +100,14 @@ export default function CompanyTab() {
       "company_settings",
     ] as const;
     try {
-      for (const t of tables) {
-        const { error } = await supabase.from(t).delete().eq("user_id", user.id);
+      for (const tbl of tables) {
+        const { error } = await supabase.from(tbl).delete().eq("user_id", user.id);
         if (error) throw error;
       }
-      toast.success("Tutti i dati sono stati azzerati");
+      toast.success(t("Tutti i dati sono stati azzerati"));
       setTimeout(() => window.location.reload(), 800);
     } catch (err: any) {
-      toast.error(err.message ?? "Errore durante l'azzeramento");
+      toast.error(err.message ?? t("Errore durante l'azzeramento"));
     } finally {
       setResetting(false);
     }
