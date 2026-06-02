@@ -1,6 +1,9 @@
+import LegalBackHeader from "@/components/LegalBackHeader";
+
 export default function TermsPage() {
   return (
     <div className="max-w-3xl mx-auto p-6 lg:p-10 prose prose-sm prose-neutral">
+      <LegalBackHeader />
       <h1>Termini e Condizioni</h1>
       <p><strong>Ultimo aggiornamento:</strong> {new Date().toLocaleDateString("it-IT", { year: "numeric", month: "long", day: "numeric" })}</p>
 

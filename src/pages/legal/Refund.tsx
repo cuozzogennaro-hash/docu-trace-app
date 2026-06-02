@@ -1,6 +1,9 @@
+import LegalBackHeader from "@/components/LegalBackHeader";
+
 export default function RefundPage() {
   return (
     <div className="max-w-3xl mx-auto p-6 lg:p-10 prose prose-sm prose-neutral">
+      <LegalBackHeader />
       <h1>Politica di rimborso</h1>
       <p><strong>Venditore:</strong> Gennaro Cuozzo, ditta individuale</p>
 
