@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { useTranslation } from "react-i18next";
 import { supabase } from "@/integrations/supabase/client";
 import { Card } from "@/components/ui/card";
 import PageHeader from "@/components/PageHeader";
@@ -19,6 +20,7 @@ type OverdueTask = {
 
 export default function Dashboard() {
   const { user } = useAuth();
+  const { t } = useTranslation();
   const [wizardOpen, setWizardOpen] = useState(false);
   const [checklistKey, setChecklistKey] = useState(0);
   const [stats, setStats] = useState({
@@ -77,16 +79,16 @@ export default function Dashboard() {
   }, []);
 
   const tiles = [
-    { to: "/sanificazione", icon: Sparkles, label: "Sanificazioni oggi", value: stats.sanitToday, color: "bg-gradient-primary" },
-    { to: "/temperature", icon: Thermometer, label: "Rilevazioni oggi", value: stats.tempToday, color: "bg-gradient-primary" },
-    { to: "/ingresso", icon: Package, label: "Materie prime", value: stats.rawMaterials, color: "bg-gradient-accent" },
-    { to: "/produzione", icon: Factory, label: "Prodotti registrati", value: stats.products, color: "bg-gradient-accent" },
+    { to: "/sanificazione", icon: Sparkles, label: t("Sanificazioni oggi"), value: stats.sanitToday, color: "bg-gradient-primary" },
+    { to: "/temperature", icon: Thermometer, label: t("Rilevazioni oggi"), value: stats.tempToday, color: "bg-gradient-primary" },
+    { to: "/ingresso", icon: Package, label: t("Materie prime"), value: stats.rawMaterials, color: "bg-gradient-accent" },
+    { to: "/produzione", icon: Factory, label: t("Prodotti registrati"), value: stats.products, color: "bg-gradient-accent" },
   ];
 
   return (
     <>
       <CompanyHeader />
-      <PageHeader title="Dashboard" subtitle="Panoramica del tuo autocontrollo HACCP" />
+      <PageHeader title="Dashboard" subtitle={"Panoramica del tuo autocontrollo HACCP"} />
 
       <OnboardingChecklist key={checklistKey} onRestart={() => setWizardOpen(true)} />
       <OnboardingWizard
@@ -101,8 +103,8 @@ export default function Dashboard() {
             <Package className="text-white" size={28} />
           </div>
           <div className="flex-1 min-w-0">
-            <div className="font-display font-bold text-xl lg:text-2xl text-white">Ingresso merci</div>
-            <div className="text-sm text-white/90">Registra una nuova consegna</div>
+            <div className="font-display font-bold text-xl lg:text-2xl text-white">{t("Ingresso merci")}</div>
+            <div className="text-sm text-white/90">{t("Registra una nuova consegna")}</div>
           </div>
         </Card>
       </Link>
@@ -111,8 +113,8 @@ export default function Dashboard() {
         <Card className="p-4 mb-6 border-warning/40 bg-warning/5 flex items-start gap-3">
           <AlertTriangle className="text-warning shrink-0 mt-0.5" />
           <div className="text-sm">
-            <div className="font-semibold text-foreground">Registri incompleti oggi</div>
-            <p className="text-muted-foreground">Ricordati di compilare sanificazioni e rilevazioni temperature.</p>
+            <div className="font-semibold text-foreground">{t("Registri incompleti oggi")}</div>
+            <p className="text-muted-foreground">{t("Ricordati di compilare sanificazioni e rilevazioni temperature.")}</p>
           </div>
         </Card>
       )}
@@ -122,8 +124,8 @@ export default function Dashboard() {
           <div className="flex items-start gap-3 mb-3">
             <AlertTriangle className="text-destructive shrink-0 mt-0.5" />
             <div className="text-sm">
-              <div className="font-semibold text-foreground">Compiti operatore in ritardo</div>
-              <p className="text-muted-foreground">Questi compiti non sono stati eseguiti entro 30 minuti dall'orario previsto.</p>
+              <div className="font-semibold text-foreground">{t("Compiti operatore in ritardo")}</div>
+              <p className="text-muted-foreground">{t("Questi compiti non sono stati eseguiti entro 30 minuti dall'orario previsto.")}</p>
             </div>
           </div>
           <ul className="space-y-2 text-sm">
@@ -135,7 +137,7 @@ export default function Dashboard() {
                     {t.task_type === "sanitation" ? "Sanificazione" : "Rilevazione temperatura"} • {t.asset_name}
                   </div>
                 </div>
-                <div className="text-xs font-mono text-destructive shrink-0">ore {t.due_time?.slice(0, 5)}</div>
+                <div className="text-xs font-mono text-destructive shrink-0">h {t.due_time?.slice(0, 5)}</div>
               </li>
             ))}
           </ul>
@@ -163,8 +165,8 @@ export default function Dashboard() {
               <ShoppingCart className="text-accent-foreground" size={20} />
             </div>
             <div className="flex-1">
-              <div className="font-semibold">Lista acquisti</div>
-              <div className="text-sm text-muted-foreground">{stats.outOfStock} articoli esauriti da riordinare</div>
+              <div className="font-semibold">{t("Lista acquisti")}</div>
+              <div className="text-sm text-muted-foreground">{t("{{count}} articoli esauriti da riordinare", { count: stats.outOfStock })}</div>
             </div>
           </Card>
         </Link>
