@@ -12,24 +12,65 @@ export default function ResetPasswordPage() {
   const navigate = useNavigate();
   const [password, setPassword] = useState("");
   const [busy, setBusy] = useState(false);
+  const [checking, setChecking] = useState(true);
   const [hasSession, setHasSession] = useState(false);
 
   useEffect(() => {
-    // Supabase parses the recovery hash automatically on mount.
-    supabase.auth.getSession().then(({ data }) => {
-      if (data.session) setHasSession(true);
-    });
+    let active = true;
+
+    async function prepareRecoverySession() {
+      const url = new URL(window.location.href);
+      const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
+      const code = url.searchParams.get("code");
+      const tokenHash = url.searchParams.get("token_hash") ?? hash.get("token_hash");
+      const type = url.searchParams.get("type") ?? hash.get("type");
+      const accessToken = hash.get("access_token");
+      const refreshToken = hash.get("refresh_token");
+
+      try {
+        if (code) {
+          const { error } = await supabase.auth.exchangeCodeForSession(code);
+          if (error) throw error;
+        } else if (accessToken && refreshToken) {
+          const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
+          if (error) throw error;
+        } else if (tokenHash && type === "recovery") {
+          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
+          if (error) throw error;
+        }
+
+        const { data } = await supabase.auth.getSession();
+        if (!active) return;
+        setHasSession(Boolean(data.session));
+        if (data.session && (code || tokenHash || accessToken)) {
+          window.history.replaceState(null, "", "/reset-password");
+        }
+      } catch (err: any) {
+        if (active) {
+          setHasSession(false);
+          toast.error(err?.message ?? "Link di recupero non valido o scaduto");
+        }
+      } finally {
+        if (active) setChecking(false);
+      }
+    }
+
+    prepareRecoverySession();
+
     const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
       if (sess) setHasSession(true);
       if (event === "PASSWORD_RECOVERY") setHasSession(true);
     });
-    return () => sub.subscription.unsubscribe();
+    return () => {
+      active = false;
+      sub.subscription.unsubscribe();
+    };
   }, []);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
     if (!hasSession) {
-      toast.error("Link di recupero scaduto o non valido. Richiedine uno nuovo dalla pagina di accesso.");
+      toast.error("Link di recupero non valido o scaduto. Richiedine uno nuovo dalla pagina di accesso.");
       return;
     }
     setBusy(true);
@@ -56,13 +97,17 @@ export default function ResetPasswordPage() {
           <h1 className="font-display text-2xl font-bold">Reimposta password</h1>
         </div>
         <Card className="p-6 shadow-elevated">
-          <form onSubmit={submit} className="space-y-4">
-              {!hasSession && (
-                <p className="text-xs text-destructive">
-                  Sessione di recupero non rilevata. Apri questa pagina cliccando il link nell'email,
-                  altrimenti la nuova password non verrà salvata.
-                </p>
-              )}
+          {checking ? (
+            <p className="text-sm text-muted-foreground text-center">Verifica del link in corso…</p>
+          ) : !hasSession ? (
+            <div className="space-y-4 text-center">
+              <p className="text-sm text-destructive">Link di recupero non valido o scaduto.</p>
+              <Button type="button" onClick={() => navigate("/auth", { replace: true })} className="w-full bg-gradient-primary">
+                Richiedi un nuovo link
+              </Button>
+            </div>
+          ) : (
+            <form onSubmit={submit} className="space-y-4">
               <div className="space-y-2">
                 <Label>Nuova password</Label>
                 <Input
@@ -73,10 +118,11 @@ export default function ResetPasswordPage() {
                   onChange={(e) => setPassword(e.target.value)}
                 />
               </div>
-              <Button type="submit" disabled={busy || !hasSession} className="w-full bg-gradient-primary">
+              <Button type="submit" disabled={busy} className="w-full bg-gradient-primary">
                 {busy ? "Attendi…" : "Aggiorna password"}
               </Button>
-          </form>
+            </form>
+          )}
         </Card>
       </div>
     </div>
