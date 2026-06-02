@@ -1,13 +1,14 @@
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { MessageCircle, Phone, Mail } from "lucide-react";
+import { MessageCircle, Mail } from "lucide-react";
 import { useState } from "react";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 
 const SUPPORT_PHONE = "393451688273"; // +39 345 168 8273
 const SUPPORT_DISPLAY = "+39 345 168 8273";
+const EMAIL_BUGS = "Cuozzogennaro@gmail.com";
 
 export default function Support() {
   const [message, setMessage] = useState(
@@ -57,22 +58,25 @@ export default function Support() {
         </Card>
 
         <Card className="p-6 space-y-4">
-          <div className="font-semibold">Altri contatti</div>
-          <div className="space-y-3">
-            <a
-              href={`tel:+${SUPPORT_PHONE}`}
-              className="flex items-center gap-3 p-3 rounded-lg hover:bg-muted transition"
-            >
-              <Phone className="text-primary" size={18} />
-              <div>
-                <div className="text-sm font-medium">Chiamaci</div>
-                <div className="text-xs text-muted-foreground">{SUPPORT_DISPLAY}</div>
-              </div>
-            </a>
+          <div className="flex items-center gap-3">
+            <div className="h-12 w-12 rounded-xl bg-primary/10 flex items-center justify-center">
+              <Mail className="text-primary" size={24} />
+            </div>
+            <div>
+              <div className="font-semibold">Segnalazioni &amp; richieste</div>
+              <div className="text-sm text-muted-foreground">Email</div>
+            </div>
           </div>
-          <p className="text-xs text-muted-foreground pt-2 border-t border-border">
-            Orari di assistenza: Lun–Ven 9:00–18:00. Fuori orario rispondiamo appena possibile.
+
+          <p className="text-sm text-muted-foreground">
+            Scrivici per segnalare un bug o proporre una nuova funzionalità. Rispondiamo in 1-2 giorni lavorativi.
           </p>
+
+          <Button asChild variant="outline" className="w-full">
+            <a href={`mailto:${EMAIL_BUGS}?subject=HACCP%20Pro%20-%20Segnalazione`}>
+              <Mail size={18} /> Scrivi a Cuozzogennaro@gmail.com
+            </a>
+          </Button>
         </Card>
       </div>
     </>
