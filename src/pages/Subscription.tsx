@@ -9,6 +9,7 @@ import { usePaddleCheckout } from "@/hooks/usePaddleCheckout";
 import { PaymentTestModeBanner } from "@/components/PaymentTestModeBanner";
 import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment } from "@/lib/paddle";
+import { isInAppCheckoutBlocked } from "@/lib/platform";
 import { toast } from "sonner";
 
 const FEATURES = [
@@ -26,6 +27,7 @@ export default function SubscriptionPage() {
   const { openCheckout, loading } = usePaddleCheckout();
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
+  const checkoutBlocked = isInAppCheckoutBlocked();
 
   useEffect(() => {
     if (searchParams.get("checkout") === "success") {
@@ -139,7 +141,16 @@ export default function SubscriptionPage() {
             ))}
           </ul>
 
-          {!subscription || isCanceled ? (
+          {checkoutBlocked && !hasAccess ? (
+            <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm space-y-2">
+              <p className="font-semibold">Attiva l'abbonamento dal web</p>
+              <p className="text-muted-foreground">
+                Per attivare o gestire l'abbonamento apri{" "}
+                <span className="font-mono text-xs">docu-trace-app.lovable.app</span>{" "}
+                dal browser del tuo computer o telefono. Dopo l'attivazione potrai accedere a tutte le funzioni qui nell'app.
+              </p>
+            </div>
+          ) : !subscription || isCanceled ? (
             <Button onClick={startCheckout} disabled={loading} size="lg" className="w-full">
               {loading ? <Loader2 className="animate-spin" size={18} /> : isCanceled ? "Riattiva abbonamento" : "Inizia la prova gratuita"}
             </Button>
@@ -149,9 +160,11 @@ export default function SubscriptionPage() {
             </Button>
           ) : (
             <div className="space-y-2">
-              <Button onClick={openPortal} variant="outline" size="lg" className="w-full gap-2">
-                Gestisci abbonamento <ExternalLink size={16} />
-              </Button>
+              {!checkoutBlocked && (
+                <Button onClick={openPortal} variant="outline" size="lg" className="w-full gap-2">
+                  Gestisci abbonamento <ExternalLink size={16} />
+                </Button>
+              )}
               {hasAccess && (
                 <Button onClick={() => navigate("/")} variant="ghost" size="lg" className="w-full">
                   Vai all'app

@@ -4,10 +4,10 @@ const config: CapacitorConfig = {
   appId: 'app.lovable.220cd5d1565d4443b75610dfe60373cf',
   appName: 'HACCP Pro',
   webDir: 'dist',
-  server: {
-    url: 'https://220cd5d1-565d-4443-b756-10dfe60373cf.lovableproject.com?forceHideBadge=true',
-    cleartext: true,
-  },
+  // NOTE: do NOT add a `server.url` block here for the Play Store / App Store build.
+  // Loading remote content at runtime is forbidden by Google Play policy and will
+  // get the app rejected. For local hot-reload during development, temporarily
+  // re-add a `server` block locally — but never commit it for a release build.
   plugins: {
     BluetoothLe: {
       displayStrings: {
