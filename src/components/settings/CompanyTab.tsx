@@ -7,7 +7,7 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
-import { Building2, Upload, Loader2, Save, Trash2, AlertTriangle, Sparkles } from "lucide-react";
+import { Building2, Upload, Loader2, Save, Trash2, AlertTriangle, Sparkles, UserX } from "lucide-react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import {
   AlertDialog,
@@ -40,6 +40,38 @@ export default function CompanyTab() {
   const [adminPwd, setAdminPwd] = useState("");
   const [verifying, setVerifying] = useState(false);
   const [wizardOpen, setWizardOpen] = useState(false);
+  const [deleteOpen, setDeleteOpen] = useState(false);
+  const [deletePwdOpen, setDeletePwdOpen] = useState(false);
+  const [deletePwd, setDeletePwd] = useState("");
+  const [deleting, setDeleting] = useState(false);
+
+  async function deleteAccount() {
+    setDeleting(true);
+    try {
+      const { data: { user } } = await supabase.auth.getUser();
+      if (!user?.email) {
+        toast.error("Sessione non valida");
+        return;
+      }
+      const { error: pwdErr } = await supabase.auth.signInWithPassword({
+        email: user.email,
+        password: deletePwd,
+      });
+      if (pwdErr) {
+        toast.error("Password errata");
+        return;
+      }
+      const { error } = await supabase.functions.invoke("delete-account");
+      if (error) throw error;
+      toast.success("Account eliminato");
+      await supabase.auth.signOut();
+      setTimeout(() => { window.location.href = "/auth"; }, 600);
+    } catch (err: any) {
+      toast.error(err?.message ?? "Errore durante l'eliminazione");
+    } finally {
+      setDeleting(false);
+    }
+  }
 
   useEffect(() => setForm(company), [company]);
 
@@ -294,6 +326,89 @@ export default function CompanyTab() {
               >
                 {(verifying || resetting) ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
                 Conferma e azzera
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <div className="mt-8 pt-6 border-t border-destructive/30">
+        <h3 className="text-sm font-semibold text-destructive flex items-center gap-2 mb-2">
+          <AlertTriangle size={16} /> Zona pericolosa
+        </h3>
+        <p className="text-xs text-muted-foreground mb-3">
+          Eliminando l'account verranno cancellati definitivamente tutti i tuoi dati, gli operatori e l'abbonamento. L'azione è irreversibile.
+        </p>
+        <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setDeleteOpen(true)}>
+          <UserX size={16} /> Elimina account
+        </Button>
+
+        <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
+          <AlertDialogContent>
+            <AlertDialogHeader>
+              <AlertDialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="text-destructive" size={20} />
+                Eliminare definitivamente l'account?
+              </AlertDialogTitle>
+              <AlertDialogDescription>
+                Verranno cancellati: account, anagrafica azienda, operatori, attrezzature,
+                materie prime, prodotti, registrazioni HACCP, etichette, abbonamento e ogni
+                altro dato collegato. L'operazione <strong>non può essere annullata</strong>.
+                <br /><br />
+                Per procedere ti verrà richiesta la password.
+              </AlertDialogDescription>
+            </AlertDialogHeader>
+            <AlertDialogFooter>
+              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogAction
+                onClick={(e) => {
+                  e.preventDefault();
+                  setDeleteOpen(false);
+                  setDeletePwd("");
+                  setDeletePwdOpen(true);
+                }}
+                className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+              >
+                Procedi
+              </AlertDialogAction>
+            </AlertDialogFooter>
+          </AlertDialogContent>
+        </AlertDialog>
+
+        <Dialog open={deletePwdOpen} onOpenChange={(v) => { setDeletePwdOpen(v); if (!v) setDeletePwd(""); }}>
+          <DialogContent className="max-w-md">
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2">
+                <AlertTriangle className="text-destructive" size={20} />
+                Conferma password
+              </DialogTitle>
+              <DialogDescription>
+                Inserisci la password del tuo account per eliminarlo definitivamente.
+              </DialogDescription>
+            </DialogHeader>
+            <div className="space-y-2">
+              <Label>Password</Label>
+              <Input
+                type="password"
+                autoFocus
+                value={deletePwd}
+                onChange={(e) => setDeletePwd(e.target.value)}
+                onKeyDown={(e) => e.key === "Enter" && deletePwd && !deleting && deleteAccount()}
+                placeholder="••••••••"
+              />
+            </div>
+            <DialogFooter>
+              <Button variant="outline" onClick={() => { setDeletePwdOpen(false); setDeletePwd(""); }}>
+                Annulla
+              </Button>
+              <Button
+                variant="destructive"
+                disabled={!deletePwd || deleting}
+                onClick={deleteAccount}
+                className="gap-2"
+              >
+                {deleting ? <Loader2 className="animate-spin" size={16} /> : <UserX size={16} />}
+                Elimina account
               </Button>
             </DialogFooter>
           </DialogContent>
