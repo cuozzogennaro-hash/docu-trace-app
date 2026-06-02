@@ -27,6 +27,7 @@ import NonConformities from "./pages/NonConformities";
 import Menu from "./pages/Menu";
 import Expiries from "./pages/Expiries";
 import AdminDashboard from "./pages/AdminDashboard";
+import Support from "./pages/Support";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { OperatorSessionProvider, useOperatorSession } from "./hooks/useOperatorSession";
@@ -106,6 +107,7 @@ const App = () => (
               <Route path="/archivio/prodotto/:id" element={<ProductDetail />} />
               <Route path="/impostazioni" element={<Settings />} />
               <Route path="/admin" element={<AdminDashboard />} />
+              <Route path="/contatti" element={<Support />} />
             </Route>
             <Route path="*" element={<NotFound />} />
             </Routes>

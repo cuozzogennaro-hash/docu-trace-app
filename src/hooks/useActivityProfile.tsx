@@ -63,7 +63,7 @@ export const NAV_VISIBILITY: Record<ActivityProfile, Set<string>> = {
     "/", "/sanificazione", "/temperature",
     "/ingresso", "/produzione", "/archivio", "/ricorrenti", "/scadenze",
     "/clienti", "/acquisti",
-    "/non-conformita", "/report", "/impostazioni",
+    "/non-conformita", "/report", "/impostazioni", "/contatti",
   ]),
   ristorazione: new Set([
     "/", "/sanificazione", "/temperature",
@@ -71,7 +71,7 @@ export const NAV_VISIBILITY: Record<ActivityProfile, Set<string>> = {
     "/produzione", "/ricorrenti", "/menu",
     "/abbattimenti", "/mantenimento", "/frittura",
     "/acquisti",
-    "/non-conformita", "/report", "/impostazioni",
+    "/non-conformita", "/report", "/impostazioni", "/contatti",
   ]),
   misto: new Set([
     "/", "/sanificazione", "/temperature",
@@ -79,7 +79,7 @@ export const NAV_VISIBILITY: Record<ActivityProfile, Set<string>> = {
     "/menu",
     "/abbattimenti", "/mantenimento", "/frittura",
     "/clienti", "/acquisti",
-    "/non-conformita", "/report", "/impostazioni",
+    "/non-conformita", "/report", "/impostazioni", "/contatti",
   ]),
 };
 
