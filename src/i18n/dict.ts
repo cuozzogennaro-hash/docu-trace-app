@@ -266,4 +266,66 @@ export const en: Record<string, string> = {
   "Politica di rimborso": "Refund policy",
   "Privacy": "Privacy",
   "Informativa sulla privacy": "Privacy policy",
+
+  // --- Auth additional ---
+  "Autocontrollo alimentare smart": "Smart food self-monitoring",
+  "Nome utente": "Username",
+  "Te lo fornisce il titolare della tua attività.": "Your business owner provides it to you.",
+  "Accedi come operatore": "Sign in as operator",
+  "Attendi…": "Please wait…",
+  "Crea account (30gg gratis)": "Create account (30-day free trial)",
+  "Invia link reset": "Send reset link",
+  "Continua con Google": "Continue with Google",
+  "Registrati (30gg gratis)": "Sign up (30-day free trial)",
+  "Hai già un account? Accedi": "Already have an account? Sign in",
+  "Come funziona il recupero": "How recovery works",
+  "Riceverai un'email da Lovable. Il pulsante \"Reset Password\" potrebbe apparire poco visibile (testo chiaro su sfondo chiaro): cliccalo lo stesso o clicca sullo spazio vuoto sotto il messaggio per aprire la pagina di reimpostazione.":
+    "You'll receive an email from Lovable. The \"Reset Password\" button may look hard to see (light text on light background): click it anyway, or click on the empty space below the message to open the reset page.",
+  "Benvenuto! Hai 30 giorni di prova gratuita.": "Welcome! You have a 30-day free trial.",
+  "Account creato. Controlla la tua email per confermare.": "Account created. Check your email to confirm.",
+  "Email inviata. Attenzione: il link nell'email può apparire poco visibile — cliccalo comunque.":
+    "Email sent. Note: the link in the email may look hard to see — click it anyway.",
+  "Errore accesso Google": "Google sign-in error",
+  "Inserisci nome utente e PIN": "Enter username and PIN",
+  "Nome utente non trovato": "Username not found",
+  "Benvenuto": "Welcome",
+  "Prezzi": "Pricing",
+  "Termini": "Terms",
+  "Rimborsi": "Refunds",
+
+  // --- Reset password additional ---
+  "Verifica del link in corso…": "Verifying link…",
+  "Link di recupero non valido o scaduto.": "Invalid or expired recovery link.",
+  "Link di recupero non valido o scaduto. Richiedine uno nuovo dalla pagina di accesso.":
+    "Invalid or expired recovery link. Request a new one from the sign-in page.",
+  "Password aggiornata. Sei dentro.": "Password updated. You're in.",
+  "Errore aggiornamento password": "Error updating password",
+  "Aggiorna password": "Update password",
+
+  // --- Dashboard ---
+  "Panoramica del tuo autocontrollo HACCP": "Overview of your HACCP self-monitoring",
+  "Sanificazioni oggi": "Sanitations today",
+  "Rilevazioni oggi": "Readings today",
+  "Prodotti registrati": "Registered products",
+  "Registra una nuova consegna": "Log a new delivery",
+  "Registri incompleti oggi": "Incomplete records today",
+  "Ricordati di compilare sanificazioni e rilevazioni temperature.": "Remember to log sanitations and temperature readings.",
+  "Compiti operatore in ritardo": "Overdue operator tasks",
+  "Questi compiti non sono stati eseguiti entro 30 minuti dall'orario previsto.":
+    "These tasks were not completed within 30 minutes of the scheduled time.",
+  "Rilevazione temperatura": "Temperature reading",
+  "h": "h",
+  "{{count}} articoli esauriti da riordinare": "{{count}} items out of stock to reorder",
+
+  // --- Settings tabs ---
+  "Anagrafica azienda, operatori e attrezzature": "Company data, operators and equipment",
+  "Azienda": "Company",
+  "Profilo": "Profile",
+  "Attrezz.": "Equip.",
+  "Aromi": "Flavorings",
+  "Additivi": "Additives",
+  "Etichette": "Labels",
+  "Logiche": "Rules",
+  "Gestisci gli aromi utilizzati nelle produzioni": "Manage flavorings used in productions",
+  "Gestisci gli additivi utilizzati nelle produzioni (sigle E…)": "Manage additives used in productions (E-codes…)",
 };
