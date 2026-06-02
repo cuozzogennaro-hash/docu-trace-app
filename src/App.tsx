@@ -25,6 +25,7 @@ import Holding from "./pages/Holding";
 import OilChecks from "./pages/OilChecks";
 import NonConformities from "./pages/NonConformities";
 import Menu from "./pages/Menu";
+import Expiries from "./pages/Expiries";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { OperatorSessionProvider, useOperatorSession } from "./hooks/useOperatorSession";
@@ -98,6 +99,7 @@ const App = () => (
               <Route path="/frittura" element={<OilChecks />} />
               <Route path="/non-conformita" element={<NonConformities />} />
               <Route path="/menu" element={<Menu />} />
+              <Route path="/scadenze" element={<Expiries />} />
               <Route path="/report" element={<Reports />} />
               <Route path="/archivio/materia-prima/:id" element={<RawMaterialDetail />} />
               <Route path="/archivio/prodotto/:id" element={<ProductDetail />} />

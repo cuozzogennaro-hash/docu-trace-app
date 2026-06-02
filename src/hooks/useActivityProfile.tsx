@@ -61,13 +61,13 @@ export function useActivityProfile() {
 export const NAV_VISIBILITY: Record<ActivityProfile, Set<string>> = {
   laboratorio: new Set([
     "/", "/sanificazione", "/temperature",
-    "/ingresso", "/produzione", "/archivio", "/ricorrenti",
+    "/ingresso", "/produzione", "/archivio", "/ricorrenti", "/scadenze",
     "/clienti", "/acquisti",
     "/non-conformita", "/report", "/impostazioni",
   ]),
   ristorazione: new Set([
     "/", "/sanificazione", "/temperature",
-    "/ingresso", "/archivio",
+    "/ingresso", "/archivio", "/scadenze",
     "/produzione", "/ricorrenti", "/menu",
     "/abbattimenti", "/mantenimento", "/frittura",
     "/acquisti",
@@ -75,7 +75,7 @@ export const NAV_VISIBILITY: Record<ActivityProfile, Set<string>> = {
   ]),
   misto: new Set([
     "/", "/sanificazione", "/temperature",
-    "/ingresso", "/produzione", "/archivio", "/ricorrenti",
+    "/ingresso", "/produzione", "/archivio", "/ricorrenti", "/scadenze",
     "/menu",
     "/abbattimenti", "/mantenimento", "/frittura",
     "/clienti", "/acquisti",
