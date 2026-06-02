@@ -515,6 +515,7 @@ export type Database = {
       non_conformities: {
         Row: {
           area: string
+          asset_id: string | null
           corrective_action: string | null
           created_at: string
           description: string | null
@@ -530,6 +531,7 @@ export type Database = {
         }
         Insert: {
           area?: string
+          asset_id?: string | null
           corrective_action?: string | null
           created_at?: string
           description?: string | null
@@ -545,6 +547,7 @@ export type Database = {
         }
         Update: {
           area?: string
+          asset_id?: string | null
           corrective_action?: string | null
           created_at?: string
           description?: string | null
