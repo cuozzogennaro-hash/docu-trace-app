@@ -605,6 +605,9 @@ export type Database = {
       operators: {
         Row: {
           created_at: string
+          health_cert_expiry: string | null
+          health_cert_reminder_days: number
+          hide_in_reports: boolean
           id: string
           is_active: boolean
           is_admin: boolean
@@ -617,6 +620,9 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          health_cert_expiry?: string | null
+          health_cert_reminder_days?: number
+          hide_in_reports?: boolean
           id?: string
           is_active?: boolean
           is_admin?: boolean
@@ -629,6 +635,9 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          health_cert_expiry?: string | null
+          health_cert_reminder_days?: number
+          hide_in_reports?: boolean
           id?: string
           is_active?: boolean
           is_admin?: boolean
