@@ -502,6 +502,68 @@ export default function OperatorsTab() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Edit operator details dialog */}
+      <Dialog open={!!editingOp} onOpenChange={(v) => !v && setEditingOp(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Settings2 size={18} /> Scheda di {editingOp?.name}
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <HeartPulse size={14} /> Scadenza libretto sanitario
+              </Label>
+              <Input
+                type="date"
+                value={healthDate}
+                onChange={(e) => setHealthDate(e.target.value)}
+              />
+              <p className="text-xs text-muted-foreground">Lascia vuoto se non gestito.</p>
+            </div>
+            <div className="space-y-1.5">
+              <Label className="flex items-center gap-1.5">
+                <Bell size={14} /> Promemoria (giorni prima della scadenza)
+              </Label>
+              <Input
+                type="number"
+                min={0}
+                max={365}
+                value={reminderDays}
+                onChange={(e) => setReminderDays(parseInt(e.target.value || "0", 10))}
+                disabled={!healthDate}
+              />
+              <p className="text-xs text-muted-foreground">
+                Ti avviseremo nella scheda operatori quando la scadenza è entro questo numero di giorni.
+              </p>
+            </div>
+            <div className="rounded-lg border border-border p-3 flex items-start gap-3">
+              <Checkbox
+                id="hide-reports"
+                checked={hideInReports}
+                onCheckedChange={(c) => setHideInReports(!!c)}
+                className="mt-0.5"
+              />
+              <label htmlFor="hide-reports" className="text-sm cursor-pointer flex-1">
+                <div className="font-medium flex items-center gap-1.5">
+                  <EyeOff size={14} /> Nascondi nei report
+                </div>
+                <div className="text-xs text-muted-foreground mt-0.5">
+                  Nei PDF e nelle stampe il nome di questo operatore verrà sostituito con <strong>“Amministratore”</strong>.
+                </div>
+              </label>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setEditingOp(null)}>Annulla</Button>
+            <Button onClick={saveDetails} disabled={savingDetails} className="bg-gradient-primary">
+              {savingDetails ? <Loader2 className="animate-spin" size={16} /> : "Salva"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
