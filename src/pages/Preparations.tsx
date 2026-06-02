@@ -90,7 +90,11 @@ export default function Preparations({ embedded = false, departmentId }: { embed
         .eq("is_out_of_stock", false)
         .order("product_name")
         .limit(500);
-      setRawMaterials((data as any) ?? []);
+      const today = new Date().toISOString().slice(0, 10);
+      const filtered = ((data as any[]) ?? []).filter(
+        (r) => !r.expiry_date || String(r.expiry_date).slice(0, 10) >= today,
+      );
+      setRawMaterials(filtered as any);
     })();
   }, []);
 

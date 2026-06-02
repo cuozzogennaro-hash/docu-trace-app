@@ -7,6 +7,8 @@ import CompanyHeader from "@/components/CompanyHeader";
 import { Sparkles, Thermometer, Package, Factory, AlertTriangle, ShoppingCart } from "lucide-react";
 import { Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { computeProductExpiry, getExpiryStatus } from "@/lib/expiry";
+import { CalendarClock } from "lucide-react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import OnboardingChecklist from "@/components/onboarding/OnboardingChecklist";
 
@@ -30,6 +32,8 @@ export default function Dashboard() {
     products: 0,
     outOfStock: 0,
     missingToday: false,
+    expired: 0,
+    expiringSoon: 0,
   });
   const [overdue, setOverdue] = useState<OverdueTask[]>([]);
 
@@ -60,13 +64,27 @@ export default function Dashboard() {
   useEffect(() => {
     (async () => {
       const today = new Date().toISOString().slice(0, 10);
-      const [s, t, rm, pr, oos] = await Promise.all([
+      const [s, t, rm, pr, oos, rmExp, prExp, prepExp, shelfRes] = await Promise.all([
         supabase.from("sanitations").select("id", { count: "exact", head: true }).eq("event_date", today),
         supabase.from("temperatures").select("id", { count: "exact", head: true }).eq("event_date", today),
         supabase.from("raw_materials").select("id", { count: "exact", head: true }),
         supabase.from("products").select("id", { count: "exact", head: true }),
         supabase.from("raw_materials").select("id", { count: "exact", head: true }).eq("is_out_of_stock", true),
+        supabase.from("raw_materials").select("expiry_date").eq("is_out_of_stock", false).not("expiry_date", "is", null),
+        supabase.from("products").select("production_date, preservation_type"),
+        supabase.from("preparations").select("internal_expiry"),
+        supabase.from("label_rules" as any).select("params").eq("department_key", "salumeria").eq("rule_key", "shelf_life").maybeSingle(),
       ]);
+      const shelf = ((shelfRes as any).data?.params ?? {}) as { days_fresh?: number; days_vacuum?: number };
+      let expired = 0, expiringSoon = 0;
+      const tally = (iso: string | null | undefined) => {
+        const st = getExpiryStatus(iso);
+        if (st === "expired") expired++;
+        else if (st === "today" || st === "soon") expiringSoon++;
+      };
+      for (const r of ((rmExp.data as any[]) ?? [])) tally(r.expiry_date);
+      for (const r of ((prExp.data as any[]) ?? [])) tally(computeProductExpiry(r.production_date, r.preservation_type, shelf));
+      for (const r of ((prepExp.data as any[]) ?? [])) tally(r.internal_expiry ? String(r.internal_expiry).slice(0, 10) : null);
       setStats({
         sanitToday: s.count ?? 0,
         tempToday: t.count ?? 0,
@@ -74,6 +92,8 @@ export default function Dashboard() {
         products: pr.count ?? 0,
         outOfStock: oos.count ?? 0,
         missingToday: (s.count ?? 0) === 0 || (t.count ?? 0) === 0,
+        expired,
+        expiringSoon,
       });
     })();
   }, []);
@@ -167,6 +187,24 @@ export default function Dashboard() {
             <div className="flex-1">
               <div className="font-semibold">{t("Lista acquisti")}</div>
               <div className="text-sm text-muted-foreground">{t("{{count}} articoli esauriti da riordinare", { count: stats.outOfStock })}</div>
+            </div>
+          </Card>
+        </Link>
+      )}
+
+      {(stats.expired > 0 || stats.expiringSoon > 0) && (
+        <Link to="/scadenze">
+          <Card className={`mt-4 p-4 flex items-center gap-4 hover:shadow-elevated transition cursor-pointer ${stats.expired > 0 ? "border-destructive/40 bg-destructive/5" : "border-orange-500/40 bg-orange-500/5"}`}>
+            <div className={`h-11 w-11 rounded-xl flex items-center justify-center ${stats.expired > 0 ? "bg-destructive/20 text-destructive" : "bg-orange-500/20 text-orange-600"}`}>
+              <CalendarClock size={20} />
+            </div>
+            <div className="flex-1">
+              <div className="font-semibold">{t("Scadenze")}</div>
+              <div className="text-sm text-muted-foreground">
+                {stats.expired > 0 && <span className="text-destructive font-medium">{t("{{n}} scaduti", { n: stats.expired })}</span>}
+                {stats.expired > 0 && stats.expiringSoon > 0 && " · "}
+                {stats.expiringSoon > 0 && <span>{t("{{n}} in scadenza", { n: stats.expiringSoon })}</span>}
+              </div>
             </div>
           </Card>
         </Link>
