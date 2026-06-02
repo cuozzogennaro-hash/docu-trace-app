@@ -1293,6 +1293,7 @@ export type Database = {
         Returns: undefined
       }
       slugify: { Args: { input: string }; Returns: string }
+      start_local_trial: { Args: { p_env?: string }; Returns: Json }
       unaccent_safe: { Args: { input: string }; Returns: string }
     }
     Enums: {
