@@ -4,7 +4,8 @@ import OperatorDashboard from "./OperatorDashboard";
 
 export default function Index() {
   const { operator } = useOperatorSession();
-  // Solo titolare e operatore amministratore vedono la dashboard ricca
-  if (operator && !operator.is_admin) return <OperatorDashboard />;
+  // Solo l'account titolare vede la dashboard ricca.
+  // Qualsiasi operatore (anche amministratore) vede la dashboard operatore.
+  if (operator) return <OperatorDashboard />;
   return <Dashboard />;
 }
