@@ -514,12 +514,15 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
       data = payload?.rows ?? [];
     } else {
       const select = cfg.relation ? `*, ${cfg.relation}` : "*";
-      const orderCol = (tableKey === "temperatures" || tableKey === "sanitations") ? "recorded_at" : "created_at";
-      const { data: res, error } = await supabase
-        .from(tableKey)
-        .select(select)
-        .order(orderCol, { ascending: false })
-        .limit(500);
+      const orderCol =
+        tableKey === "temperatures" || tableKey === "sanitations" ? "recorded_at"
+        : tableKey === "raw_materials" ? "document_date"
+        : tableKey === "products" ? "production_date"
+        : "created_at";
+      const tieCol = tableKey === "raw_materials" || tableKey === "products" ? "created_at" : null;
+      let q = supabase.from(tableKey).select(select).order(orderCol, { ascending: false });
+      if (tieCol) q = q.order(tieCol, { ascending: false });
+      const { data: res, error } = await q.limit(500);
       if (error) toast.error(error.message);
       data = res ?? [];
     }
