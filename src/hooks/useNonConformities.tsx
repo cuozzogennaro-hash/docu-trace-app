@@ -5,6 +5,7 @@ export type NonConformity = {
   id: string;
   user_id: string;
   operator_id: string | null;
+  asset_id: string | null;
   area: "temperatura" | "pulizia" | "fornitore" | "attrezzatura" | "prodotto" | "altro";
   severity: "low" | "medium" | "high";
   title: string;
