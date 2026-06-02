@@ -561,6 +561,7 @@ export type Database = {
           id: string
           ingredients_text: string | null
           internal_expiry: string
+          is_out_of_stock: boolean
           name: string
           notes: string | null
           operator_id: string | null
@@ -575,6 +576,7 @@ export type Database = {
           id?: string
           ingredients_text?: string | null
           internal_expiry: string
+          is_out_of_stock?: boolean
           name: string
           notes?: string | null
           operator_id?: string | null
@@ -589,6 +591,7 @@ export type Database = {
           id?: string
           ingredients_text?: string | null
           internal_expiry?: string
+          is_out_of_stock?: boolean
           name?: string
           notes?: string | null
           operator_id?: string | null
@@ -641,6 +644,7 @@ export type Database = {
           department_id: string | null
           id: string
           internal_lot: string
+          is_out_of_stock: boolean
           manual_ingredients: string | null
           meat_type: string | null
           name: string
@@ -656,6 +660,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           internal_lot: string
+          is_out_of_stock?: boolean
           manual_ingredients?: string | null
           meat_type?: string | null
           name: string
@@ -671,6 +676,7 @@ export type Database = {
           department_id?: string | null
           id?: string
           internal_lot?: string
+          is_out_of_stock?: boolean
           manual_ingredients?: string | null
           meat_type?: string | null
           name?: string
