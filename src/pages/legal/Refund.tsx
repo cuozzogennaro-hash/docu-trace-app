@@ -1,6 +1,49 @@
 import LegalBackHeader from "@/components/LegalBackHeader";
+import { useTranslation } from "react-i18next";
 
 export default function RefundPage() {
+  const { i18n } = useTranslation();
+  const isEN = i18n.language?.startsWith("en");
+
+  if (isEN) {
+    return (
+      <div className="max-w-3xl mx-auto p-6 lg:p-10 prose prose-sm prose-neutral">
+        <LegalBackHeader />
+        <h1>Refund Policy</h1>
+        <p><strong>Seller:</strong> Gennaro Cuozzo, sole proprietor</p>
+
+        <h2>30-day money-back guarantee</h2>
+        <p>
+          We offer a <strong>30-day</strong> money-back guarantee. If you are not satisfied with your
+          purchase, you can request a full refund within 30 days of the order date.
+        </p>
+
+        <h2>Free trial period</h2>
+        <p>
+          The HACCP Pro subscription includes a 30-day free trial. No charge is made during the trial:
+          you can cancel at any time before the end of the trial at no cost.
+        </p>
+
+        <h2>How to request a refund</h2>
+        <p>
+          Payments are handled by our partner <strong>Paddle.com</strong> (Merchant of Record).
+          To request a refund, visit <a href="https://paddle.net" target="_blank" rel="noopener noreferrer">paddle.net</a>{" "}
+          using the email address you used at purchase, or contact our support.
+        </p>
+        <p>
+          Refunds are processed back to the original payment method. Crediting times depend on your
+          card network (typically 5–10 business days).
+        </p>
+
+        <h2>Monthly renewals</h2>
+        <p>
+          By cancelling your subscription from the customer portal, no further charges will be made.
+          Access to the Service remains active until the end of the period already paid for.
+        </p>
+      </div>
+    );
+  }
+
   return (
     <div className="max-w-3xl mx-auto p-6 lg:p-10 prose prose-sm prose-neutral">
       <LegalBackHeader />

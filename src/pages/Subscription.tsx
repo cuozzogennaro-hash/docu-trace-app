@@ -11,8 +11,9 @@ import { supabase } from "@/integrations/supabase/client";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import { isInAppCheckoutBlocked } from "@/lib/platform";
 import { toast } from "sonner";
+import { useTranslation } from "react-i18next";
 
-const FEATURES = [
+const FEATURE_KEYS = [
   "Registrazione temperature, sanificazioni e abbattimenti",
   "Schede produzione, preparazioni e mantenimento",
   "Etichette personalizzabili con allergeni",
@@ -22,6 +23,8 @@ const FEATURES = [
 ];
 
 export default function SubscriptionPage() {
+  const { t, i18n } = useTranslation();
+  const dateLocale = i18n.language?.startsWith("en") ? "en-GB" : "it-IT";
   const { user } = useAuth();
   const { subscription, hasAccess, isTrialing, isPastDue, isCanceled, trialDaysLeft, refetch } = useSubscription();
   const { openCheckout, loading } = usePaddleCheckout();
@@ -31,12 +34,12 @@ export default function SubscriptionPage() {
 
   useEffect(() => {
     if (searchParams.get("checkout") === "success") {
-      toast.success("Pagamento ricevuto, attivazione in corso…");
-      const t = setInterval(refetch, 2000);
-      const stop = setTimeout(() => clearInterval(t), 20000);
-      return () => { clearInterval(t); clearTimeout(stop); };
+      toast.success(t("Pagamento ricevuto, attivazione in corso…"));
+      const iv = setInterval(refetch, 2000);
+      const stop = setTimeout(() => clearInterval(iv), 20000);
+      return () => { clearInterval(iv); clearTimeout(stop); };
     }
-  }, [searchParams, refetch]);
+  }, [searchParams, refetch, t]);
 
   async function startCheckout() {
     if (!user) {
@@ -51,7 +54,7 @@ export default function SubscriptionPage() {
         successUrl: `${window.location.origin}/abbonamento?checkout=success`,
       });
     } catch (e: any) {
-      toast.error(e?.message ?? "Errore apertura checkout");
+      toast.error(e?.message ?? t("Errore apertura checkout"));
     }
   }
 
@@ -64,10 +67,10 @@ export default function SubscriptionPage() {
       const url = data?.subscriptionUrls?.[0]?.cancelSubscription
         ?? data?.subscriptionUrls?.[0]?.updateSubscriptionPaymentMethod
         ?? data?.overviewUrl;
-      if (!url) throw new Error("URL non disponibile");
+      if (!url) throw new Error(t("URL non disponibile"));
       window.open(url, "_blank");
     } catch (e: any) {
-      toast.error(e?.message ?? "Errore apertura portale");
+      toast.error(e?.message ?? t("Errore apertura portale"));
     }
   }
 
@@ -80,7 +83,7 @@ export default function SubscriptionPage() {
           className="flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground transition-colors"
         >
           <ArrowLeft className="h-4 w-4" />
-          Indietro
+          {t("Indietro")}
         </button>
         <div className="flex items-center gap-3">
           <div className="h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center">
@@ -88,40 +91,40 @@ export default function SubscriptionPage() {
           </div>
           <div>
             <h1 className="font-display text-2xl font-bold">HACCP Pro</h1>
-            <p className="text-sm text-muted-foreground">Abbonamento mensile</p>
+            <p className="text-sm text-muted-foreground">{t("Abbonamento mensile")}</p>
           </div>
         </div>
 
         {subscription && (
           <Card className="p-4 space-y-2">
             <div className="text-xs uppercase tracking-wider text-muted-foreground font-semibold">
-              Stato abbonamento
+              {t("Stato abbonamento")}
             </div>
             {isTrialing && (
               <div className="text-sm">
-                <span className="font-semibold text-primary">Prova attiva</span>
-                {trialDaysLeft !== null && ` — ${trialDaysLeft} giorni rimanenti`}
+                <span className="font-semibold text-primary">{t("Prova attiva")}</span>
+                {trialDaysLeft !== null && ` ${t("— {{n}} giorni rimanenti", { n: trialDaysLeft })}`}
               </div>
             )}
             {subscription.status === "active" && (
               <div className="text-sm">
-                <span className="font-semibold text-green-700">Attivo</span>
-                {subscription.cancel_at_period_end && " — si disattiverà a fine periodo"}
+                <span className="font-semibold text-green-700">{t("Attivo")}</span>
+                {subscription.cancel_at_period_end && ` — ${t("si disattiverà a fine periodo")}`}
               </div>
             )}
             {isPastDue && (
               <div className="text-sm text-orange-700">
-                <span className="font-semibold">Pagamento non andato a buon fine.</span> Aggiorna il metodo di pagamento entro 7 giorni per evitare il blocco.
+                <span className="font-semibold">{t("Pagamento non andato a buon fine.")}</span> {t("Aggiorna il metodo di pagamento entro 7 giorni per evitare il blocco.")}
               </div>
             )}
             {isCanceled && (
               <div className="text-sm text-destructive">
-                <span className="font-semibold">Annullato.</span>{subscription.current_period_end && ` Accesso fino al ${new Date(subscription.current_period_end).toLocaleDateString("it-IT")}.`}
+                <span className="font-semibold">{t("Annullato.")}</span>{subscription.current_period_end && ` ${t("Accesso fino al {{date}}.", { date: new Date(subscription.current_period_end).toLocaleDateString(dateLocale) })}`}
               </div>
             )}
             {subscription.current_period_end && !isCanceled && (
               <div className="text-xs text-muted-foreground">
-                Prossimo rinnovo: {new Date(subscription.current_period_end).toLocaleDateString("it-IT")}
+                {t("Prossimo rinnovo: {{date}}", { date: new Date(subscription.current_period_end).toLocaleDateString(dateLocale) })}
               </div>
             )}
           </Card>
@@ -129,59 +132,57 @@ export default function SubscriptionPage() {
 
         <Card className="p-6 space-y-5">
           <div>
-            <div className="text-3xl font-bold">19,99 € <span className="text-base font-normal text-muted-foreground">/ mese</span></div>
-            <div className="text-sm text-primary font-semibold mt-1">30 giorni di prova gratuita</div>
+            <div className="text-3xl font-bold">19,99 € <span className="text-base font-normal text-muted-foreground">{t("/ mese")}</span></div>
+            <div className="text-sm text-primary font-semibold mt-1">{t("30 giorni di prova gratuita")}</div>
           </div>
           <ul className="space-y-2">
-            {FEATURES.map((f) => (
+            {FEATURE_KEYS.map((f) => (
               <li key={f} className="flex items-start gap-2 text-sm">
                 <Check size={16} className="text-primary mt-0.5 shrink-0" />
-                <span>{f}</span>
+                <span>{t(f)}</span>
               </li>
             ))}
           </ul>
 
           {checkoutBlocked && !hasAccess ? (
             <div className="rounded-lg border border-border bg-muted/40 p-4 text-sm space-y-2">
-              <p className="font-semibold">Attiva l'abbonamento dal web</p>
+              <p className="font-semibold">{t("Attiva l'abbonamento dal web")}</p>
               <p className="text-muted-foreground">
-                Per attivare o gestire l'abbonamento apri{" "}
-                <span className="font-mono text-xs">docu-trace-app.lovable.app</span>{" "}
-                dal browser del tuo computer o telefono. Dopo l'attivazione potrai accedere a tutte le funzioni qui nell'app.
+                {t("Per attivare o gestire l'abbonamento apri docu-trace-app.lovable.app dal browser del tuo computer o telefono. Dopo l'attivazione potrai accedere a tutte le funzioni qui nell'app.")}
               </p>
             </div>
           ) : !subscription || isCanceled ? (
             <Button onClick={startCheckout} disabled={loading} size="lg" className="w-full">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : isCanceled ? "Riattiva abbonamento" : "Inizia la prova gratuita"}
+              {loading ? <Loader2 className="animate-spin" size={18} /> : isCanceled ? t("Riattiva abbonamento") : t("Inizia la prova gratuita")}
             </Button>
           ) : !hasAccess ? (
             <Button onClick={startCheckout} disabled={loading} size="lg" className="w-full">
-              {loading ? <Loader2 className="animate-spin" size={18} /> : "Attiva abbonamento"}
+              {loading ? <Loader2 className="animate-spin" size={18} /> : t("Attiva abbonamento")}
             </Button>
           ) : (
             <div className="space-y-2">
               {!checkoutBlocked && (
                 <Button onClick={openPortal} variant="outline" size="lg" className="w-full gap-2">
-                  Gestisci abbonamento <ExternalLink size={16} />
+                  {t("Gestisci abbonamento")} <ExternalLink size={16} />
                 </Button>
               )}
               {hasAccess && (
                 <Button onClick={() => navigate("/")} variant="ghost" size="lg" className="w-full">
-                  Vai all'app
+                  {t("Vai all'app")}
                 </Button>
               )}
             </div>
           )}
 
           <p className="text-xs text-muted-foreground text-center">
-            Nessun addebito durante la prova. Annulla quando vuoi.
+            {t("Nessun addebito durante la prova. Annulla quando vuoi.")}
           </p>
         </Card>
 
         <div className="text-xs text-muted-foreground text-center space-x-3">
-          <a href="/termini" className="underline">Termini</a>
-          <a href="/rimborsi" className="underline">Rimborsi</a>
-          <a href="/privacy" className="underline">Privacy</a>
+          <a href="/termini" className="underline">{t("Termini")}</a>
+          <a href="/rimborsi" className="underline">{t("Rimborsi")}</a>
+          <a href="/privacy" className="underline">{t("Privacy")}</a>
         </div>
       </div>
     </div>

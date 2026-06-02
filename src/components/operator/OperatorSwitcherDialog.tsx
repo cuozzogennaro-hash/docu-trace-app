@@ -9,6 +9,7 @@ import { Label } from "@/components/ui/label";
 import { Loader2, ShieldCheck, UserCircle2 } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 export default function OperatorSwitcherDialog({
   open,
@@ -17,6 +18,7 @@ export default function OperatorSwitcherDialog({
   open: boolean;
   onOpenChange: (v: boolean) => void;
 }) {
+  const { t } = useTranslation();
   const { operators, loading } = useOperators();
   const { signIn } = useOperatorSession();
   const [selected, setSelected] = useState<Operator | null>(null);
@@ -40,12 +42,12 @@ export default function OperatorSwitcherDialog({
       });
       const res = data as { ok: boolean; name?: string; role?: string | null; is_admin?: boolean } | null;
       if (error || !res?.ok) {
-        toast.error("PIN errato");
+        toast.error(t("PIN errato"));
         setPin("");
         return;
       }
       signIn({ id: selected.id, name: res.name ?? selected.name, role: res.role ?? selected.role, pin, is_admin: res.is_admin ?? false });
-      toast.success(`Benvenuto ${res.name ?? selected.name}`);
+      toast.success(`${t("Benvenuto")} ${res.name ?? selected.name}`);
       onOpenChange(false);
     } finally {
       setVerifying(false);
@@ -57,18 +59,18 @@ export default function OperatorSwitcherDialog({
       <DialogContent className="max-w-md">
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
-            <ShieldCheck className="text-primary" size={20} /> Cambio operatore
+            <ShieldCheck className="text-primary" size={20} /> {t("Cambio operatore")}
           </DialogTitle>
-          <DialogDescription>Seleziona il tuo nome e inserisci il PIN.</DialogDescription>
+          <DialogDescription>{t("Seleziona il tuo nome e inserisci il PIN.")}</DialogDescription>
         </DialogHeader>
 
         {loading ? (
           <div className="py-8 flex justify-center"><Loader2 className="animate-spin" /></div>
         ) : operators.length === 0 ? (
           <div className="py-6 text-center space-y-3">
-            <p className="text-sm text-muted-foreground">Nessun operatore configurato.</p>
+            <p className="text-sm text-muted-foreground">{t("Nessun operatore configurato.")}</p>
             <Link to="/impostazioni" onClick={() => onOpenChange(false)}>
-              <Button variant="outline">Crea operatore</Button>
+              <Button variant="outline">{t("Crea operatore")}</Button>
             </Link>
           </div>
         ) : !selected ? (
@@ -97,7 +99,7 @@ export default function OperatorSwitcherDialog({
                 <div className="font-semibold">{selected.name}</div>
                 {selected.role && <div className="text-xs text-muted-foreground">{selected.role}</div>}
               </div>
-              <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setPin(""); }}>Cambia</Button>
+              <Button variant="ghost" size="sm" onClick={() => { setSelected(null); setPin(""); }}>{t("Cambia")}</Button>
             </div>
             <div className="space-y-2">
               <Label>PIN</Label>
@@ -114,7 +116,7 @@ export default function OperatorSwitcherDialog({
               />
             </div>
             <Button onClick={verify} disabled={verifying || pin.length < 4} className="w-full bg-gradient-primary">
-              {verifying ? <Loader2 className="animate-spin" size={16} /> : "Accedi"}
+              {verifying ? <Loader2 className="animate-spin" size={16} /> : t("Accedi")}
             </Button>
           </div>
         )}

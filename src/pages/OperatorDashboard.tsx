@@ -9,6 +9,7 @@ import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
 import { Sparkles, Thermometer, CheckCircle2, Loader2, Building2, Package } from "lucide-react";
 import { Link } from "react-router-dom";
+import { useTranslation } from "react-i18next";
 
 type Asset = { id: string; name: string; asset_type: string; cleaning_product: string | null; target_temp_min: number | null; target_temp_max: number | null };
 type Assignment = {
@@ -22,6 +23,7 @@ type Assignment = {
 type CompanyInfo = { business_name: string | null; logo_url: string | null; address: string | null; vat: string | null };
 
 export default function OperatorDashboard() {
+  const { t } = useTranslation();
   const { operator, signOut } = useOperatorSession();
   const [assignments, setAssignments] = useState<Assignment[]>([]);
   const [loading, setLoading] = useState(true);
@@ -55,7 +57,7 @@ export default function OperatorDashboard() {
   if (!operator) return null;
 
   async function checkSanitation(a: Assignment) {
-    if (!operator?.pin) return toast.error("Sessione scaduta, rifai login");
+    if (!operator?.pin) return toast.error(t("Sessione scaduta, rifai login"));
     setBusy(`s-${a.id}`);
     const { data, error } = await supabase.rpc("operator_record_sanitation", {
       p_operator_id: operator.id,
@@ -64,15 +66,15 @@ export default function OperatorDashboard() {
     });
     setBusy(null);
     const res = data as { ok: boolean; error?: string } | null;
-    if (error || !res?.ok) return toast.error(res?.error === "pin" ? "PIN non valido" : "Errore");
-    toast.success(`✓ ${a.asset.name} sanificato`);
+    if (error || !res?.ok) return toast.error(res?.error === "pin" ? t("PIN non valido") : t("Errore"));
+    toast.success(`✓ ${t("{{name}} sanificato", { name: a.asset.name })}`);
     setDone((d) => ({ ...d, [`${a.asset_id}-sanitation`]: true }));
   }
 
   async function saveTemperature(a: Assignment) {
-    if (!operator?.pin) return toast.error("Sessione scaduta, rifai login");
+    if (!operator?.pin) return toast.error(t("Sessione scaduta, rifai login"));
     const val = tempInputs[a.id];
-    if (!val) return toast.error("Inserisci la temperatura");
+    if (!val) return toast.error(t("Inserisci la temperatura"));
     setBusy(`t-${a.id}`);
     const { data, error } = await supabase.rpc("operator_record_temperature", {
       p_operator_id: operator.id,
@@ -82,7 +84,7 @@ export default function OperatorDashboard() {
     });
     setBusy(null);
     const res = data as { ok: boolean; error?: string } | null;
-    if (error || !res?.ok) return toast.error(res?.error === "pin" ? "PIN non valido" : "Errore");
+    if (error || !res?.ok) return toast.error(res?.error === "pin" ? t("PIN non valido") : t("Errore"));
     toast.success(`✓ ${a.asset.name}: ${val}°C`);
     setDone((d) => ({ ...d, [`${a.asset_id}-temperature`]: true }));
     setTempInputs((t) => ({ ...t, [a.id]: "" }));
@@ -113,10 +115,10 @@ export default function OperatorDashboard() {
         </div>
       )}
       <PageHeader
-        title={`Ciao, ${operator.name}`}
-        subtitle={remaining === 0 ? "Tutti i compiti di oggi completati 🎉" : `${remaining} compiti da completare`}
+        title={t("Ciao, {{name}}", { name: operator.name })}
+        subtitle={remaining === 0 ? t("Tutti i compiti di oggi completati 🎉") : t("{{n}} compiti da completare", { n: remaining })}
         action={
-          <Button variant="ghost" onClick={signOut}>Esci</Button>
+          <Button variant="ghost" onClick={signOut}>{t("Esci")}</Button>
         }
       />
 
@@ -127,8 +129,8 @@ export default function OperatorDashboard() {
               <Package className="text-white" size={28} />
             </div>
             <div className="flex-1 min-w-0">
-              <div className="font-display font-bold text-xl lg:text-2xl text-white">Ingresso merci</div>
-              <div className="text-sm text-white/90">Registra una nuova consegna</div>
+              <div className="font-display font-bold text-xl lg:text-2xl text-white">{t("Ingresso merci")}</div>
+              <div className="text-sm text-white/90">{t("Registra una nuova consegna")}</div>
             </div>
           </Card>
         </Link>
@@ -138,8 +140,8 @@ export default function OperatorDashboard() {
         <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>
       ) : assignments.length === 0 ? (
         <Card className="p-10 text-center text-muted-foreground">
-          <p>Nessun compito assegnato.</p>
-          <p className="text-xs mt-2">L'amministratore può assegnarti compiti dalla sezione Impostazioni → Operatori.</p>
+          <p>{t("Nessun compito assegnato.")}</p>
+          <p className="text-xs mt-2">{t("L'amministratore può assegnarti compiti dalla sezione Impostazioni → Operatori.")}</p>
         </Card>
       ) : (
         <div className="space-y-6">
@@ -147,7 +149,7 @@ export default function OperatorDashboard() {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Sparkles className="text-primary" size={18} />
-                <h2 className="font-display font-bold text-lg">Sanificazioni</h2>
+                <h2 className="font-display font-bold text-lg">{t("Sanificazioni")}</h2>
               </div>
               <div className="space-y-2">
                 {sanitTasks.map((a) => {
@@ -178,7 +180,7 @@ export default function OperatorDashboard() {
             <section>
               <div className="flex items-center gap-2 mb-3">
                 <Thermometer className="text-primary" size={18} />
-                <h2 className="font-display font-bold text-lg">Temperature</h2>
+                <h2 className="font-display font-bold text-lg">{t("Temperature")}</h2>
               </div>
               <div className="space-y-2">
                 {tempTasks.map((a) => {
@@ -211,7 +213,7 @@ export default function OperatorDashboard() {
                             onClick={() => saveTemperature(a)}
                             className="bg-gradient-primary"
                           >
-                            Salva
+                            {t("Salva")}
                           </Button>
                         </div>
                       )}

@@ -9,6 +9,7 @@ import { useCompany } from "@/hooks/useCompany";
 import { toast } from "sonner";
 import { Building2, Upload, Loader2, Save, Trash2, AlertTriangle, Sparkles, UserX } from "lucide-react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
+import { useTranslation } from "react-i18next";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -30,6 +31,7 @@ import {
 } from "@/components/ui/dialog";
 
 export default function CompanyTab() {
+  const { t } = useTranslation();
   const { company, reload, loading } = useCompany();
   const [form, setForm] = useState(company);
   const [saving, setSaving] = useState(false);
@@ -98,14 +100,14 @@ export default function CompanyTab() {
       "company_settings",
     ] as const;
     try {
-      for (const t of tables) {
-        const { error } = await supabase.from(t).delete().eq("user_id", user.id);
+      for (const tbl of tables) {
+        const { error } = await supabase.from(tbl).delete().eq("user_id", user.id);
         if (error) throw error;
       }
-      toast.success("Tutti i dati sono stati azzerati");
+      toast.success(t("Tutti i dati sono stati azzerati"));
       setTimeout(() => window.location.reload(), 800);
     } catch (err: any) {
-      toast.error(err.message ?? "Errore durante l'azzeramento");
+      toast.error(err.message ?? t("Errore durante l'azzeramento"));
     } finally {
       setResetting(false);
     }
@@ -116,7 +118,7 @@ export default function CompanyTab() {
     try {
       const { data: { user } } = await supabase.auth.getUser();
       if (!user?.email) {
-        toast.error("Sessione non valida");
+        toast.error(t("Sessione non valida"));
         return;
       }
       const { error } = await supabase.auth.signInWithPassword({
@@ -124,7 +126,7 @@ export default function CompanyTab() {
         password: adminPwd,
       });
       if (error) {
-        toast.error("Password amministratore errata");
+        toast.error(t("Password amministratore errata"));
         return;
       }
       setPwdOpen(false);
@@ -156,7 +158,7 @@ export default function CompanyTab() {
       );
     setSaving(false);
     if (error) return toast.error(error.message);
-    toast.success("Impostazioni salvate");
+    toast.success(t("Impostazioni salvate"));
     reload();
   }
 
@@ -173,9 +175,9 @@ export default function CompanyTab() {
       if (error) throw error;
       const { data } = supabase.storage.from("logos").getPublicUrl(path);
       setForm((f) => ({ ...f, logo_url: data.publicUrl }));
-      toast.success("Logo caricato — ricordati di salvare");
+      toast.success(t("Logo caricato — ricordati di salvare"));
     } catch (err: any) {
-      toast.error(err.message ?? "Errore upload");
+      toast.error(err.message ?? t("Errore upload"));
     } finally {
       setUploading(false);
     }
@@ -198,38 +200,38 @@ export default function CompanyTab() {
             <input type="file" accept="image/*" className="hidden" onChange={onLogo} />
             <span className="inline-flex items-center gap-2 text-sm text-primary font-medium hover:underline">
               {uploading ? <Loader2 className="animate-spin" size={14} /> : <Upload size={14} />}
-              {form.logo_url ? "Cambia logo" : "Carica logo"}
+              {form.logo_url ? t("Cambia logo") : t("Carica logo")}
             </span>
           </label>
         </div>
 
         <div className="flex-1 grid grid-cols-1 md:grid-cols-2 gap-4">
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Ragione sociale</Label>
+            <Label>{t("Ragione sociale")}</Label>
             <Input value={form.business_name ?? ""} onChange={(e) => setForm({ ...form, business_name: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label>P.IVA / C.F.</Label>
+            <Label>{t("P.IVA / C.F.")}</Label>
             <Input value={form.vat ?? ""} onChange={(e) => setForm({ ...form, vat: e.target.value })} />
           </div>
           <div className="space-y-1.5">
-            <Label>Telefono</Label>
+            <Label>{t("Telefono")}</Label>
             <Input value={form.phone ?? ""} onChange={(e) => setForm({ ...form, phone: e.target.value })} />
           </div>
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Email</Label>
+            <Label>{t("Email")}</Label>
             <Input type="email" value={form.email ?? ""} onChange={(e) => setForm({ ...form, email: e.target.value })} />
           </div>
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Indirizzo</Label>
+            <Label>{t("Indirizzo")}</Label>
             <Textarea rows={2} value={form.address ?? ""} onChange={(e) => setForm({ ...form, address: e.target.value })} />
           </div>
           <div className="space-y-1.5 md:col-span-2">
-            <Label>Città</Label>
+            <Label>{t("Città")}</Label>
             <Input
               value={form.city ?? ""}
               onChange={(e) => setForm({ ...form, city: e.target.value })}
-              placeholder="Es. 80100 Napoli (NA)"
+              placeholder={t("Es. 80100 Napoli (NA)")}
             />
           </div>
         </div>
@@ -238,11 +240,11 @@ export default function CompanyTab() {
       <div className="flex flex-wrap items-center justify-between gap-4">
         <Button onClick={save} disabled={saving} className="bg-gradient-primary gap-2">
           {saving ? <Loader2 className="animate-spin" size={16} /> : <Save size={16} />}
-          Salva impostazioni
+          {t("Salva impostazioni")}
         </Button>
 
         <Button variant="outline" className="gap-2" onClick={() => setWizardOpen(true)}>
-          <Sparkles size={16} /> Riavvia tour guidato
+          <Sparkles size={16} /> {t("Riavvia tour guidato")}
         </Button>
 
         <OnboardingWizard open={wizardOpen} onClose={() => setWizardOpen(false)} onCompleted={() => { reload(); }} />
@@ -251,31 +253,28 @@ export default function CompanyTab() {
           <AlertDialogTrigger asChild>
             <Button variant="destructive" disabled={resetting} className="gap-2">
               {resetting ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
-              Azzera tutti i dati
+              {t("Azzera tutti i dati")}
             </Button>
           </AlertDialogTrigger>
           <AlertDialogContent>
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="text-destructive" size={20} />
-                Azzerare tutti i dati?
+                {t("Azzerare tutti i dati?")}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Stai per <strong>eliminare definitivamente tutti i dati dell'app</strong>:
-                anagrafica azienda, reparti, attrezzature, materie prime, prodotti, ingredienti,
-                vendite, clienti, fornitori, rilevazioni di temperatura e sanificazione, etichette
-                e attività assegnate.
+                {t("Stai per")} <strong>{t("eliminare definitivamente tutti i dati dell'app")}</strong>:{" "}
+                {t("anagrafica azienda, reparti, attrezzature, materie prime, prodotti, ingredienti, vendite, clienti, fornitori, rilevazioni di temperatura e sanificazione, etichette e attività assegnate.")}
                 <br /><br />
-                <strong>Gli operatori e i loro PIN verranno mantenuti.</strong>
+                <strong>{t("Gli operatori e i loro PIN verranno mantenuti.")}</strong>
                 <br /><br />
-                L'app tornerà come al primo accesso. Questa azione <strong>non può essere annullata</strong>.
+                {t("L'app tornerà come al primo accesso. Questa azione")} <strong>{t("non può essere annullata")}</strong>.
                 <br /><br />
-                Per procedere ti verrà richiesta la <strong>password amministratore</strong>.
-                Puoi annullare in qualsiasi momento.
+                {t("Per procedere ti verrà richiesta la")} <strong>{t("password amministratore")}</strong>{t(". Puoi annullare in qualsiasi momento.")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogCancel>{t("Annulla")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={(e) => {
                   e.preventDefault();
@@ -285,7 +284,7 @@ export default function CompanyTab() {
                 }}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Procedi
+                {t("Procedi")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -296,15 +295,14 @@ export default function CompanyTab() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="text-destructive" size={20} />
-                Conferma password amministratore
+                {t("Conferma password amministratore")}
               </DialogTitle>
               <DialogDescription>
-                Inserisci la password del tuo account amministratore per confermare
-                l'azzeramento di tutti i dati.
+                {t("Inserisci la password del tuo account amministratore per confermare l'azzeramento di tutti i dati.")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
-              <Label>Password</Label>
+              <Label>{t("Password")}</Label>
               <Input
                 type="password"
                 autoFocus
@@ -316,7 +314,7 @@ export default function CompanyTab() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setPwdOpen(false); setAdminPwd(""); }}>
-                Annulla
+                {t("Annulla")}
               </Button>
               <Button
                 variant="destructive"
@@ -325,7 +323,7 @@ export default function CompanyTab() {
                 className="gap-2"
               >
                 {(verifying || resetting) ? <Loader2 className="animate-spin" size={16} /> : <Trash2 size={16} />}
-                Conferma e azzera
+                {t("Conferma e azzera")}
               </Button>
             </DialogFooter>
           </DialogContent>
@@ -334,13 +332,13 @@ export default function CompanyTab() {
 
       <div className="mt-8 pt-6 border-t border-destructive/30">
         <h3 className="text-sm font-semibold text-destructive flex items-center gap-2 mb-2">
-          <AlertTriangle size={16} /> Zona pericolosa
+          <AlertTriangle size={16} /> {t("Zona pericolosa")}
         </h3>
         <p className="text-xs text-muted-foreground mb-3">
-          Eliminando l'account verranno cancellati definitivamente tutti i tuoi dati, gli operatori e l'abbonamento. L'azione è irreversibile.
+          {t("Eliminando l'account verranno cancellati definitivamente tutti i tuoi dati, gli operatori e l'abbonamento. L'azione è irreversibile.")}
         </p>
         <Button variant="outline" className="gap-2 border-destructive text-destructive hover:bg-destructive hover:text-destructive-foreground" onClick={() => setDeleteOpen(true)}>
-          <UserX size={16} /> Elimina account
+          <UserX size={16} /> {t("Elimina account")}
         </Button>
 
         <AlertDialog open={deleteOpen} onOpenChange={setDeleteOpen}>
@@ -348,18 +346,16 @@ export default function CompanyTab() {
             <AlertDialogHeader>
               <AlertDialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="text-destructive" size={20} />
-                Eliminare definitivamente l'account?
+                {t("Eliminare definitivamente l'account?")}
               </AlertDialogTitle>
               <AlertDialogDescription>
-                Verranno cancellati: account, anagrafica azienda, operatori, attrezzature,
-                materie prime, prodotti, registrazioni HACCP, etichette, abbonamento e ogni
-                altro dato collegato. L'operazione <strong>non può essere annullata</strong>.
+                {t("Verranno cancellati: account, anagrafica azienda, operatori, attrezzature, materie prime, prodotti, registrazioni HACCP, etichette, abbonamento e ogni altro dato collegato. L'operazione")} <strong>{t("non può essere annullata")}</strong>.
                 <br /><br />
-                Per procedere ti verrà richiesta la password.
+                {t("Per procedere ti verrà richiesta la password.")}
               </AlertDialogDescription>
             </AlertDialogHeader>
             <AlertDialogFooter>
-              <AlertDialogCancel>Annulla</AlertDialogCancel>
+              <AlertDialogCancel>{t("Annulla")}</AlertDialogCancel>
               <AlertDialogAction
                 onClick={(e) => {
                   e.preventDefault();
@@ -369,7 +365,7 @@ export default function CompanyTab() {
                 }}
                 className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
               >
-                Procedi
+                {t("Procedi")}
               </AlertDialogAction>
             </AlertDialogFooter>
           </AlertDialogContent>
@@ -380,14 +376,14 @@ export default function CompanyTab() {
             <DialogHeader>
               <DialogTitle className="flex items-center gap-2">
                 <AlertTriangle className="text-destructive" size={20} />
-                Conferma password
+                {t("Conferma password")}
               </DialogTitle>
               <DialogDescription>
-                Inserisci la password del tuo account per eliminarlo definitivamente.
+                {t("Inserisci la password del tuo account per eliminarlo definitivamente.")}
               </DialogDescription>
             </DialogHeader>
             <div className="space-y-2">
-              <Label>Password</Label>
+              <Label>{t("Password")}</Label>
               <Input
                 type="password"
                 autoFocus
@@ -399,7 +395,7 @@ export default function CompanyTab() {
             </div>
             <DialogFooter>
               <Button variant="outline" onClick={() => { setDeletePwdOpen(false); setDeletePwd(""); }}>
-                Annulla
+                {t("Annulla")}
               </Button>
               <Button
                 variant="destructive"
@@ -408,7 +404,7 @@ export default function CompanyTab() {
                 className="gap-2"
               >
                 {deleting ? <Loader2 className="animate-spin" size={16} /> : <UserX size={16} />}
-                Elimina account
+                {t("Elimina account")}
               </Button>
             </DialogFooter>
           </DialogContent>
