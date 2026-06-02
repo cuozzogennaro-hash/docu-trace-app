@@ -3,7 +3,7 @@ import { NavLink, Outlet, useNavigate } from "react-router-dom";
 import { useTranslation } from "react-i18next";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
-import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText, ChevronDown, Snowflake, Flame, Droplets, AlertCircle, UtensilsCrossed, CalendarClock } from "lucide-react";
+import { LayoutDashboard, Sparkles, Thermometer, Package, Factory, Users, ShoppingCart, LogOut, ShieldCheck, Archive, Settings, UserCircle2, Menu, Repeat, FileText, ChevronDown, Snowflake, Flame, Droplets, AlertCircle, UtensilsCrossed, CalendarClock, MessageCircle } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
@@ -71,6 +71,7 @@ function buildAdminGroups(profile: ReturnType<typeof useActivityProfile>["profil
       { to: "/non-conformita", icon: AlertCircle, label: "Non conformità" },
       { to: "/report", icon: FileText, label: "Report HACCP" },
       { to: "/impostazioni", icon: Settings, label: "Impostazioni" },
+      { to: "/contatti", icon: MessageCircle, label: "Contattaci" },
     ],
   },
   ];
@@ -78,6 +79,7 @@ function buildAdminGroups(profile: ReturnType<typeof useActivityProfile>["profil
 
 const operatorNav = [
   { to: "/", icon: LayoutDashboard, label: "I miei compiti", end: true },
+  { to: "/contatti", icon: MessageCircle, label: "Contattaci" },
 ];
 
 export default function AppShell() {
