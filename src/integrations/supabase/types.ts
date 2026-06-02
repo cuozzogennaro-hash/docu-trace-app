@@ -731,6 +731,7 @@ export type Database = {
           operator_id: string | null
           origin: string | null
           product_name: string
+          production_date: string | null
           quantity: string | null
           raised_in: string | null
           slaughter_mark: string | null
@@ -760,6 +761,7 @@ export type Database = {
           operator_id?: string | null
           origin?: string | null
           product_name: string
+          production_date?: string | null
           quantity?: string | null
           raised_in?: string | null
           slaughter_mark?: string | null
@@ -789,6 +791,7 @@ export type Database = {
           operator_id?: string | null
           origin?: string | null
           product_name?: string
+          production_date?: string | null
           quantity?: string | null
           raised_in?: string | null
           slaughter_mark?: string | null

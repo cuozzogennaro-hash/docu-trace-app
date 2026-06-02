@@ -1,0 +1,1 @@
+ALTER TABLE public.raw_materials ADD COLUMN IF NOT EXISTS production_date date;
