@@ -262,23 +262,36 @@ export default function Reports() {
   async function fetchTemperatures(start: string, end: string) {
     const { data } = await supabase
       .from("temperatures")
-      .select("event_date, recorded_at, temperature, operator, notes, assets:asset_id(name, target_temp_min, target_temp_max)")
+      .select("event_date, recorded_at, temperature, operator, operator_id, notes, assets:asset_id(name, target_temp_min, target_temp_max)")
       .eq("user_id", user!.id)
       .gte("event_date", start)
       .lt("event_date", end)
       .order("event_date", { ascending: true })
       .order("recorded_at", { ascending: true });
-    return (data ?? []) as any[];
+    return await maskOperators(data ?? []);
   }
   async function fetchSanitations(start: string, end: string) {
     const { data } = await supabase
       .from("sanitations")
-      .select("event_date, recorded_at, operator, product_used, notes, assets:asset_id(name)")
+      .select("event_date, recorded_at, operator, operator_id, product_used, notes, assets:asset_id(name)")
       .eq("user_id", user!.id)
       .gte("event_date", start)
       .lt("event_date", end)
       .order("event_date", { ascending: true });
-    return (data ?? []) as any[];
+    return await maskOperators(data ?? []);
+  }
+
+  async function maskOperators(rows: any[]) {
+    if (!rows.length) return rows;
+    const ids = Array.from(new Set(rows.map((r) => r.operator_id).filter(Boolean)));
+    if (!ids.length) return rows;
+    const { data: ops } = await supabase
+      .from("operators")
+      .select("id, hide_in_reports")
+      .in("id", ids);
+    const hidden = new Set((ops ?? []).filter((o: any) => o.hide_in_reports).map((o: any) => o.id));
+    if (!hidden.size) return rows;
+    return rows.map((r) => (r.operator_id && hidden.has(r.operator_id) ? { ...r, operator: "Amministratore" } : r));
   }
   async function fetchProduction(start: string, end: string) {
     const { data } = await supabase
