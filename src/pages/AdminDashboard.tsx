@@ -4,7 +4,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Users, CheckCircle2, Clock, CreditCard } from "lucide-react";
+import { ShieldCheck, Users, CheckCircle2, Clock, CreditCard, Activity, Eye, Smartphone } from "lucide-react";
+import {
+  Area,
+  AreaChart,
+  CartesianGrid,
+  ResponsiveContainer,
+  Tooltip as RTooltip,
+  XAxis,
+  YAxis,
+} from "recharts";
 
 type AdminUser = {
   id: string;
@@ -43,6 +52,9 @@ export default function AdminDashboard() {
   const [users, setUsers] = useState<AdminUser[]>([]);
   const [fetching, setFetching] = useState(true);
   const [query, setQuery] = useState("");
+  const [trafficDays, setTrafficDays] = useState<7 | 30 | 90>(7);
+  const [traffic, setTraffic] = useState<any>(null);
+  const [loadingTraffic, setLoadingTraffic] = useState(true);
 
   useEffect(() => {
     if (!isSuperAdmin) return;
@@ -55,6 +67,16 @@ export default function AdminDashboard() {
       setFetching(false);
     })();
   }, [isSuperAdmin]);
+
+  useEffect(() => {
+    if (!isSuperAdmin) return;
+    (async () => {
+      setLoadingTraffic(true);
+      const { data } = await supabase.rpc("super_admin_traffic_overview" as any, { p_days: trafficDays });
+      if (data && (data as any).ok) setTraffic(data);
+      setLoadingTraffic(false);
+    })();
+  }, [isSuperAdmin, trafficDays]);
 
   if (loading) return <div className="p-8 text-muted-foreground">Caricamento…</div>;
   if (!isSuperAdmin) return <Navigate to="/" replace />;
@@ -133,6 +155,13 @@ export default function AdminDashboard() {
           </table>
         </div>
       </Card>
+
+      <TrafficSection
+        traffic={traffic}
+        loading={loadingTraffic}
+        days={trafficDays}
+        onChangeDays={setTrafficDays}
+      />
     </div>
   );
 }
@@ -159,4 +188,121 @@ function StatusBadge({ sub }: { sub: AdminUser["subscription"] }) {
   if (isTrialing(sub)) return <Badge className="bg-amber-500 hover:bg-amber-500">In prova</Badge>;
   if (sub.status === "canceled") return <Badge variant="destructive">Annullato</Badge>;
   return <Badge variant="outline">{sub.status}</Badge>;
+}
+
+function TrafficSection({
+  traffic,
+  loading,
+  days,
+  onChangeDays,
+}: {
+  traffic: any;
+  loading: boolean;
+  days: 7 | 30 | 90;
+  onChangeDays: (d: 7 | 30 | 90) => void;
+}) {
+  const totals = traffic?.totals || { pageviews: 0, visitors: 0, native_share: 0 };
+  const daily: Array<{ day: string; pageviews: number; visitors: number }> = traffic?.daily || [];
+  const topPages: Array<{ label: string; views: number }> = traffic?.top_pages || [];
+  const devices: Array<{ label: string; views: number }> = traffic?.devices || [];
+
+  return (
+    <section className="space-y-4 pt-2">
+      <div className="flex items-center justify-between gap-3 flex-wrap">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Activity size={18} className="text-primary" />
+          </div>
+          <h2 className="text-xl font-display font-semibold">Traffico app</h2>
+        </div>
+        <div className="inline-flex rounded-lg border border-border overflow-hidden text-sm">
+          {([7, 30, 90] as const).map((d) => (
+            <button
+              key={d}
+              onClick={() => onChangeDays(d)}
+              className={`px-3 py-1.5 ${days === d ? "bg-primary text-primary-foreground" : "bg-background text-muted-foreground hover:bg-muted"}`}
+              aria-label={`Ultimi ${d} giorni`}
+            >
+              {d}g
+            </button>
+          ))}
+        </div>
+      </div>
+
+      <div className="grid grid-cols-2 lg:grid-cols-3 gap-3">
+        <StatCard icon={Users} label="Visitatori unici" value={totals.visitors || 0} />
+        <StatCard icon={Eye} label="Visualizzazioni" value={totals.pageviews || 0} />
+        <StatCard icon={Smartphone} label="% da app nativa" value={totals.native_share || 0} />
+      </div>
+
+      <Card className="p-4">
+        <div className="text-sm font-medium mb-3">Andamento giornaliero</div>
+        {loading ? (
+          <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">Caricamento…</div>
+        ) : daily.length === 0 ? (
+          <div className="h-56 flex items-center justify-center text-muted-foreground text-sm">Nessun dato nel periodo</div>
+        ) : (
+          <div className="h-56">
+            <ResponsiveContainer width="100%" height="100%">
+              <AreaChart data={daily} margin={{ top: 5, right: 10, left: -10, bottom: 0 }}>
+                <defs>
+                  <linearGradient id="grad-pv" x1="0" y1="0" x2="0" y2="1">
+                    <stop offset="0%" stopColor="hsl(var(--primary))" stopOpacity={0.35} />
+                    <stop offset="100%" stopColor="hsl(var(--primary))" stopOpacity={0} />
+                  </linearGradient>
+                </defs>
+                <CartesianGrid strokeDasharray="3 3" stroke="hsl(var(--border))" />
+                <XAxis dataKey="day" tick={{ fontSize: 11 }} tickFormatter={(v) => v.slice(5)} />
+                <YAxis tick={{ fontSize: 11 }} allowDecimals={false} />
+                <RTooltip
+                  contentStyle={{
+                    background: "hsl(var(--background))",
+                    border: "1px solid hsl(var(--border))",
+                    borderRadius: 8,
+                    fontSize: 12,
+                  }}
+                />
+                <Area type="monotone" dataKey="pageviews" stroke="hsl(var(--primary))" fill="url(#grad-pv)" name="Visualizzazioni" />
+                <Area type="monotone" dataKey="visitors" stroke="hsl(var(--muted-foreground))" fill="transparent" name="Visitatori" />
+              </AreaChart>
+            </ResponsiveContainer>
+          </div>
+        )}
+      </Card>
+
+      <div className="grid lg:grid-cols-2 gap-3">
+        <Card className="p-4">
+          <div className="text-sm font-medium mb-3">Pagine più viste</div>
+          {topPages.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-4 text-center">Nessun dato</div>
+          ) : (
+            <ul className="space-y-1.5">
+              {topPages.map((p) => (
+                <li key={p.label} className="flex items-center justify-between text-sm">
+                  <span className="truncate text-muted-foreground">{p.label}</span>
+                  <span className="font-medium tabular-nums ml-3">{p.views}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+
+        <Card className="p-4">
+          <div className="text-sm font-medium mb-3">Dispositivi</div>
+          {devices.length === 0 ? (
+            <div className="text-sm text-muted-foreground py-4 text-center">Nessun dato</div>
+          ) : (
+            <ul className="space-y-1.5">
+              {devices.map((d) => (
+                <li key={d.label} className="flex items-center justify-between text-sm capitalize">
+                  <span className="text-muted-foreground">{d.label}</span>
+                  <span className="font-medium tabular-nums">{d.views}</span>
+                </li>
+              ))}
+            </ul>
+          )}
+        </Card>
+      </div>
+    </section>
+  );
 }
