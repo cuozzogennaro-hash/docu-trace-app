@@ -653,6 +653,42 @@ export type Database = {
         }
         Relationships: []
       }
+      page_views: {
+        Row: {
+          created_at: string
+          device: string | null
+          id: string
+          is_native: boolean
+          path: string
+          referrer: string | null
+          session_id: string
+          user_agent: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string
+          device?: string | null
+          id?: string
+          is_native?: boolean
+          path: string
+          referrer?: string | null
+          session_id: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string
+          device?: string | null
+          id?: string
+          is_native?: boolean
+          path?: string
+          referrer?: string | null
+          session_id?: string
+          user_agent?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
+      }
       preparations: {
         Row: {
           allergen_ids: string[]
@@ -1455,6 +1491,7 @@ export type Database = {
       slugify: { Args: { input: string }; Returns: string }
       start_local_trial: { Args: { p_env?: string }; Returns: Json }
       super_admin_overview: { Args: never; Returns: Json }
+      super_admin_traffic_overview: { Args: { p_days?: number }; Returns: Json }
       touch_last_seen: { Args: never; Returns: undefined }
       unaccent_safe: { Args: { input: string }; Returns: string }
     }
