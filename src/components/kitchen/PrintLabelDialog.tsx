@@ -8,9 +8,10 @@ import {
   isNativeApp,
   buildLabelBytes,
   sendToPrinter,
-  pickAndConnectPrinter,
   getSavedPrinter,
+  type SavedPrinter,
 } from "@/lib/btPrinter";
+import BluetoothPrinterPicker from "./BluetoothPrinterPicker";
 
 export type LabelField = { label: string; value: string };
 
@@ -32,6 +33,8 @@ export default function PrintLabelDialog({ open, onOpenChange, title, productNam
   const { company } = useCompany();
   const printRef = useRef<HTMLDivElement>(null);
   const [printing, setPrinting] = useState(false);
+  const [pickerOpen, setPickerOpen] = useState(false);
+  const [pendingPrint, setPendingPrint] = useState(false);
   const native = isNativeApp();
 
   function handlePrint() {
@@ -58,10 +61,18 @@ export default function PrintLabelDialog({ open, onOpenChange, title, productNam
   }
 
   async function handleBluetoothPrint(forcePick = false) {
+    const saved = getSavedPrinter();
+    if (!saved || forcePick) {
+      setPendingPrint(true);
+      setPickerOpen(true);
+      return;
+    }
+    await doPrint(saved);
+  }
+
+  async function doPrint(printer: SavedPrinter) {
     try {
       setPrinting(true);
-      let printer = getSavedPrinter();
-      if (!printer || forcePick) printer = await pickAndConnectPrinter();
       const bytes = buildLabelBytes({
         title,
         businessName: company.business_name || undefined,
@@ -124,6 +135,19 @@ export default function PrintLabelDialog({ open, onOpenChange, title, productNam
           )}
         </div>
       </DialogContent>
+      <BluetoothPrinterPicker
+        open={pickerOpen}
+        onOpenChange={(v) => {
+          setPickerOpen(v);
+          if (!v) setPendingPrint(false);
+        }}
+        onPicked={async (printer) => {
+          if (pendingPrint) {
+            setPendingPrint(false);
+            await doPrint(printer);
+          }
+        }}
+      />
     </Dialog>
   );
 }
