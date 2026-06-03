@@ -397,13 +397,13 @@ export default function Dashboard() {
             </div>
             {assetSeries.length > 1 && (
               <div className="flex items-center gap-1 shrink-0">
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setAssetIdx((i) => (i - 1 + assetSeries.length) % assetSeries.length)}>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setAssetIdx((i) => (i - 1 + assetSeries.length) % assetSeries.length)} aria-label={t("Asset precedente")}>
                   <ChevronLeft size={14} />
                 </Button>
                 <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setRotating((r) => !r)} title={rotating ? t("Pausa rotazione") : t("Riprendi rotazione")}>
                   {rotating ? <Pause size={13} /> : <Play size={13} />}
                 </Button>
-                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setAssetIdx((i) => (i + 1) % assetSeries.length)}>
+                <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setAssetIdx((i) => (i + 1) % assetSeries.length)} aria-label={t("Asset successivo")}>
                   <ChevronRight size={14} />
                 </Button>
               </div>
@@ -459,7 +459,7 @@ export default function Dashboard() {
               <Activity size={13} className="text-sky-600" />
               {t("Attività 7 giorni")}
             </div>
-            <div className="font-display text-lg font-bold mt-1">{t("Ingressi · Lavorazioni · Sanificazioni")}</div>
+              <h2 className="font-display text-lg font-bold mt-1">{t("Ingressi · Lavorazioni · Sanificazioni")}</h2>
           </div>
           <div className="relative h-[200px]">
             <ResponsiveContainer width="100%" height="100%">
@@ -488,7 +488,7 @@ export default function Dashboard() {
                 <CalendarClock size={13} className="text-orange-600" />
                 {t("Prossime scadenze")}
               </div>
-              <div className="font-display text-lg font-bold mt-1">{t("Top 5")}</div>
+              <h2 className="font-display text-lg font-bold mt-1">{t("Top 5")}</h2>
             </div>
             <Link to="/scadenze" className="text-xs font-semibold text-primary hover:underline">{t("Vedi tutte")}</Link>
           </div>
@@ -525,7 +525,7 @@ export default function Dashboard() {
                 <ShieldAlert size={13} className="text-destructive" />
                 {t("Ultime non conformità")}
               </div>
-              <div className="font-display text-lg font-bold mt-1">{t("Aperte")}</div>
+              <h2 className="font-display text-lg font-bold mt-1">{t("Aperte")}</h2>
             </div>
             <Link to="/non-conformita" className="text-xs font-semibold text-primary hover:underline">{t("Vedi tutte")}</Link>
           </div>
