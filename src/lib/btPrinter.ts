@@ -1,5 +1,10 @@
 import { Capacitor } from "@capacitor/core";
-import { BleClient, numbersToDataView, type BleDevice } from "@capacitor-community/bluetooth-le";
+import {
+  BleClient,
+  numbersToDataView,
+  type BleDevice,
+  type ScanResult,
+} from "@capacitor-community/bluetooth-le";
 
 /**
  * ESC/POS Bluetooth printer helper for thermal label/receipt printers
@@ -26,6 +31,35 @@ const KNOWN_WRITE_CHARS = [
   "49535343-8841-43f4-a8d4-ecbe34729bb3",
 ];
 
+// Prefissi nome più comuni per stampanti termiche BLE ESC/POS.
+// Usato dal picker custom per filtrare la lista (l'utente può sempre
+// disattivare il filtro per vedere tutti i device).
+export const PRINTER_NAME_PREFIXES = [
+  "XP-",        // Xprinter
+  "MTP-",       // Munbyn / generic
+  "MPT-",
+  "RPP",        // Rongta
+  "MUNBYN",
+  "GP-",        // Gainscha
+  "HM-",        // HOIN
+  "HPRT",
+  "POS",
+  "PT-",
+  "PRT-",
+  "PRINTER",
+  "BT-",
+  "BLE-",
+  "BT_SPP",
+  "ESC-POS",
+  "Thermal",
+];
+
+export function looksLikePrinter(name?: string | null): boolean {
+  if (!name) return false;
+  const n = name.toUpperCase();
+  return PRINTER_NAME_PREFIXES.some((p) => n.includes(p.toUpperCase()));
+}
+
 const LS_KEY = "haccp.btprinter";
 
 export type SavedPrinter = {
@@ -41,6 +75,79 @@ export function getSavedPrinter(): SavedPrinter | null {
 export function saveSavedPrinter(p: SavedPrinter | null) {
   if (p) localStorage.setItem(LS_KEY, JSON.stringify(p));
   else localStorage.removeItem(LS_KEY);
+}
+
+// ───────────────────────── Scan ─────────────────────────
+
+export type DiscoveredDevice = {
+  deviceId: string;
+  name?: string;
+  rssi?: number;
+  isLikelyPrinter: boolean;
+};
+
+let scanning = false;
+
+/**
+ * Avvia uno scan LE aperto (senza filtri sui service UUID, che molte
+ * stampanti termiche cinesi non advertisano) e invoca `onDevice` ad ogni
+ * nuovo dispositivo rilevato. Restituisce una funzione `stop`.
+ */
+export async function scanForPrinters(
+  onDevice: (d: DiscoveredDevice) => void
+): Promise<() => Promise<void>> {
+  await BleClient.initialize({ androidNeverForLocation: true });
+
+  const seen = new Map<string, DiscoveredDevice>();
+
+  if (scanning) {
+    try { await BleClient.stopLEScan(); } catch { /* noop */ }
+    scanning = false;
+  }
+
+  await BleClient.requestLEScan(
+    { allowDuplicates: false },
+    (result: ScanResult) => {
+      const id = result.device.deviceId;
+      if (!id) return;
+      const name = result.device.name || result.localName || undefined;
+      const dev: DiscoveredDevice = {
+        deviceId: id,
+        name,
+        rssi: result.rssi ?? undefined,
+        isLikelyPrinter: looksLikePrinter(name),
+      };
+      const prev = seen.get(id);
+      if (!prev || (dev.name && !prev.name)) {
+        seen.set(id, dev);
+        onDevice(dev);
+      }
+    }
+  );
+  scanning = true;
+
+  return async () => {
+    if (!scanning) return;
+    try { await BleClient.stopLEScan(); } catch { /* noop */ }
+    scanning = false;
+  };
+}
+
+/**
+ * Si connette al device scelto dall'utente e salva la stampante.
+ */
+export async function connectAndSavePrinter(deviceId: string, name?: string): Promise<SavedPrinter> {
+  await BleClient.initialize({ androidNeverForLocation: true });
+  // assicurati che lo scan sia fermo prima della connect
+  if (scanning) {
+    try { await BleClient.stopLEScan(); } catch { /* noop */ }
+    scanning = false;
+  }
+  await BleClient.connect(deviceId, () => { /* on disconnect */ });
+  const { service, characteristic } = await findWritableCharacteristic(deviceId);
+  const saved: SavedPrinter = { deviceId, name, service, characteristic };
+  saveSavedPrinter(saved);
+  return saved;
 }
 
 // ───────────────────────── ESC/POS encoder ─────────────────────────
