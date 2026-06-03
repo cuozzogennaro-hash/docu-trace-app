@@ -546,7 +546,7 @@ export default function Incoming() {
           >
             {preview ? (
               <>
-                <img src={preview} alt="Doc" className="absolute inset-0 w-full h-full object-cover" />
+                <img src={preview} alt="Anteprima documento" className="absolute inset-0 w-full h-full object-cover" />
                 <div className="absolute bottom-1 left-1 right-1 flex gap-1 z-10">
                   <span
                     onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}

@@ -221,7 +221,7 @@ export default function AppShell() {
         <div className="flex items-center gap-2">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
-              <Button variant="ghost" size="icon" className="shrink-0">
+              <Button variant="ghost" size="icon" className="shrink-0" aria-label={t("Menu")}>
                 <Menu size={22} />
               </Button>
             </SheetTrigger>
@@ -286,7 +286,7 @@ export default function AppShell() {
               <UserCircle2 size={18} />
             </Button>
           )}
-          <Button variant="ghost" size="icon" onClick={handleLogout}>
+          <Button variant="ghost" size="icon" onClick={handleLogout} aria-label={t("Esci")}>
             <LogOut size={18} />
           </Button>
         </div>

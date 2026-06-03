@@ -24,7 +24,7 @@ export default function CompanyHeader() {
   return (
     <div className="mb-6 rounded-xl bg-card border border-border p-4 flex items-center gap-4 shadow-soft">
       {company.logo_url ? (
-        <img src={company.logo_url} alt="Logo" className="h-12 w-12 rounded-lg object-contain bg-muted" />
+        <img src={company.logo_url} alt="Logo aziendale" className="h-12 w-12 rounded-lg object-contain bg-muted" />
       ) : (
         <div className="h-12 w-12 rounded-lg bg-gradient-primary flex items-center justify-center">
           <Building2 className="text-primary-foreground" size={22} />

@@ -191,7 +191,7 @@ export default function CompanyTab() {
         <div className="flex flex-col items-center gap-3">
           <div className="h-32 w-32 rounded-2xl bg-muted border border-border flex items-center justify-center overflow-hidden">
             {form.logo_url ? (
-              <img src={form.logo_url} alt="Logo" className="h-full w-full object-contain" />
+              <img src={form.logo_url} alt="Logo aziendale" className="h-full w-full object-contain" />
             ) : (
               <Building2 className="text-muted-foreground" size={48} />
             )}
