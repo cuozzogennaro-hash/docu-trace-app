@@ -31,6 +31,7 @@ import Support from "./pages/Support";
 import AppShell from "./components/AppShell";
 import { AuthProvider, useAuth } from "./hooks/useAuth";
 import { OperatorSessionProvider, useOperatorSession } from "./hooks/useOperatorSession";
+import PageViewTracker from "./hooks/usePageViewTracker";
 import SubscriptionPage from "./pages/Subscription";
 import TermsPage from "./pages/legal/Terms";
 import RefundPage from "./pages/legal/Refund";
@@ -78,6 +79,7 @@ const App = () => (
       <BrowserRouter>
         <AuthProvider>
           <OperatorSessionProvider>
+            <PageViewTracker />
             <Routes>
             <Route path="/auth" element={<AuthPage />} />
             <Route path="/reset-password" element={<ResetPasswordPage />} />
