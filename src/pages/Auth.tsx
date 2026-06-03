@@ -85,6 +85,22 @@ export default function AuthPage() {
     }
   }
 
+  async function appleSignIn() {
+    setBusy(true);
+    try {
+      const result = await lovable.auth.signInWithOAuth("apple", {
+        redirect_uri: window.location.origin,
+      });
+      if (result.error) throw result.error;
+      if (!result.redirected) {
+        await supabase.rpc("start_local_trial" as any, { p_env: getPaddleEnvironment() });
+      }
+    } catch (err: any) {
+      toast.error(err.message ?? t("Errore accesso Apple"));
+      setBusy(false);
+    }
+  }
+
   async function operatorSubmit(e: React.FormEvent) {
     e.preventDefault();
     if (!handle.trim() || opPin.length < 4) {
@@ -201,6 +217,9 @@ export default function AuthPage() {
                 </div>
                 <Button type="button" variant="outline" onClick={googleSignIn} disabled={busy} className="w-full">
                   {t("Continua con Google")}
+                </Button>
+                <Button type="button" variant="outline" onClick={appleSignIn} disabled={busy} className="w-full">
+                  {t("Continua con Apple")}
                 </Button>
                 <div className="flex justify-between text-xs pt-2">
                   {mode !== "signin" ? (
