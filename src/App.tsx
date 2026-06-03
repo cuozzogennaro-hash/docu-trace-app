@@ -36,6 +36,7 @@ import SubscriptionPage from "./pages/Subscription";
 import TermsPage from "./pages/legal/Terms";
 import RefundPage from "./pages/legal/Refund";
 import PrivacyPage from "./pages/legal/Privacy";
+import Landing from "./pages/Landing";
 import SubscriptionGate from "./components/SubscriptionGate";
 import { PaymentTestModeBanner } from "./components/PaymentTestModeBanner";
 import { useTranslation } from "react-i18next";
@@ -87,8 +88,9 @@ const App = () => (
             <Route path="/termini" element={<TermsPage />} />
             <Route path="/rimborsi" element={<RefundPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
+            <Route path="/" element={<Landing />} />
             <Route element={<Protected />}>
-              <Route path="/" element={<Index />} />
+              <Route path="/app" element={<Index />} />
               <Route path="/sanificazione" element={<Sanitations />} />
               <Route path="/temperature" element={<Temperatures />} />
               <Route path="/ingresso" element={<Incoming />} />
