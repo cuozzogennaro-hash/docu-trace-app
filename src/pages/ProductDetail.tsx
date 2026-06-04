@@ -942,20 +942,23 @@ ${labelsHtml}
   // Renderizza l'etichetta su un canvas monocromatico alla risoluzione
   // esatta della stampante (CLABEL CT221D = 203 dpi = 8 dots/mm) in modo
   // che la stampa sia identica al pixel rispetto al preview.
-  async function buildTSPL(): Promise<Uint8Array> {
+  // Disegna il layout del template selezionato su un canvas monocromatico.
+  // dpmm controlla la risoluzione di rendering (8 dot/mm = 203 dpi per le
+  // stampanti TSPL, valore variabile per le Phomemo che hanno larghezza
+  // fissa in dot).
+  async function renderLabelCanvas(dpmm: number): Promise<{ canvas: HTMLCanvasElement; widthDots: number; heightDots: number; wMm: number; hMm: number; }> {
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) throw new Error("Template non selezionato");
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
     const items = computeLabelLayout(wMm, hMm);
 
-    const DPMM = 8; // 203 dpi
-    const widthDots = Math.round(wMm * DPMM);
-    const heightDots = Math.round(hMm * DPMM);
+    const widthDots = Math.round(wMm * dpmm);
+    const heightDots = Math.round(hMm * dpmm);
 
-    // 1 pt = 1/72 inch = 203/72 dots ≈ 2.819 dots
-    const ptToDots = (pt: number) => pt * (203 / 72);
-    const mmToDots = (mm: number) => mm * DPMM;
+    // 1 pt = 1/72 inch ⇒ dot/pt = dpmm * 25.4 / 72
+    const ptToDots = (pt: number) => pt * (dpmm * 25.4 / 72);
+    const mmToDots = (mm: number) => mm * dpmm;
 
     const canvas = document.createElement("canvas");
     canvas.width = widthDots;
@@ -1044,8 +1047,83 @@ ${labelsHtml}
       }
     }
 
-    // Conversione canvas → bitmap monocromatica (1 bpp, MSB-first, 0=black)
+    return { canvas, widthDots, heightDots, wMm, hMm };
+  }
+
+  // Converte un canvas monocromatico in un buffer 1bpp, MSB-first.
+  // blackBit controlla la polarità: per TSPL i pixel neri sono bit 0,
+  // per Phomemo M-series sono bit 1.
+  function canvasToMonoBitmap(canvas: HTMLCanvasElement, blackBit: 0 | 1): { bitmap: Uint8Array; widthBytes: number } {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    const widthDots = canvas.width;
+    const heightDots = canvas.height;
     const imgData = ctx.getImageData(0, 0, widthDots, heightDots);
+    const widthBytes = Math.ceil(widthDots / 8);
+    const bitmap = new Uint8Array(widthBytes * heightDots);
+    const fill = blackBit === 0 ? 0xff : 0x00;
+    bitmap.fill(fill);
+    for (let py = 0; py < heightDots; py++) {
+      for (let px2 = 0; px2 < widthDots; px2++) {
+        const i = (py * widthDots + px2) * 4;
+        const r = imgData.data[i];
+        const g = imgData.data[i + 1];
+        const b = imgData.data[i + 2];
+        const a = imgData.data[i + 3];
+        const lum = (r * 0.299 + g * 0.587 + b * 0.114) * (a / 255) + 255 * (1 - a / 255);
+        if (lum < 160) {
+          const byteIdx = py * widthBytes + (px2 >> 3);
+          const bit = 7 - (px2 & 7);
+          if (blackBit === 0) bitmap[byteIdx] &= ~(1 << bit);
+          else bitmap[byteIdx] |= (1 << bit);
+        }
+      }
+    }
+    return { bitmap, widthBytes };
+  }
+
+  async function buildTSPL(): Promise<Uint8Array> {
+    const { canvas, widthDots, heightDots, wMm, hMm } = await renderLabelCanvas(8);
+    const { bitmap, widthBytes } = canvasToMonoBitmap(canvas, 0);
+    void widthDots;
+
+    // Composizione comando TSPL: header testuale + BITMAP + dati binari + footer
+    const enc = new TextEncoder();
+    const header = enc.encode(
+      [
+        `SIZE ${wMm} mm,${hMm} mm`,
+        `GAP 2 mm,0 mm`,
+        `DIRECTION 1`,
+        `CLS`,
+        `BITMAP 0,0,${widthBytes},${heightDots},0,`,
+      ].join("\r\n") + "",
+    );
+    const footer = enc.encode(`\r\nPRINT ${labelQty},1\r\n`);
+
+    const total = new Uint8Array(header.length + bitmap.length + footer.length);
+    total.set(header, 0);
+    total.set(bitmap, header.length);
+    total.set(footer, header.length + bitmap.length);
+    return total;
+  }
+
+  // Phomemo M02/M02S/M03: larghezza fissa 384 dot (48 byte) sul rullo continuo.
+  // Scaliamo il template in modo che occupi tutta la larghezza stampabile,
+  // mantenendo le proporzioni width/height definite nel profilo etichetta.
+  async function buildPhomemoLabel(): Promise<Uint8Array> {
+    const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
+    if (!tpl) throw new Error("Template non selezionato");
+    const wMm = Number(tpl.width_mm);
+    const targetWidthDots = PHOMEMO_M02_WIDTH_BYTES * 8; // 384
+    const dpmm = targetWidthDots / wMm;
+    const { canvas } = await renderLabelCanvas(dpmm);
+    const { bitmap, widthBytes } = canvasToMonoBitmap(canvas, 1);
+    return buildPhomemoRaster(bitmap, widthBytes, canvas.height, Math.max(1, labelQty));
+  }
+
+  // (rimosso: rendering inline ora in renderLabelCanvas/canvasToMonoBitmap)
+  async function _legacyKept(): Promise<Uint8Array> {
+    const widthDots = 0; const heightDots = 0;
+    const imgData = { data: new Uint8ClampedArray(0) } as any;
     const widthBytes = Math.ceil(widthDots / 8);
     const bitmap = new Uint8Array(widthBytes * heightDots);
     bitmap.fill(0xff); // tutto bianco
