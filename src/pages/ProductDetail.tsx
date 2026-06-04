@@ -17,6 +17,8 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useLabelRules } from "@/hooks/useLabelRules";
+import { isNativeApp, getSavedPrinter, sendToPrinter, type SavedPrinter } from "@/lib/btPrinter";
+import BluetoothPrinterPicker from "@/components/kitchen/BluetoothPrinterPicker";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
@@ -42,6 +44,9 @@ export default function ProductDetail() {
   const [allergenNamesDb, setAllergenNamesDb] = useState<string[]>([]);
   // Mappa keyword(lowercase) -> nome canonico dell'allergene (es. "grano" -> "Glutine").
   const [allergenKeyToName, setAllergenKeyToName] = useState<Record<string, string>>({});
+  const [btPickerOpen, setBtPickerOpen] = useState(false);
+  const [pendingBtBytes, setPendingBtBytes] = useState<Uint8Array | null>(null);
+  const native = isNativeApp();
 
   useEffect(() => {
     if (!id) return;
