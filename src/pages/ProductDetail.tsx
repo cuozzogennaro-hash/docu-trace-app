@@ -1139,6 +1139,18 @@ ${labelsHtml}
     throw new Error("Nessuna caratteristica scrivibile trovata sulla stampante");
   }
 
+  // Stampa nativa: sceglie il protocollo (TSPL o Phomemo raster) in base
+  // al modello salvato per la stampante associata.
+  async function doNativePrint(printer: SavedPrinter) {
+    const data = printer.model === "phomemo"
+      ? await buildPhomemoLabel()
+      : await buildTSPL();
+    toast.message(`Invio ${data.length} byte alla stampante…`);
+    await sendToPrinter(data, printer);
+    toast.success("Etichetta inviata alla stampante");
+    setShowLabelDialog(false);
+  }
+
   async function printLabelBluetooth() {
     if (!product) return;
     if (!selectedTemplate) { toast.error("Seleziona un template"); return; }
@@ -1147,17 +1159,13 @@ ${labelsHtml}
     if (native) {
       try {
         setBtPrinting(true);
-        const data = await buildTSPL();
         const saved = getSavedPrinter();
         if (!saved) {
-          setPendingBtBytes(data);
+          setPendingPrint(true);
           setBtPickerOpen(true);
           return;
         }
-        toast.message(`Invio ${data.length} byte alla stampante…`);
-        await sendToPrinter(data, saved);
-        toast.success("Etichetta inviata alla stampante");
-        setShowLabelDialog(false);
+        await doNativePrint(saved);
       } catch (e: any) {
         console.error("[BT print native]", e);
         toast.error(e?.message || "Errore stampa Bluetooth");
