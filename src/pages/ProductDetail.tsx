@@ -1124,26 +1124,42 @@ ${labelsHtml}
     return total;
   }
 
-  // Phomemo M02/M02S/M03: larghezza fissa 384 dot (48 byte) sul rullo continuo.
-  // Scaliamo il template in modo che occupi tutta la larghezza stampabile,
-  // mantenendo le proporzioni width/height definite nel profilo etichetta.
+  // Phomemo M02/M02S/M03: larghezza fisica del rullo = 48 mm = 384 dot
+  // (8 dot/mm @ 203dpi). Renderizziamo il template alla sua larghezza reale
+  // in mm (NON stiriamo) e centriamo orizzontalmente il bitmap dentro i
+  // 384 dot della testina, lasciando margini bianchi ai lati. Così il
+  // contenuto è centrato sul lato corto dell'etichetta.
   async function buildPhomemoLabel(): Promise<Uint8Array> {
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) throw new Error("Template non selezionato");
     const layoutCfg = (typeof tpl.layout_config === "string"
       ? JSON.parse(tpl.layout_config)
       : tpl.layout_config) || {};
-    // Se il template è marcato come "ruotato in stampa", la larghezza inviata
-    // alla stampante è in realtà l'altezza in mm del template (perché lo
-    // ruotiamo di 90° prima di rasterizzare).
+    // Larghezza in mm che andrà effettivamente sotto la testina (post-rotazione).
     const wMm = layoutCfg.rotate_print
       ? Number(tpl.height_mm)
       : Number(tpl.width_mm);
-    const targetWidthDots = PHOMEMO_M02_WIDTH_BYTES * 8; // 384
-    const dpmm = targetWidthDots / wMm;
+    const headWidthDots = PHOMEMO_M02_WIDTH_BYTES * 8; // 384
+    const PHOMEMO_DPMM = 8; // 203 dpi
+    // Se il template è più largo dei 48mm del rullo, riduciamo la densità
+    // per farlo entrare, mantenendo le proporzioni.
+    const dpmm = wMm > headWidthDots / PHOMEMO_DPMM
+      ? headWidthDots / wMm
+      : PHOMEMO_DPMM;
     const { canvas } = await renderLabelCanvas(dpmm);
-    const { bitmap, widthBytes } = canvasToMonoBitmap(canvas, 1);
-    return buildPhomemoRaster(bitmap, widthBytes, canvas.height, Math.max(1, labelQty));
+    const contentWidth = canvas.width;
+    const contentHeight = canvas.height;
+    // Canvas finale = larghezza piena testina, contenuto centrato.
+    const padded = document.createElement("canvas");
+    padded.width = headWidthDots;
+    padded.height = contentHeight;
+    const pctx = padded.getContext("2d")!;
+    pctx.fillStyle = "#fff";
+    pctx.fillRect(0, 0, padded.width, padded.height);
+    const offsetX = Math.max(0, Math.floor((headWidthDots - contentWidth) / 2));
+    pctx.drawImage(canvas, offsetX, 0);
+    const { bitmap, widthBytes } = canvasToMonoBitmap(padded, 1);
+    return buildPhomemoRaster(bitmap, widthBytes, padded.height, Math.max(1, labelQty));
   }
 
   async function findWritableCharacteristic(server: any) {
