@@ -83,6 +83,7 @@ export default function Landing() {
             <Link to="/privacy" className="hover:text-foreground">Privacy</Link>
             <Link to="/rimborsi" className="hover:text-foreground">Rimborsi</Link>
             <Link to="/abbonamento" className="hover:text-foreground">Abbonamento</Link>
+            <Link to="/stampanti-compatibili" className="hover:text-foreground">Stampanti compatibili</Link>
           </div>
         </div>
       </footer>

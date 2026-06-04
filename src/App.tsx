@@ -37,6 +37,7 @@ import TermsPage from "./pages/legal/Terms";
 import RefundPage from "./pages/legal/Refund";
 import PrivacyPage from "./pages/legal/Privacy";
 import Landing from "./pages/Landing";
+import CompatiblePrinters from "./pages/CompatiblePrinters";
 import SubscriptionGate from "./components/SubscriptionGate";
 import { PaymentTestModeBanner } from "./components/PaymentTestModeBanner";
 import { useTranslation } from "react-i18next";
@@ -113,6 +114,7 @@ const App = () => (
               <Route path="/admin" element={<AdminDashboard />} />
               <Route path="/contatti" element={<Support />} />
             </Route>
+            <Route path="/stampanti-compatibili" element={<CompatiblePrinters />} />
             <Route path="*" element={<NotFound />} />
             </Routes>
           </OperatorSessionProvider>
