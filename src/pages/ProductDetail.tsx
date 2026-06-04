@@ -1562,10 +1562,17 @@ ${labelsHtml}
             })()}
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-              <Button onClick={printLabel} className="w-full gap-2">
-                <Printer size={16} /> Stampa di sistema
-              </Button>
-              <Button onClick={printLabelBluetooth} disabled={btPrinting} variant="secondary" className="w-full gap-2">
+              {!native && (
+                <Button onClick={printLabel} className="w-full gap-2">
+                  <Printer size={16} /> Stampa di sistema
+                </Button>
+              )}
+              <Button
+                onClick={printLabelBluetooth}
+                disabled={btPrinting}
+                variant="secondary"
+                className={`w-full gap-2 ${native ? "sm:col-span-2" : ""}`}
+              >
                 {btPrinting ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
                 Stampa Etichetta Bluetooth
               </Button>
@@ -1574,11 +1581,38 @@ ${labelsHtml}
               </Button>
             </div>
             <p className="text-xs text-muted-foreground">
-              Il pulsante Bluetooth richiede Chrome/Edge e la selezione della stampante nella finestra del browser: l'associazione nelle impostazioni Android non equivale a connessione per l'app.
+              {native
+                ? "L'app si collega direttamente alla stampante Bluetooth associata. La prima volta scegli il dispositivo dall'elenco: la selezione verrà ricordata."
+                : "Il pulsante Bluetooth richiede Chrome/Edge e la selezione della stampante nella finestra del browser: l'associazione nelle impostazioni Android non equivale a connessione per l'app."}
             </p>
           </div>
         </DialogContent>
       </Dialog>
+
+      <BluetoothPrinterPicker
+        open={btPickerOpen}
+        onOpenChange={(v) => {
+          setBtPickerOpen(v);
+          if (!v) setPendingBtBytes(null);
+        }}
+        onPicked={async (printer: SavedPrinter) => {
+          const data = pendingBtBytes;
+          setPendingBtBytes(null);
+          if (!data) return;
+          try {
+            setBtPrinting(true);
+            toast.message(`Invio ${data.length} byte alla stampante…`);
+            await sendToPrinter(data, printer);
+            toast.success("Etichetta inviata alla stampante");
+            setShowLabelDialog(false);
+          } catch (e: any) {
+            console.error("[BT print native picked]", e);
+            toast.error(e?.message || "Errore stampa Bluetooth");
+          } finally {
+            setBtPrinting(false);
+          }
+        }}
+      />
 
       <h2 className="font-display font-bold text-lg mb-3">
         Materie prime utilizzate ({ingredients.length})
