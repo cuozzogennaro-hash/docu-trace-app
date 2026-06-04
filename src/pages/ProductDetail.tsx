@@ -1641,7 +1641,7 @@ ${labelsHtml}
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => { setPendingBtBytes(null); setBtPickerOpen(true); }}
+                      onClick={() => { setPendingPrint(false); setBtPickerOpen(true); }}
                     >
                       Cambia
                     </Button>
@@ -1661,7 +1661,7 @@ ${labelsHtml}
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => { setPendingBtBytes(null); setBtPickerOpen(true); }}
+                      onClick={() => { setPendingPrint(false); setBtPickerOpen(true); }}
                     >
                       Associa stampante
                     </Button>
@@ -1682,19 +1682,16 @@ ${labelsHtml}
         open={btPickerOpen}
         onOpenChange={(v) => {
           setBtPickerOpen(v);
-          if (!v) setPendingBtBytes(null);
+          if (!v) setPendingPrint(false);
         }}
         onPicked={async (printer: SavedPrinter) => {
-          const data = pendingBtBytes;
-          setPendingBtBytes(null);
+          const shouldPrint = pendingPrint;
+          setPendingPrint(false);
           setSavedBtPrinter(printer);
-          if (!data) return;
+          if (!shouldPrint) return;
           try {
             setBtPrinting(true);
-            toast.message(`Invio ${data.length} byte alla stampante…`);
-            await sendToPrinter(data, printer);
-            toast.success("Etichetta inviata alla stampante");
-            setShowLabelDialog(false);
+            await doNativePrint(printer);
           } catch (e: any) {
             console.error("[BT print native picked]", e);
             toast.error(e?.message || "Errore stampa Bluetooth");
