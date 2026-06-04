@@ -1047,6 +1047,24 @@ ${labelsHtml}
       }
     }
 
+    const layoutCfg = (typeof tpl.layout_config === "string"
+      ? JSON.parse(tpl.layout_config)
+      : tpl.layout_config) || {};
+    if (layoutCfg.rotate_print) {
+      // Ruota 90° in senso orario: il template è disegnato in orizzontale
+      // (wMm × hMm) ma la stampante deve riceverlo in verticale (hMm × wMm)
+      // così da coprire tutta l'etichetta fisica.
+      const rotated = document.createElement("canvas");
+      rotated.width = heightDots;
+      rotated.height = widthDots;
+      const rctx = rotated.getContext("2d", { willReadFrequently: true })!;
+      rctx.fillStyle = "#ffffff";
+      rctx.fillRect(0, 0, rotated.width, rotated.height);
+      rctx.translate(rotated.width, 0);
+      rctx.rotate(Math.PI / 2);
+      rctx.drawImage(canvas, 0, 0);
+      return { canvas: rotated, widthDots: rotated.width, heightDots: rotated.height, wMm: hMm, hMm: wMm };
+    }
     return { canvas, widthDots, heightDots, wMm, hMm };
   }
 
@@ -1112,7 +1130,15 @@ ${labelsHtml}
   async function buildPhomemoLabel(): Promise<Uint8Array> {
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) throw new Error("Template non selezionato");
-    const wMm = Number(tpl.width_mm);
+    const layoutCfg = (typeof tpl.layout_config === "string"
+      ? JSON.parse(tpl.layout_config)
+      : tpl.layout_config) || {};
+    // Se il template è marcato come "ruotato in stampa", la larghezza inviata
+    // alla stampante è in realtà l'altezza in mm del template (perché lo
+    // ruotiamo di 90° prima di rasterizzare).
+    const wMm = layoutCfg.rotate_print
+      ? Number(tpl.height_mm)
+      : Number(tpl.width_mm);
     const targetWidthDots = PHOMEMO_M02_WIDTH_BYTES * 8; // 384
     const dpmm = targetWidthDots / wMm;
     const { canvas } = await renderLabelCanvas(dpmm);
