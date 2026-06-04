@@ -17,7 +17,15 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useLabelRules } from "@/hooks/useLabelRules";
-import { isNativeApp, getSavedPrinter, saveSavedPrinter, sendToPrinter, type SavedPrinter } from "@/lib/btPrinter";
+import {
+  isNativeApp,
+  getSavedPrinter,
+  saveSavedPrinter,
+  sendToPrinter,
+  buildPhomemoRaster,
+  PHOMEMO_M02_WIDTH_BYTES,
+  type SavedPrinter,
+} from "@/lib/btPrinter";
 import BluetoothPrinterPicker from "@/components/kitchen/BluetoothPrinterPicker";
 
 export default function ProductDetail() {
@@ -45,7 +53,7 @@ export default function ProductDetail() {
   // Mappa keyword(lowercase) -> nome canonico dell'allergene (es. "grano" -> "Glutine").
   const [allergenKeyToName, setAllergenKeyToName] = useState<Record<string, string>>({});
   const [btPickerOpen, setBtPickerOpen] = useState(false);
-  const [pendingBtBytes, setPendingBtBytes] = useState<Uint8Array | null>(null);
+  const [pendingPrint, setPendingPrint] = useState(false);
   const [savedBtPrinter, setSavedBtPrinter] = useState<SavedPrinter | null>(() => getSavedPrinter());
   const native = isNativeApp();
 
@@ -934,20 +942,23 @@ ${labelsHtml}
   // Renderizza l'etichetta su un canvas monocromatico alla risoluzione
   // esatta della stampante (CLABEL CT221D = 203 dpi = 8 dots/mm) in modo
   // che la stampa sia identica al pixel rispetto al preview.
-  async function buildTSPL(): Promise<Uint8Array> {
+  // Disegna il layout del template selezionato su un canvas monocromatico.
+  // dpmm controlla la risoluzione di rendering (8 dot/mm = 203 dpi per le
+  // stampanti TSPL, valore variabile per le Phomemo che hanno larghezza
+  // fissa in dot).
+  async function renderLabelCanvas(dpmm: number): Promise<{ canvas: HTMLCanvasElement; widthDots: number; heightDots: number; wMm: number; hMm: number; }> {
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
     if (!tpl) throw new Error("Template non selezionato");
     const wMm = Number(tpl.width_mm);
     const hMm = Number(tpl.height_mm);
     const items = computeLabelLayout(wMm, hMm);
 
-    const DPMM = 8; // 203 dpi
-    const widthDots = Math.round(wMm * DPMM);
-    const heightDots = Math.round(hMm * DPMM);
+    const widthDots = Math.round(wMm * dpmm);
+    const heightDots = Math.round(hMm * dpmm);
 
-    // 1 pt = 1/72 inch = 203/72 dots ≈ 2.819 dots
-    const ptToDots = (pt: number) => pt * (203 / 72);
-    const mmToDots = (mm: number) => mm * DPMM;
+    // 1 pt = 1/72 inch ⇒ dot/pt = dpmm * 25.4 / 72
+    const ptToDots = (pt: number) => pt * (dpmm * 25.4 / 72);
+    const mmToDots = (mm: number) => mm * dpmm;
 
     const canvas = document.createElement("canvas");
     canvas.width = widthDots;
@@ -1036,11 +1047,21 @@ ${labelsHtml}
       }
     }
 
-    // Conversione canvas → bitmap monocromatica (1 bpp, MSB-first, 0=black)
+    return { canvas, widthDots, heightDots, wMm, hMm };
+  }
+
+  // Converte un canvas monocromatico in un buffer 1bpp, MSB-first.
+  // blackBit controlla la polarità: per TSPL i pixel neri sono bit 0,
+  // per Phomemo M-series sono bit 1.
+  function canvasToMonoBitmap(canvas: HTMLCanvasElement, blackBit: 0 | 1): { bitmap: Uint8Array; widthBytes: number } {
+    const ctx = canvas.getContext("2d", { willReadFrequently: true })!;
+    const widthDots = canvas.width;
+    const heightDots = canvas.height;
     const imgData = ctx.getImageData(0, 0, widthDots, heightDots);
     const widthBytes = Math.ceil(widthDots / 8);
     const bitmap = new Uint8Array(widthBytes * heightDots);
-    bitmap.fill(0xff); // tutto bianco
+    const fill = blackBit === 0 ? 0xff : 0x00;
+    bitmap.fill(fill);
     for (let py = 0; py < heightDots; py++) {
       for (let px2 = 0; px2 < widthDots; px2++) {
         const i = (py * widthDots + px2) * 4;
@@ -1048,15 +1069,22 @@ ${labelsHtml}
         const g = imgData.data[i + 1];
         const b = imgData.data[i + 2];
         const a = imgData.data[i + 3];
-        // Luminance threshold; pixel "scuro" → bit 0 (black)
         const lum = (r * 0.299 + g * 0.587 + b * 0.114) * (a / 255) + 255 * (1 - a / 255);
         if (lum < 160) {
           const byteIdx = py * widthBytes + (px2 >> 3);
           const bit = 7 - (px2 & 7);
-          bitmap[byteIdx] &= ~(1 << bit);
+          if (blackBit === 0) bitmap[byteIdx] &= ~(1 << bit);
+          else bitmap[byteIdx] |= (1 << bit);
         }
       }
     }
+    return { bitmap, widthBytes };
+  }
+
+  async function buildTSPL(): Promise<Uint8Array> {
+    const { canvas, widthDots, heightDots, wMm, hMm } = await renderLabelCanvas(8);
+    const { bitmap, widthBytes } = canvasToMonoBitmap(canvas, 0);
+    void widthDots;
 
     // Composizione comando TSPL: header testuale + BITMAP + dati binari + footer
     const enc = new TextEncoder();
@@ -1069,8 +1097,6 @@ ${labelsHtml}
         `BITMAP 0,0,${widthBytes},${heightDots},0,`,
       ].join("\r\n") + "",
     );
-    // La riga BITMAP termina dopo la virgola: i dati binari seguono direttamente
-    // (così come da specifica TSPL), poi CRLF e PRINT.
     const footer = enc.encode(`\r\nPRINT ${labelQty},1\r\n`);
 
     const total = new Uint8Array(header.length + bitmap.length + footer.length);
@@ -1078,6 +1104,20 @@ ${labelsHtml}
     total.set(bitmap, header.length);
     total.set(footer, header.length + bitmap.length);
     return total;
+  }
+
+  // Phomemo M02/M02S/M03: larghezza fissa 384 dot (48 byte) sul rullo continuo.
+  // Scaliamo il template in modo che occupi tutta la larghezza stampabile,
+  // mantenendo le proporzioni width/height definite nel profilo etichetta.
+  async function buildPhomemoLabel(): Promise<Uint8Array> {
+    const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate);
+    if (!tpl) throw new Error("Template non selezionato");
+    const wMm = Number(tpl.width_mm);
+    const targetWidthDots = PHOMEMO_M02_WIDTH_BYTES * 8; // 384
+    const dpmm = targetWidthDots / wMm;
+    const { canvas } = await renderLabelCanvas(dpmm);
+    const { bitmap, widthBytes } = canvasToMonoBitmap(canvas, 1);
+    return buildPhomemoRaster(bitmap, widthBytes, canvas.height, Math.max(1, labelQty));
   }
 
   async function findWritableCharacteristic(server: any) {
@@ -1099,6 +1139,18 @@ ${labelsHtml}
     throw new Error("Nessuna caratteristica scrivibile trovata sulla stampante");
   }
 
+  // Stampa nativa: sceglie il protocollo (TSPL o Phomemo raster) in base
+  // al modello salvato per la stampante associata.
+  async function doNativePrint(printer: SavedPrinter) {
+    const data = printer.model === "phomemo"
+      ? await buildPhomemoLabel()
+      : await buildTSPL();
+    toast.message(`Invio ${data.length} byte alla stampante…`);
+    await sendToPrinter(data, printer);
+    toast.success("Etichetta inviata alla stampante");
+    setShowLabelDialog(false);
+  }
+
   async function printLabelBluetooth() {
     if (!product) return;
     if (!selectedTemplate) { toast.error("Seleziona un template"); return; }
@@ -1107,17 +1159,13 @@ ${labelsHtml}
     if (native) {
       try {
         setBtPrinting(true);
-        const data = await buildTSPL();
         const saved = getSavedPrinter();
         if (!saved) {
-          setPendingBtBytes(data);
+          setPendingPrint(true);
           setBtPickerOpen(true);
           return;
         }
-        toast.message(`Invio ${data.length} byte alla stampante…`);
-        await sendToPrinter(data, saved);
-        toast.success("Etichetta inviata alla stampante");
-        setShowLabelDialog(false);
+        await doNativePrint(saved);
       } catch (e: any) {
         console.error("[BT print native]", e);
         toast.error(e?.message || "Errore stampa Bluetooth");
@@ -1593,7 +1641,7 @@ ${labelsHtml}
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => { setPendingBtBytes(null); setBtPickerOpen(true); }}
+                      onClick={() => { setPendingPrint(false); setBtPickerOpen(true); }}
                     >
                       Cambia
                     </Button>
@@ -1613,7 +1661,7 @@ ${labelsHtml}
                       type="button"
                       size="sm"
                       variant="outline"
-                      onClick={() => { setPendingBtBytes(null); setBtPickerOpen(true); }}
+                      onClick={() => { setPendingPrint(false); setBtPickerOpen(true); }}
                     >
                       Associa stampante
                     </Button>
@@ -1634,19 +1682,16 @@ ${labelsHtml}
         open={btPickerOpen}
         onOpenChange={(v) => {
           setBtPickerOpen(v);
-          if (!v) setPendingBtBytes(null);
+          if (!v) setPendingPrint(false);
         }}
         onPicked={async (printer: SavedPrinter) => {
-          const data = pendingBtBytes;
-          setPendingBtBytes(null);
+          const shouldPrint = pendingPrint;
+          setPendingPrint(false);
           setSavedBtPrinter(printer);
-          if (!data) return;
+          if (!shouldPrint) return;
           try {
             setBtPrinting(true);
-            toast.message(`Invio ${data.length} byte alla stampante…`);
-            await sendToPrinter(data, printer);
-            toast.success("Etichetta inviata alla stampante");
-            setShowLabelDialog(false);
+            await doNativePrint(printer);
           } catch (e: any) {
             console.error("[BT print native picked]", e);
             toast.error(e?.message || "Errore stampa Bluetooth");

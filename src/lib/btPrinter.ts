@@ -52,12 +52,38 @@ export const PRINTER_NAME_PREFIXES = [
   "BT_SPP",
   "ESC-POS",
   "Thermal",
+  // Phomemo (M02/M02S/M03/M04/M110/M120/M220 ecc.)
+  "PHOMEMO",
+  "M02",
+  "M03",
+  "M04",
+  "M110",
+  "M120",
+  "M220",
+  "T02",
 ];
 
 export function looksLikePrinter(name?: string | null): boolean {
   if (!name) return false;
   const n = name.toUpperCase();
   return PRINTER_NAME_PREFIXES.some((p) => n.includes(p.toUpperCase()));
+}
+
+/**
+ * Famiglia di protocollo della stampante. Le stampanti TSPL/ESC-POS
+ * "classiche" accettano i bytes prodotti da buildTSPL() del flusso etichette;
+ * le Phomemo M-series (M02/M02S/M03/M04…) usano invece un protocollo raster
+ * ESC-POS con header proprietari e larghezza fissa di 384 dot.
+ */
+export type PrinterModel = "tspl" | "phomemo";
+
+const PHOMEMO_HINTS = ["PHOMEMO", "M02", "M03", "M04", "T02"];
+
+export function detectPrinterModel(name?: string | null): PrinterModel {
+  if (!name) return "tspl";
+  const n = name.toUpperCase();
+  if (PHOMEMO_HINTS.some((p) => n.includes(p))) return "phomemo";
+  return "tspl";
 }
 
 const LS_KEY = "haccp.btprinter";
@@ -67,6 +93,8 @@ export type SavedPrinter = {
   name?: string;
   service: string;
   characteristic: string;
+  /** Famiglia protocollo. Default "tspl" per retrocompatibilità. */
+  model?: PrinterModel;
 };
 
 export function getSavedPrinter(): SavedPrinter | null {
@@ -145,7 +173,13 @@ export async function connectAndSavePrinter(deviceId: string, name?: string): Pr
   }
   await BleClient.connect(deviceId, () => { /* on disconnect */ });
   const { service, characteristic } = await findWritableCharacteristic(deviceId);
-  const saved: SavedPrinter = { deviceId, name, service, characteristic };
+  const saved: SavedPrinter = {
+    deviceId,
+    name,
+    service,
+    characteristic,
+    model: detectPrinterModel(name),
+  };
   saveSavedPrinter(saved);
   return saved;
 }
@@ -279,4 +313,73 @@ export function buildLabelBytes(input: PrintLabelInput): Uint8Array {
   if (input.footer) b.feed(1).align("center").text(input.footer).feed(1);
   b.feed(3).cut();
   return b.build();
+}
+
+// ───────────────────────── Phomemo M-series raster ─────────────────────────
+
+/**
+ * Larghezza in dot della famiglia Phomemo M02/M02S/M03 (rotolo continuo 53mm,
+ * area stampabile 48mm @ 203dpi = 384 dot = 48 byte per riga).
+ * Per le M110/M220 con etichette gommate si usa lo stesso protocollo ma con
+ * 96 byte/riga: questa funzione si tara sul valore passato in widthBytes.
+ */
+export const PHOMEMO_M02_WIDTH_BYTES = 48;
+
+/**
+ * Costruisce i bytes per stampare un bitmap monocromatico su una stampante
+ * Phomemo M-series (M02/M02S/M03/M04/T02). Il bitmap deve essere già
+ * impacchettato 1 bit per pixel, MSB-first, con i bit a 1 = pixel NERO
+ * (l'opposto della convenzione TSPL: la M02 stampa i bit attivi).
+ */
+export function buildPhomemoRaster(
+  bitmap: Uint8Array,
+  widthBytes: number,
+  heightDots: number,
+  copies: number = 1,
+): Uint8Array {
+  const start = [
+    0x1b, 0x40,             // ESC @  init
+    0x1f, 0x11, 0x02, 0x04, // phomemo: set energy / mode
+  ];
+  const end = [
+    0x1b, 0x64, 0x02,
+    0x1b, 0x64, 0x02,
+    0x1f, 0x11, 0x08,
+    0x1f, 0x11, 0x0e,
+    0x1f, 0x11, 0x07,
+    0x1f, 0x11, 0x09,
+  ];
+
+  // Si invia in blocchi di max 255 righe per rispettare il limite a 16 bit
+  // del comando raster GS v 0 (rimaniamo conservativi e usiamo 256).
+  const ROWS_PER_CHUNK = 256;
+
+  const chunks: number[][] = [];
+  chunks.push(start);
+
+  for (let copy = 0; copy < Math.max(1, copies); copy++) {
+    for (let y = 0; y < heightDots; y += ROWS_PER_CHUNK) {
+      const rows = Math.min(ROWS_PER_CHUNK, heightDots - y);
+      const header = [
+        0x1d, 0x76, 0x30, 0x00,
+        widthBytes & 0xff, (widthBytes >> 8) & 0xff,
+        rows & 0xff, (rows >> 8) & 0xff,
+      ];
+      chunks.push(header);
+      // slice direttamente dal bitmap monocromatico
+      const offset = y * widthBytes;
+      const sliceLen = rows * widthBytes;
+      chunks.push(Array.from(bitmap.subarray(offset, offset + sliceLen)));
+    }
+    // piccolo feed tra una copia e l'altra
+    if (copy < copies - 1) chunks.push([0x1b, 0x64, 0x02]);
+  }
+
+  chunks.push(end);
+
+  const total = chunks.reduce((s, c) => s + c.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
 }
