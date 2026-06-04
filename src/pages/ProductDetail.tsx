@@ -46,6 +46,7 @@ export default function ProductDetail() {
   const [allergenKeyToName, setAllergenKeyToName] = useState<Record<string, string>>({});
   const [btPickerOpen, setBtPickerOpen] = useState(false);
   const [pendingBtBytes, setPendingBtBytes] = useState<Uint8Array | null>(null);
+  const [savedBtPrinter, setSavedBtPrinter] = useState<SavedPrinter | null>(() => getSavedPrinter());
   const native = isNativeApp();
 
   useEffect(() => {
