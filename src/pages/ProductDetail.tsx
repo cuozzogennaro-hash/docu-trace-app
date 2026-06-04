@@ -1581,6 +1581,46 @@ ${labelsHtml}
                 <FileText size={16} /> Stampa report A5 (etichetta ingrandita)
               </Button>
             </div>
+            {native && (
+              <div className="rounded-md border bg-muted/40 p-2 text-xs flex items-center gap-2 flex-wrap">
+                <Bluetooth size={14} className="shrink-0" />
+                {savedBtPrinter ? (
+                  <>
+                    <span className="flex-1 min-w-0 truncate">
+                      Stampante associata: <strong>{savedBtPrinter.name || savedBtPrinter.deviceId}</strong>
+                    </span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setPendingBtBytes(null); setBtPickerOpen(true); }}
+                    >
+                      Cambia
+                    </Button>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => { saveSavedPrinter(null); setSavedBtPrinter(null); toast.success("Stampante disassociata"); }}
+                    >
+                      Disassocia
+                    </Button>
+                  </>
+                ) : (
+                  <>
+                    <span className="flex-1 min-w-0 text-muted-foreground">Nessuna stampante associata.</span>
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="outline"
+                      onClick={() => { setPendingBtBytes(null); setBtPickerOpen(true); }}
+                    >
+                      Associa stampante
+                    </Button>
+                  </>
+                )}
+              </div>
+            )}
             <p className="text-xs text-muted-foreground">
               {native
                 ? "L'app si collega direttamente alla stampante Bluetooth associata. La prima volta scegli il dispositivo dall'elenco: la selezione verrà ricordata."
@@ -1599,6 +1639,7 @@ ${labelsHtml}
         onPicked={async (printer: SavedPrinter) => {
           const data = pendingBtBytes;
           setPendingBtBytes(null);
+          setSavedBtPrinter(printer);
           if (!data) return;
           try {
             setBtPrinting(true);
