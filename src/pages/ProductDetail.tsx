@@ -17,7 +17,7 @@ import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } f
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useLabelRules } from "@/hooks/useLabelRules";
-import { isNativeApp, getSavedPrinter, sendToPrinter, type SavedPrinter } from "@/lib/btPrinter";
+import { isNativeApp, getSavedPrinter, saveSavedPrinter, sendToPrinter, type SavedPrinter } from "@/lib/btPrinter";
 import BluetoothPrinterPicker from "@/components/kitchen/BluetoothPrinterPicker";
 
 export default function ProductDetail() {
