@@ -1101,6 +1101,30 @@ ${labelsHtml}
   async function printLabelBluetooth() {
     if (!product) return;
     if (!selectedTemplate) { toast.error("Seleziona un template"); return; }
+    // App nativa (Android/iOS Capacitor): usa il plugin BLE nativo,
+    // non Web Bluetooth (che non esiste nella WebView).
+    if (native) {
+      try {
+        setBtPrinting(true);
+        const data = await buildTSPL();
+        const saved = getSavedPrinter();
+        if (!saved) {
+          setPendingBtBytes(data);
+          setBtPickerOpen(true);
+          return;
+        }
+        toast.message(`Invio ${data.length} byte alla stampante…`);
+        await sendToPrinter(data, saved);
+        toast.success("Etichetta inviata alla stampante");
+        setShowLabelDialog(false);
+      } catch (e: any) {
+        console.error("[BT print native]", e);
+        toast.error(e?.message || "Errore stampa Bluetooth");
+      } finally {
+        setBtPrinting(false);
+      }
+      return;
+    }
     const nav: any = navigator;
     if (!nav?.bluetooth) {
       toast.error("Web Bluetooth non supportato. Usa Chrome/Edge su Android o desktop.");
