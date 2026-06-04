@@ -26,7 +26,7 @@ type Template = {
   name: string;
   width_mm: number;
   height_mm: number;
-  layout_config: { fields: FieldConfig[] };
+  layout_config: { fields: FieldConfig[]; rotate_print?: boolean };
   is_default: boolean;
 };
 
@@ -216,6 +216,25 @@ export default function LabelEditorTab() {
                     onBlur={() => applyDimensionChange(+editWidth, +editHeight)}
                     onKeyDown={(e) => { if (e.key === "Enter") applyDimensionChange(+editWidth, +editHeight); }}
                   />
+                </div>
+              </div>
+              <div className="flex items-start gap-3 rounded-md border border-dashed border-border p-3">
+                <Switch
+                  checked={!!current.layout_config.rotate_print}
+                  onCheckedChange={(v) =>
+                    setCurrent({
+                      ...current,
+                      layout_config: { ...current.layout_config, rotate_print: v },
+                    })
+                  }
+                />
+                <div className="space-y-0.5">
+                  <Label className="text-sm">Stampa ruotata 90° (orizzontale)</Label>
+                  <p className="text-xs text-muted-foreground">
+                    Disegna l'etichetta in orizzontale (es. 70×30 mm) e la stampante
+                    la ruoterà in verticale per coprire un'etichetta alta 70 mm e
+                    larga 30/40 mm.
+                  </p>
                 </div>
               </div>
             </Card>
