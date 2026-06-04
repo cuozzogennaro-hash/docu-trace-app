@@ -1120,52 +1120,6 @@ ${labelsHtml}
     return buildPhomemoRaster(bitmap, widthBytes, canvas.height, Math.max(1, labelQty));
   }
 
-  // (rimosso: rendering inline ora in renderLabelCanvas/canvasToMonoBitmap)
-  async function _legacyKept(): Promise<Uint8Array> {
-    const widthDots = 0; const heightDots = 0;
-    const imgData = { data: new Uint8ClampedArray(0) } as any;
-    const widthBytes = Math.ceil(widthDots / 8);
-    const bitmap = new Uint8Array(widthBytes * heightDots);
-    bitmap.fill(0xff); // tutto bianco
-    for (let py = 0; py < heightDots; py++) {
-      for (let px2 = 0; px2 < widthDots; px2++) {
-        const i = (py * widthDots + px2) * 4;
-        const r = imgData.data[i];
-        const g = imgData.data[i + 1];
-        const b = imgData.data[i + 2];
-        const a = imgData.data[i + 3];
-        // Luminance threshold; pixel "scuro" → bit 0 (black)
-        const lum = (r * 0.299 + g * 0.587 + b * 0.114) * (a / 255) + 255 * (1 - a / 255);
-        if (lum < 160) {
-          const byteIdx = py * widthBytes + (px2 >> 3);
-          const bit = 7 - (px2 & 7);
-          bitmap[byteIdx] &= ~(1 << bit);
-        }
-      }
-    }
-
-    // Composizione comando TSPL: header testuale + BITMAP + dati binari + footer
-    const enc = new TextEncoder();
-    const header = enc.encode(
-      [
-        `SIZE ${wMm} mm,${hMm} mm`,
-        `GAP 2 mm,0 mm`,
-        `DIRECTION 1`,
-        `CLS`,
-        `BITMAP 0,0,${widthBytes},${heightDots},0,`,
-      ].join("\r\n") + "",
-    );
-    // La riga BITMAP termina dopo la virgola: i dati binari seguono direttamente
-    // (così come da specifica TSPL), poi CRLF e PRINT.
-    const footer = enc.encode(`\r\nPRINT ${labelQty},1\r\n`);
-
-    const total = new Uint8Array(header.length + bitmap.length + footer.length);
-    total.set(header, 0);
-    total.set(bitmap, header.length);
-    total.set(footer, header.length + bitmap.length);
-    return total;
-  }
-
   async function findWritableCharacteristic(server: any) {
     for (const uuid of BT_SERVICE_UUIDS) {
       try {
