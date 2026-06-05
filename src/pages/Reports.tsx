@@ -1328,9 +1328,9 @@ export default function Reports() {
       };
 
       if (kind === "temperatures") {
-        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable, false, true);
+        await addSection("Registro temperature", async () => withOutOfServiceTemperatureRows(await fetchTemperatures(start, end), oosAssets, start, end), tempTable, false, true);
       } else if (kind === "sanitations") {
-        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, false, true);
+        await addSection("Registro sanificazioni", async () => withOutOfServiceSanitationRows(await fetchSanitations(start, end), oosAssets, start, end), sanitTable, false, true);
       } else if (kind === "production") {
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable);
       } else if (kind === "incoming") {
@@ -1349,8 +1349,8 @@ export default function Reports() {
         await addSection("Registro controllo olio frittura", () => fetchOilChecks(start, end), oilTable, true);
         await addSection("Registro preparazioni / mise en place", () => fetchPreparations(start, end), preparationsTable, true);
       } else if (kind === "full") {
-        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable, false, true);
-        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, true, true);
+        await addSection("Registro temperature", async () => withOutOfServiceTemperatureRows(await fetchTemperatures(start, end), oosAssets, start, end), tempTable, false, true);
+        await addSection("Registro sanificazioni", async () => withOutOfServiceSanitationRows(await fetchSanitations(start, end), oosAssets, start, end), sanitTable, true, true);
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable, true);
         await addSection("Registro ingresso merci", () => fetchIncoming(start, end), incomingTable, true);
         await addSection("Registro abbattimenti", () => fetchBlastChillings(start, end), blastTable, true);
