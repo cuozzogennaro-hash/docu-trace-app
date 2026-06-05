@@ -595,19 +595,51 @@ export default function Reports() {
     return (data ?? []) as any[];
   }
 
-  // Returns assets that were "out of service" (with an open NC overlapping the period).
-  // Used to add a notice on temperature/sanitation pages explaining why an asset is missing.
+  function normalizeAssetLookup(value: string | null | undefined) {
+    return (value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function oosAsset(row: any) {
+    return row.assets ?? { name: row.title ?? "Attrezzatura non specificata", target_temp_min: null, target_temp_max: null };
+  }
+
+  // Returns equipment that was "out of service" (NC overlapping the period), including older NCs saved without a linked asset.
+  // Used to add red rows on temperature/sanitation pages explaining why measurements are missing.
   async function fetchOutOfServiceAssets(start: string, end: string) {
     const { data } = await supabase
       .from("non_conformities")
-      .select("asset_id, title, description, corrective_action, detected_at, resolved_at, status, assets:asset_id(name, target_temp_min, target_temp_max)")
+      .select("asset_id, area, title, description, corrective_action, detected_at, resolved_at, status, assets:asset_id(name, target_temp_min, target_temp_max)")
       .eq("user_id", user!.id)
-      .not("asset_id", "is", null)
+      .or("asset_id.not.is.null,area.eq.attrezzatura")
       // NC overlaps period: detected before end AND (still open OR resolved after start)
       .lt("detected_at", `${end}T00:00:00`)
       .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`)
       .order("detected_at", { ascending: true });
-    return (data ?? []) as any[];
+    const rows = (data ?? []) as any[];
+    if (!rows.some((r) => !r.assets && r.title)) return rows;
+
+    const { data: assets } = await supabase
+      .from("assets")
+      .select("id, name, target_temp_min, target_temp_max")
+      .eq("user_id", user!.id);
+    const byName = new Map(((assets ?? []) as any[]).map((a) => [normalizeAssetLookup(a.name), a]));
+
+    return rows.map((r) => {
+      if (r.assets || !r.title) return r;
+      const match = byName.get(normalizeAssetLookup(r.title));
+      return {
+        ...r,
+        asset_id: match?.id ?? r.asset_id,
+        assets: match
+          ? { name: match.name, target_temp_min: match.target_temp_min, target_temp_max: match.target_temp_max }
+          : { name: r.title, target_temp_min: null, target_temp_max: null },
+      };
+    });
   }
 
   function outOfServiceNotice(doc: jsPDF, rows: any[]) {
@@ -615,7 +647,7 @@ export default function Reports() {
     const pageW = doc.internal.pageSize.getWidth();
     const margin = 14;
     const lines = rows.map((r) => {
-      const name = r.assets?.name ?? "—";
+      const name = oosAsset(r).name ?? "—";
       const from = r.detected_at ? new Date(r.detected_at).toLocaleDateString("it-IT") : "";
       const to = r.status === "open" ? "in corso" : (r.resolved_at ? new Date(r.resolved_at).toLocaleDateString("it-IT") : "");
       const motivo = r.title ?? "Non conformità";
@@ -631,7 +663,7 @@ export default function Reports() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(153, 27, 27);
-    doc.text("Attrezzature fuori servizio nel periodo (non conformità aperta)", margin + 4, y + 6);
+    doc.text("Attrezzature fuori servizio nel periodo (non conformità)", margin + 4, y + 6);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(60);
@@ -663,7 +695,7 @@ export default function Reports() {
       __outOfService: true,
       __sortDate: dayOnly(r.detected_at) > start ? dayOnly(r.detected_at) : start,
       event_date: oosPeriodLabel(r, start, end),
-      assets: r.assets,
+      assets: oosAsset(r),
       temperature: null,
       operator: "—",
       notes: `FUORI SERVIZIO — NC: ${r.title ?? "Non conformità"}${r.description ? ` — ${r.description}` : ""}`,
@@ -676,7 +708,7 @@ export default function Reports() {
       __outOfService: true,
       __sortDate: dayOnly(r.detected_at) > start ? dayOnly(r.detected_at) : start,
       event_date: oosPeriodLabel(r, start, end),
-      assets: r.assets,
+      assets: oosAsset(r),
       product_used: "FUORI SERVIZIO",
       operator: "—",
       notes: `Sanificazione sospesa — NC: ${r.title ?? "Non conformità"}`,
