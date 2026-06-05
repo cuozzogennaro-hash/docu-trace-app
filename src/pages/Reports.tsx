@@ -391,7 +391,7 @@ export default function Reports() {
           data.cell.styles.textColor = [200, 30, 30];
           data.cell.styles.fontStyle = "bold";
         }
-        if (data.section === "body" && data.row.raw?.[4] === "FUORI SERVIZIO") {
+        if (data.section === "body" && rows[data.row.index]?.__outOfService) {
           data.cell.styles.textColor = [185, 28, 28];
           data.cell.styles.fontStyle = "bold";
           data.cell.styles.fillColor = [254, 242, 242];
@@ -414,7 +414,7 @@ export default function Reports() {
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [60, 60, 80], textColor: 255 },
       didParseCell: (data) => {
-        if (data.section === "body" && data.row.raw?.[2] === "FUORI SERVIZIO") {
+        if (data.section === "body" && rows[data.row.index]?.__outOfService) {
           data.cell.styles.textColor = [185, 28, 28];
           data.cell.styles.fontStyle = "bold";
           data.cell.styles.fillColor = [254, 242, 242];
