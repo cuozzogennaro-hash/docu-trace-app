@@ -1224,18 +1224,30 @@ export default function Reports() {
       const logo = await logoDataUrl();
       const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-      const addSection = async (title: string, fetcher: () => Promise<any[]>, renderer: (d: jsPDF, rows: any[]) => void, newPage = false) => {
+      const oosAssets = await fetchOutOfServiceAssets(start, end);
+      const addSection = async (
+        title: string,
+        fetcher: () => Promise<any[]>,
+        renderer: (d: jsPDF, rows: any[], startY?: number) => void,
+        newPage = false,
+        withOos = false,
+      ) => {
         if (newPage) doc.addPage();
         drawHeader(doc, title, label, logo);
+        let sy = 52;
+        if (withOos && oosAssets.length) {
+          outOfServiceNotice(doc, oosAssets);
+          sy = 52 + 8 + oosAssets.length * 4.2 + 6;
+        }
         const rows = await fetcher();
         if (rows.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
-        else renderer(doc, rows);
+        else renderer(doc, rows, sy);
       };
 
       if (kind === "temperatures") {
-        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable);
+        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable, false, true);
       } else if (kind === "sanitations") {
-        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable);
+        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, false, true);
       } else if (kind === "production") {
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable);
       } else if (kind === "incoming") {
@@ -1254,8 +1266,8 @@ export default function Reports() {
         await addSection("Registro controllo olio frittura", () => fetchOilChecks(start, end), oilTable, true);
         await addSection("Registro preparazioni / mise en place", () => fetchPreparations(start, end), preparationsTable, true);
       } else if (kind === "full") {
-        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable);
-        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, true);
+        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable, false, true);
+        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, true, true);
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable, true);
         await addSection("Registro ingresso merci", () => fetchIncoming(start, end), incomingTable, true);
         await addSection("Registro abbattimenti", () => fetchBlastChillings(start, end), blastTable, true);
