@@ -996,7 +996,7 @@ export default function Reports() {
       drawAslCover(doc, label, logo);
 
       // ---- Fetch all data ----
-      const [temps, sanit, prods, inc, blast, hold, oils, preps, ncs, operatorsRows, assetsRows, suppliersRows] = await Promise.all([
+      const [temps, sanit, prods, inc, blast, hold, oils, preps, ncs, operatorsRows, assetsRows, suppliersRows, oosAssets] = await Promise.all([
         fetchTemperatures(start, end),
         fetchSanitations(start, end),
         fetchProduction(start, end),
@@ -1005,10 +1005,11 @@ export default function Reports() {
         fetchHolding(start, end),
         fetchOilChecks(start, end),
         fetchPreparations(start, end),
-        aslIncludeNc ? fetchNonConformities(start, end) : Promise.resolve([]),
+        fetchNonConformities(start, end),
         aslIncludeAnagrafiche ? fetchOperatorsList() : Promise.resolve([]),
         aslIncludeAnagrafiche ? fetchAssetsList() : Promise.resolve([]),
         aslIncludeAnagrafiche ? fetchSuppliersList() : Promise.resolve([]),
+        fetchOutOfServiceAssets(start, end),
       ]);
 
       // Switch to landscape for tables, keep cover/index/signature portrait? Mix is awkward.
@@ -1060,8 +1061,19 @@ export default function Reports() {
         });
       }
 
-      sections.push({ title: "Registro temperature", landscape: true, render: () => { drawHeader(doc, "Registro temperature", label, logo); if (temps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else tempTable(doc, temps); } });
-      sections.push({ title: "Registro sanificazioni", landscape: true, render: () => { drawHeader(doc, "Registro sanificazioni", label, logo); if (sanit.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else sanitTable(doc, sanit); } });
+      sections.push({ title: "Registro temperature", landscape: true, render: () => {
+        drawHeader(doc, "Registro temperature", label, logo);
+        outOfServiceNotice(doc, oosAssets);
+        const startY = oosAssets.length ? undefined : undefined;
+        if (temps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
+        else tempTableWithOffset(doc, temps, oosAssets.length > 0);
+      } });
+      sections.push({ title: "Registro sanificazioni", landscape: true, render: () => {
+        drawHeader(doc, "Registro sanificazioni", label, logo);
+        outOfServiceNotice(doc, oosAssets);
+        if (sanit.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
+        else sanitTableWithOffset(doc, sanit, oosAssets.length > 0);
+      } });
       sections.push({ title: "Registro produzioni", landscape: true, render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
       sections.push({ title: "Registro ingresso merci", landscape: true, render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
       sections.push({ title: "Registro abbattimenti", landscape: true, render: () => { drawHeader(doc, "Registro abbattimenti", label, logo); if (blast.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else blastTable(doc, blast); } });
