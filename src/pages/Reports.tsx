@@ -577,8 +577,8 @@ export default function Reports() {
       .from("non_conformities")
       .select("detected_at, area, severity, status, title, description, corrective_action, resolved_at, asset_id, assets:asset_id(name)")
       .eq("user_id", user!.id)
-      .gte("detected_at", `${start}T00:00:00`)
       .lt("detected_at", `${end}T00:00:00`)
+      .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`)
       .order("detected_at", { ascending: true });
     return (data ?? []) as any[];
   }
@@ -588,24 +588,18 @@ export default function Reports() {
   async function fetchOutOfServiceAssets(start: string, end: string) {
     const { data } = await supabase
       .from("non_conformities")
-      .select("asset_id, title, detected_at, resolved_at, status, assets:asset_id(name)")
+      .select("asset_id, title, description, corrective_action, detected_at, resolved_at, status, assets:asset_id(name, target_temp_min, target_temp_max)")
       .eq("user_id", user!.id)
       .not("asset_id", "is", null)
       // NC overlaps period: detected before end AND (still open OR resolved after start)
       .lt("detected_at", `${end}T00:00:00`)
-      .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`);
-    const rows = (data ?? []) as any[];
-    // de-duplicate per asset (keep most recent / open)
-    const byAsset = new Map<string, any>();
-    for (const r of rows) {
-      const existing = byAsset.get(r.asset_id);
-      if (!existing || r.status === "open") byAsset.set(r.asset_id, r);
-    }
-    return Array.from(byAsset.values());
+      .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`)
+      .order("detected_at", { ascending: true });
+    return (data ?? []) as any[];
   }
 
   function outOfServiceNotice(doc: jsPDF, rows: any[]) {
-    if (!rows.length) return;
+    if (!rows.length) return 52;
     const pageW = doc.internal.pageSize.getWidth();
     const margin = 14;
     const lines = rows.map((r) => {
@@ -620,16 +614,62 @@ export default function Reports() {
     const boxH = 12 + split.length * 4.2;
     doc.setFillColor(254, 242, 242);
     doc.setDrawColor(220, 80, 80);
-    doc.roundedRect(margin, 38, pageW - margin * 2, boxH, 2, 2, "FD");
+    const y = 50;
+    doc.roundedRect(margin, y, pageW - margin * 2, boxH, 2, 2, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(153, 27, 27);
-    doc.text("Attrezzature fuori servizio nel periodo (non conformità aperta)", margin + 4, 44);
+    doc.text("Attrezzature fuori servizio nel periodo (non conformità aperta)", margin + 4, y + 6);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(60);
-    doc.text(split, margin + 4, 49);
+    doc.text(split, margin + 4, y + 11);
     doc.setTextColor(0);
+    return y + boxH + 6;
+  }
+
+  function dayOnly(value: string | null | undefined) {
+    return value ? value.slice(0, 10) : "";
+  }
+
+  function endInclusive(end: string) {
+    const d = new Date(`${end}T00:00:00Z`);
+    d.setUTCDate(d.getUTCDate() - 1);
+    return fmtDay(d);
+  }
+
+  function oosPeriodLabel(row: any, start: string, end: string) {
+    const from = dayOnly(row.detected_at) > start ? dayOnly(row.detected_at) : start;
+    const periodEnd = endInclusive(end);
+    const resolved = dayOnly(row.resolved_at);
+    const to = resolved ? (resolved < periodEnd ? resolved : periodEnd) : periodEnd;
+    return `${formatDate(from)} – ${row.status === "open" && !resolved ? "in corso" : formatDate(to)}`;
+  }
+
+  function withOutOfServiceTemperatureRows(rows: any[], oosRows: any[], start: string, end: string) {
+    const synthetic = oosRows.map((r) => ({
+      __outOfService: true,
+      __sortDate: dayOnly(r.detected_at) > start ? dayOnly(r.detected_at) : start,
+      event_date: oosPeriodLabel(r, start, end),
+      assets: r.assets,
+      temperature: null,
+      operator: "—",
+      notes: `FUORI SERVIZIO — NC: ${r.title ?? "Non conformità"}${r.description ? ` — ${r.description}` : ""}`,
+    }));
+    return [...rows, ...synthetic].sort((a, b) => String(a.__sortDate ?? a.event_date).localeCompare(String(b.__sortDate ?? b.event_date)));
+  }
+
+  function withOutOfServiceSanitationRows(rows: any[], oosRows: any[], start: string, end: string) {
+    const synthetic = oosRows.map((r) => ({
+      __outOfService: true,
+      __sortDate: dayOnly(r.detected_at) > start ? dayOnly(r.detected_at) : start,
+      event_date: oosPeriodLabel(r, start, end),
+      assets: r.assets,
+      product_used: "FUORI SERVIZIO",
+      operator: "—",
+      notes: `Sanificazione sospesa — NC: ${r.title ?? "Non conformità"}`,
+    }));
+    return [...rows, ...synthetic].sort((a, b) => String(a.__sortDate ?? a.event_date).localeCompare(String(b.__sortDate ?? b.event_date)));
   }
 
   function drawAslCover(doc: jsPDF, periodLabel: string, logo: Awaited<ReturnType<typeof logoDataUrl>>) {
