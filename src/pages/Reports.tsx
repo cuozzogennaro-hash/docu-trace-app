@@ -1064,15 +1064,16 @@ export default function Reports() {
       sections.push({ title: "Registro temperature", landscape: true, render: () => {
         drawHeader(doc, "Registro temperature", label, logo);
         outOfServiceNotice(doc, oosAssets);
-        const startY = oosAssets.length ? undefined : undefined;
+        const sy = oosAssets.length ? 52 + 8 + oosAssets.length * 4.2 + 6 : 52;
         if (temps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
-        else tempTableWithOffset(doc, temps, oosAssets.length > 0);
+        else tempTable(doc, temps, sy);
       } });
       sections.push({ title: "Registro sanificazioni", landscape: true, render: () => {
         drawHeader(doc, "Registro sanificazioni", label, logo);
         outOfServiceNotice(doc, oosAssets);
+        const sy = oosAssets.length ? 52 + 8 + oosAssets.length * 4.2 + 6 : 52;
         if (sanit.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
-        else sanitTableWithOffset(doc, sanit, oosAssets.length > 0);
+        else sanitTable(doc, sanit, sy);
       } });
       sections.push({ title: "Registro produzioni", landscape: true, render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
       sections.push({ title: "Registro ingresso merci", landscape: true, render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
