@@ -858,7 +858,7 @@ export default function Reports() {
       head: [["Data", "Attrezzatura", "Area", "Gravità", "Titolo", "Descrizione", "Azione correttiva", "Stato", "Risolta il"]],
       body: rows.map((r) => [
         formatDate(r.detected_at),
-        r.assets?.name ?? "—",
+        r.assets?.name ?? (r.area === "attrezzatura" ? r.title : "—"),
         r.area ?? "—",
         (r.severity ?? "—").toUpperCase(),
         r.title ?? "—",
