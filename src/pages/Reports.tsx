@@ -690,29 +690,44 @@ export default function Reports() {
     return `${formatDate(from)} – ${row.status === "open" && !resolved ? "in corso" : formatDate(to)}`;
   }
 
+  function oosDays(row: any, start: string, end: string) {
+    const from = dayOnly(row.detected_at) > start ? dayOnly(row.detected_at) : start;
+    const periodEnd = endInclusive(end);
+    const resolved = dayOnly(row.resolved_at);
+    const to = resolved ? (resolved < periodEnd ? resolved : periodEnd) : periodEnd;
+    const days: string[] = [];
+    const current = new Date(`${from}T00:00:00Z`);
+    const last = new Date(`${to}T00:00:00Z`);
+    while (current <= last) {
+      days.push(fmtDay(current));
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+    return days;
+  }
+
   function withOutOfServiceTemperatureRows(rows: any[], oosRows: any[], start: string, end: string) {
-    const synthetic = oosRows.map((r) => ({
+    const synthetic = oosRows.flatMap((r) => oosDays(r, start, end).map((day) => ({
       __outOfService: true,
-      __sortDate: dayOnly(r.detected_at) > start ? dayOnly(r.detected_at) : start,
-      event_date: oosPeriodLabel(r, start, end),
+      __sortDate: day,
+      event_date: day,
       assets: oosAsset(r),
       temperature: null,
       operator: "—",
-      notes: `FUORI SERVIZIO — NC: ${r.title ?? "Non conformità"}${r.description ? ` — ${r.description}` : ""}`,
-    }));
+      notes: `FUORI SERVIZIO (${oosPeriodLabel(r, start, end)}) — NC: ${r.title ?? "Non conformità"}${r.description ? ` — ${r.description}` : ""}`,
+    })));
     return [...rows, ...synthetic].sort((a, b) => String(a.__sortDate ?? a.event_date).localeCompare(String(b.__sortDate ?? b.event_date)));
   }
 
   function withOutOfServiceSanitationRows(rows: any[], oosRows: any[], start: string, end: string) {
-    const synthetic = oosRows.map((r) => ({
+    const synthetic = oosRows.flatMap((r) => oosDays(r, start, end).map((day) => ({
       __outOfService: true,
-      __sortDate: dayOnly(r.detected_at) > start ? dayOnly(r.detected_at) : start,
-      event_date: oosPeriodLabel(r, start, end),
+      __sortDate: day,
+      event_date: day,
       assets: oosAsset(r),
       product_used: "FUORI SERVIZIO",
       operator: "—",
-      notes: `Sanificazione sospesa — NC: ${r.title ?? "Non conformità"}`,
-    }));
+      notes: `Sanificazione sospesa (${oosPeriodLabel(r, start, end)}) — NC: ${r.title ?? "Non conformità"}`,
+    })));
     return [...rows, ...synthetic].sort((a, b) => String(a.__sortDate ?? a.event_date).localeCompare(String(b.__sortDate ?? b.event_date)));
   }
 
