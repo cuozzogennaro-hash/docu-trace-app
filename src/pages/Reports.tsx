@@ -372,13 +372,13 @@ export default function Reports() {
         const min = r.assets?.target_temp_min;
         const max = r.assets?.target_temp_max;
         const t = Number(r.temperature);
-        let esito = "—";
-        if (min != null && max != null) esito = t >= Number(min) && t <= Number(max) ? "OK" : "FUORI RANGE";
+        let esito = r.__outOfService ? "FUORI SERVIZIO" : "—";
+        if (!r.__outOfService && min != null && max != null) esito = t >= Number(min) && t <= Number(max) ? "OK" : "FUORI RANGE";
         return [
           formatDate(r.event_date),
           r.assets?.name ?? "—",
           min != null && max != null ? `${min} / ${max}` : "—",
-          isNaN(t) ? "—" : t.toFixed(1),
+          r.__outOfService || isNaN(t) ? "—" : t.toFixed(1),
           esito,
           r.operator ?? "—",
           r.notes ?? "",
@@ -390,6 +390,11 @@ export default function Reports() {
         if (data.section === "body" && data.column.index === 4 && data.cell.raw === "FUORI RANGE") {
           data.cell.styles.textColor = [200, 30, 30];
           data.cell.styles.fontStyle = "bold";
+        }
+        if (data.section === "body" && data.row.raw?.[4] === "FUORI SERVIZIO") {
+          data.cell.styles.textColor = [185, 28, 28];
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [254, 242, 242];
         }
       },
     });
@@ -408,6 +413,13 @@ export default function Reports() {
       ]),
       styles: { fontSize: 8, cellPadding: 2 },
       headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+      didParseCell: (data) => {
+        if (data.section === "body" && data.row.raw?.[2] === "FUORI SERVIZIO") {
+          data.cell.styles.textColor = [185, 28, 28];
+          data.cell.styles.fontStyle = "bold";
+          data.cell.styles.fillColor = [254, 242, 242];
+        }
+      },
     });
   }
 
