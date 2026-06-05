@@ -615,12 +615,11 @@ export default function Reports() {
       .from("non_conformities")
       .select("asset_id, area, title, description, corrective_action, detected_at, resolved_at, status, assets:asset_id(name, target_temp_min, target_temp_max)")
       .eq("user_id", user!.id)
-      .or("asset_id.not.is.null,area.eq.attrezzatura")
       // NC overlaps period: detected before end AND (still open OR resolved after start)
       .lt("detected_at", `${end}T00:00:00`)
       .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`)
       .order("detected_at", { ascending: true });
-    const rows = (data ?? []) as any[];
+    const rows = ((data ?? []) as any[]).filter((r) => r.asset_id || r.area === "attrezzatura");
     if (!rows.some((r) => !r.assets && r.title)) return rows;
 
     const { data: assets } = await supabase
