@@ -364,9 +364,9 @@ export default function Reports() {
     return (data ?? []) as any[];
   }
 
-  function tempTable(doc: jsPDF, rows: any[]) {
+  function tempTable(doc: jsPDF, rows: any[], startY: number = 52) {
     autoTable(doc, {
-      startY: 52,
+      startY,
       head: [["Data", "Attrezzatura", "Range (°C)", "Temp. (°C)", "Esito", "Operatore", "Note"]],
       body: rows.map((r) => {
         const min = r.assets?.target_temp_min;
@@ -395,9 +395,9 @@ export default function Reports() {
     });
   }
 
-  function sanitTable(doc: jsPDF, rows: any[]) {
+  function sanitTable(doc: jsPDF, rows: any[], startY: number = 52) {
     autoTable(doc, {
-      startY: 52,
+      startY,
       head: [["Data", "Attrezzatura/Area", "Prodotto usato", "Operatore", "Note"]],
       body: rows.map((r) => [
         formatDate(r.event_date),
@@ -552,6 +552,7 @@ export default function Reports() {
       .from("operators")
       .select("name, role, is_active, is_admin, created_at")
       .eq("user_id", user!.id)
+      .eq("hide_in_reports", false)
       .order("name");
     return (data ?? []) as any[];
   }
@@ -574,12 +575,61 @@ export default function Reports() {
   async function fetchNonConformities(start: string, end: string) {
     const { data } = await supabase
       .from("non_conformities")
-      .select("detected_at, area, severity, status, title, description, corrective_action, resolved_at")
+      .select("detected_at, area, severity, status, title, description, corrective_action, resolved_at, asset_id, assets:asset_id(name)")
       .eq("user_id", user!.id)
       .gte("detected_at", `${start}T00:00:00`)
       .lt("detected_at", `${end}T00:00:00`)
       .order("detected_at", { ascending: true });
     return (data ?? []) as any[];
+  }
+
+  // Returns assets that were "out of service" (with an open NC overlapping the period).
+  // Used to add a notice on temperature/sanitation pages explaining why an asset is missing.
+  async function fetchOutOfServiceAssets(start: string, end: string) {
+    const { data } = await supabase
+      .from("non_conformities")
+      .select("asset_id, title, detected_at, resolved_at, status, assets:asset_id(name)")
+      .eq("user_id", user!.id)
+      .not("asset_id", "is", null)
+      // NC overlaps period: detected before end AND (still open OR resolved after start)
+      .lt("detected_at", `${end}T00:00:00`)
+      .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`);
+    const rows = (data ?? []) as any[];
+    // de-duplicate per asset (keep most recent / open)
+    const byAsset = new Map<string, any>();
+    for (const r of rows) {
+      const existing = byAsset.get(r.asset_id);
+      if (!existing || r.status === "open") byAsset.set(r.asset_id, r);
+    }
+    return Array.from(byAsset.values());
+  }
+
+  function outOfServiceNotice(doc: jsPDF, rows: any[]) {
+    if (!rows.length) return;
+    const pageW = doc.internal.pageSize.getWidth();
+    const margin = 14;
+    const lines = rows.map((r) => {
+      const name = r.assets?.name ?? "—";
+      const from = r.detected_at ? new Date(r.detected_at).toLocaleDateString("it-IT") : "";
+      const to = r.status === "open" ? "in corso" : (r.resolved_at ? new Date(r.resolved_at).toLocaleDateString("it-IT") : "");
+      const motivo = r.title ?? "Non conformità";
+      return `• ${name} — fuori servizio dal ${from}${to ? ` al ${to}` : ""} (${motivo})`;
+    });
+    const text = lines.join("\n");
+    const split = doc.splitTextToSize(text, pageW - margin * 2 - 8);
+    const boxH = 12 + split.length * 4.2;
+    doc.setFillColor(254, 242, 242);
+    doc.setDrawColor(220, 80, 80);
+    doc.roundedRect(margin, 38, pageW - margin * 2, boxH, 2, 2, "FD");
+    doc.setFont("helvetica", "bold");
+    doc.setFontSize(9.5);
+    doc.setTextColor(153, 27, 27);
+    doc.text("Attrezzature fuori servizio nel periodo (non conformità aperta)", margin + 4, 44);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(8);
+    doc.setTextColor(60);
+    doc.text(split, margin + 4, 49);
+    doc.setTextColor(0);
   }
 
   function drawAslCover(doc: jsPDF, periodLabel: string, logo: Awaited<ReturnType<typeof logoDataUrl>>) {
@@ -721,9 +771,10 @@ export default function Reports() {
   function ncTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
       startY: 52,
-      head: [["Data", "Area", "Gravità", "Titolo", "Descrizione", "Azione correttiva", "Stato", "Risolta il"]],
+      head: [["Data", "Attrezzatura", "Area", "Gravità", "Titolo", "Descrizione", "Azione correttiva", "Stato", "Risolta il"]],
       body: rows.map((r) => [
         formatDate(r.detected_at),
+        r.assets?.name ?? "—",
         r.area ?? "—",
         (r.severity ?? "—").toUpperCase(),
         r.title ?? "—",
@@ -734,16 +785,16 @@ export default function Reports() {
       ]),
       styles: { fontSize: 7.5, cellPadding: 1.5, overflow: "linebreak" },
       headStyles: { fillColor: [60, 60, 80], textColor: 255 },
-      columnStyles: { 3: { cellWidth: 35 }, 4: { cellWidth: 55 }, 5: { cellWidth: 55 } },
+      columnStyles: { 4: { cellWidth: 32 }, 5: { cellWidth: 48 }, 6: { cellWidth: 48 } },
       didParseCell: (data) => {
-        if (data.section === "body" && data.column.index === 2) {
+        if (data.section === "body" && data.column.index === 3) {
           const v = String(data.cell.raw ?? "");
           if (v === "HIGH" || v === "CRITICAL") {
             data.cell.styles.textColor = [200, 30, 30];
             data.cell.styles.fontStyle = "bold";
           }
         }
-        if (data.section === "body" && data.column.index === 6 && data.cell.raw === "Aperta") {
+        if (data.section === "body" && data.column.index === 7 && data.cell.raw === "Aperta") {
           data.cell.styles.textColor = [200, 30, 30];
           data.cell.styles.fontStyle = "bold";
         }
@@ -945,7 +996,7 @@ export default function Reports() {
       drawAslCover(doc, label, logo);
 
       // ---- Fetch all data ----
-      const [temps, sanit, prods, inc, blast, hold, oils, preps, ncs, operatorsRows, assetsRows, suppliersRows] = await Promise.all([
+      const [temps, sanit, prods, inc, blast, hold, oils, preps, ncs, operatorsRows, assetsRows, suppliersRows, oosAssets] = await Promise.all([
         fetchTemperatures(start, end),
         fetchSanitations(start, end),
         fetchProduction(start, end),
@@ -954,10 +1005,11 @@ export default function Reports() {
         fetchHolding(start, end),
         fetchOilChecks(start, end),
         fetchPreparations(start, end),
-        aslIncludeNc ? fetchNonConformities(start, end) : Promise.resolve([]),
+        fetchNonConformities(start, end),
         aslIncludeAnagrafiche ? fetchOperatorsList() : Promise.resolve([]),
         aslIncludeAnagrafiche ? fetchAssetsList() : Promise.resolve([]),
         aslIncludeAnagrafiche ? fetchSuppliersList() : Promise.resolve([]),
+        fetchOutOfServiceAssets(start, end),
       ]);
 
       // Switch to landscape for tables, keep cover/index/signature portrait? Mix is awkward.
@@ -1009,8 +1061,20 @@ export default function Reports() {
         });
       }
 
-      sections.push({ title: "Registro temperature", landscape: true, render: () => { drawHeader(doc, "Registro temperature", label, logo); if (temps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else tempTable(doc, temps); } });
-      sections.push({ title: "Registro sanificazioni", landscape: true, render: () => { drawHeader(doc, "Registro sanificazioni", label, logo); if (sanit.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else sanitTable(doc, sanit); } });
+      sections.push({ title: "Registro temperature", landscape: true, render: () => {
+        drawHeader(doc, "Registro temperature", label, logo);
+        outOfServiceNotice(doc, oosAssets);
+        const sy = oosAssets.length ? 52 + 8 + oosAssets.length * 4.2 + 6 : 52;
+        if (temps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
+        else tempTable(doc, temps, sy);
+      } });
+      sections.push({ title: "Registro sanificazioni", landscape: true, render: () => {
+        drawHeader(doc, "Registro sanificazioni", label, logo);
+        outOfServiceNotice(doc, oosAssets);
+        const sy = oosAssets.length ? 52 + 8 + oosAssets.length * 4.2 + 6 : 52;
+        if (sanit.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
+        else sanitTable(doc, sanit, sy);
+      } });
       sections.push({ title: "Registro produzioni", landscape: true, render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
       sections.push({ title: "Registro ingresso merci", landscape: true, render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
       sections.push({ title: "Registro abbattimenti", landscape: true, render: () => { drawHeader(doc, "Registro abbattimenti", label, logo); if (blast.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else blastTable(doc, blast); } });
@@ -1160,18 +1224,30 @@ export default function Reports() {
       const logo = await logoDataUrl();
       const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
-      const addSection = async (title: string, fetcher: () => Promise<any[]>, renderer: (d: jsPDF, rows: any[]) => void, newPage = false) => {
+      const oosAssets = await fetchOutOfServiceAssets(start, end);
+      const addSection = async (
+        title: string,
+        fetcher: () => Promise<any[]>,
+        renderer: (d: jsPDF, rows: any[], startY?: number) => void,
+        newPage = false,
+        withOos = false,
+      ) => {
         if (newPage) doc.addPage();
         drawHeader(doc, title, label, logo);
+        let sy = 52;
+        if (withOos && oosAssets.length) {
+          outOfServiceNotice(doc, oosAssets);
+          sy = 52 + 8 + oosAssets.length * 4.2 + 6;
+        }
         const rows = await fetcher();
         if (rows.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
-        else renderer(doc, rows);
+        else renderer(doc, rows, sy);
       };
 
       if (kind === "temperatures") {
-        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable);
+        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable, false, true);
       } else if (kind === "sanitations") {
-        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable);
+        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, false, true);
       } else if (kind === "production") {
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable);
       } else if (kind === "incoming") {
@@ -1190,8 +1266,8 @@ export default function Reports() {
         await addSection("Registro controllo olio frittura", () => fetchOilChecks(start, end), oilTable, true);
         await addSection("Registro preparazioni / mise en place", () => fetchPreparations(start, end), preparationsTable, true);
       } else if (kind === "full") {
-        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable);
-        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, true);
+        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable, false, true);
+        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, true, true);
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable, true);
         await addSection("Registro ingresso merci", () => fetchIncoming(start, end), incomingTable, true);
         await addSection("Registro abbattimenti", () => fetchBlastChillings(start, end), blastTable, true);
