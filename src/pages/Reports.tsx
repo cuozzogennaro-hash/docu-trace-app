@@ -364,9 +364,9 @@ export default function Reports() {
     return (data ?? []) as any[];
   }
 
-  function tempTable(doc: jsPDF, rows: any[]) {
+  function tempTable(doc: jsPDF, rows: any[], startY: number = 52) {
     autoTable(doc, {
-      startY: 52,
+      startY,
       head: [["Data", "Attrezzatura", "Range (°C)", "Temp. (°C)", "Esito", "Operatore", "Note"]],
       body: rows.map((r) => {
         const min = r.assets?.target_temp_min;
@@ -395,9 +395,9 @@ export default function Reports() {
     });
   }
 
-  function sanitTable(doc: jsPDF, rows: any[]) {
+  function sanitTable(doc: jsPDF, rows: any[], startY: number = 52) {
     autoTable(doc, {
-      startY: 52,
+      startY,
       head: [["Data", "Attrezzatura/Area", "Prodotto usato", "Operatore", "Note"]],
       body: rows.map((r) => [
         formatDate(r.event_date),
