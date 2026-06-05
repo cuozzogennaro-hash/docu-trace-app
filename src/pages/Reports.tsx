@@ -595,19 +595,50 @@ export default function Reports() {
     return (data ?? []) as any[];
   }
 
-  // Returns assets that were "out of service" (with an open NC overlapping the period).
-  // Used to add a notice on temperature/sanitation pages explaining why an asset is missing.
+  function normalizeAssetLookup(value: string | null | undefined) {
+    return (value ?? "")
+      .normalize("NFD")
+      .replace(/[\u0300-\u036f]/g, "")
+      .toLowerCase()
+      .replace(/[^a-z0-9]+/g, " ")
+      .trim();
+  }
+
+  function oosAsset(row: any) {
+    return row.assets ?? { name: row.title ?? "Attrezzatura non specificata", target_temp_min: null, target_temp_max: null };
+  }
+
+  // Returns equipment that was "out of service" (NC overlapping the period), including older NCs saved without a linked asset.
+  // Used to add red rows on temperature/sanitation pages explaining why measurements are missing.
   async function fetchOutOfServiceAssets(start: string, end: string) {
     const { data } = await supabase
       .from("non_conformities")
-      .select("asset_id, title, description, corrective_action, detected_at, resolved_at, status, assets:asset_id(name, target_temp_min, target_temp_max)")
+      .select("asset_id, area, title, description, corrective_action, detected_at, resolved_at, status, assets:asset_id(name, target_temp_min, target_temp_max)")
       .eq("user_id", user!.id)
-      .not("asset_id", "is", null)
       // NC overlaps period: detected before end AND (still open OR resolved after start)
       .lt("detected_at", `${end}T00:00:00`)
       .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`)
       .order("detected_at", { ascending: true });
-    return (data ?? []) as any[];
+    const rows = ((data ?? []) as any[]).filter((r) => r.asset_id || r.area === "attrezzatura");
+    if (!rows.some((r) => !r.assets && r.title)) return rows;
+
+    const { data: assets } = await supabase
+      .from("assets")
+      .select("id, name, target_temp_min, target_temp_max")
+      .eq("user_id", user!.id);
+    const byName = new Map(((assets ?? []) as any[]).map((a) => [normalizeAssetLookup(a.name), a]));
+
+    return rows.map((r) => {
+      if (r.assets || !r.title) return r;
+      const match = byName.get(normalizeAssetLookup(r.title));
+      return {
+        ...r,
+        asset_id: match?.id ?? r.asset_id,
+        assets: match
+          ? { name: match.name, target_temp_min: match.target_temp_min, target_temp_max: match.target_temp_max }
+          : { name: r.title, target_temp_min: null, target_temp_max: null },
+      };
+    });
   }
 
   function outOfServiceNotice(doc: jsPDF, rows: any[]) {
@@ -615,7 +646,7 @@ export default function Reports() {
     const pageW = doc.internal.pageSize.getWidth();
     const margin = 14;
     const lines = rows.map((r) => {
-      const name = r.assets?.name ?? "—";
+      const name = oosAsset(r).name ?? "—";
       const from = r.detected_at ? new Date(r.detected_at).toLocaleDateString("it-IT") : "";
       const to = r.status === "open" ? "in corso" : (r.resolved_at ? new Date(r.resolved_at).toLocaleDateString("it-IT") : "");
       const motivo = r.title ?? "Non conformità";
@@ -631,7 +662,7 @@ export default function Reports() {
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
     doc.setTextColor(153, 27, 27);
-    doc.text("Attrezzature fuori servizio nel periodo (non conformità aperta)", margin + 4, y + 6);
+    doc.text("Attrezzature fuori servizio nel periodo (non conformità)", margin + 4, y + 6);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     doc.setTextColor(60);
@@ -658,29 +689,44 @@ export default function Reports() {
     return `${formatDate(from)} – ${row.status === "open" && !resolved ? "in corso" : formatDate(to)}`;
   }
 
+  function oosDays(row: any, start: string, end: string) {
+    const from = dayOnly(row.detected_at) > start ? dayOnly(row.detected_at) : start;
+    const periodEnd = endInclusive(end);
+    const resolved = dayOnly(row.resolved_at);
+    const to = resolved ? (resolved < periodEnd ? resolved : periodEnd) : periodEnd;
+    const days: string[] = [];
+    const current = new Date(`${from}T00:00:00Z`);
+    const last = new Date(`${to}T00:00:00Z`);
+    while (current <= last) {
+      days.push(fmtDay(current));
+      current.setUTCDate(current.getUTCDate() + 1);
+    }
+    return days;
+  }
+
   function withOutOfServiceTemperatureRows(rows: any[], oosRows: any[], start: string, end: string) {
-    const synthetic = oosRows.map((r) => ({
+    const synthetic = oosRows.flatMap((r) => oosDays(r, start, end).map((day) => ({
       __outOfService: true,
-      __sortDate: dayOnly(r.detected_at) > start ? dayOnly(r.detected_at) : start,
-      event_date: oosPeriodLabel(r, start, end),
-      assets: r.assets,
+      __sortDate: day,
+      event_date: day,
+      assets: oosAsset(r),
       temperature: null,
       operator: "—",
-      notes: `FUORI SERVIZIO — NC: ${r.title ?? "Non conformità"}${r.description ? ` — ${r.description}` : ""}`,
-    }));
+      notes: `FUORI SERVIZIO (${oosPeriodLabel(r, start, end)}) — NC: ${r.title ?? "Non conformità"}${r.description ? ` — ${r.description}` : ""}`,
+    })));
     return [...rows, ...synthetic].sort((a, b) => String(a.__sortDate ?? a.event_date).localeCompare(String(b.__sortDate ?? b.event_date)));
   }
 
   function withOutOfServiceSanitationRows(rows: any[], oosRows: any[], start: string, end: string) {
-    const synthetic = oosRows.map((r) => ({
+    const synthetic = oosRows.flatMap((r) => oosDays(r, start, end).map((day) => ({
       __outOfService: true,
-      __sortDate: dayOnly(r.detected_at) > start ? dayOnly(r.detected_at) : start,
-      event_date: oosPeriodLabel(r, start, end),
-      assets: r.assets,
+      __sortDate: day,
+      event_date: day,
+      assets: oosAsset(r),
       product_used: "FUORI SERVIZIO",
       operator: "—",
-      notes: `Sanificazione sospesa — NC: ${r.title ?? "Non conformità"}`,
-    }));
+      notes: `Sanificazione sospesa (${oosPeriodLabel(r, start, end)}) — NC: ${r.title ?? "Non conformità"}`,
+    })));
     return [...rows, ...synthetic].sort((a, b) => String(a.__sortDate ?? a.event_date).localeCompare(String(b.__sortDate ?? b.event_date)));
   }
 
@@ -826,7 +872,7 @@ export default function Reports() {
       head: [["Data", "Attrezzatura", "Area", "Gravità", "Titolo", "Descrizione", "Azione correttiva", "Stato", "Risolta il"]],
       body: rows.map((r) => [
         formatDate(r.detected_at),
-        r.assets?.name ?? "—",
+        r.assets?.name ?? (r.area === "attrezzatura" ? r.title : "—"),
         r.area ?? "—",
         (r.severity ?? "—").toUpperCase(),
         r.title ?? "—",
@@ -1296,9 +1342,9 @@ export default function Reports() {
       };
 
       if (kind === "temperatures") {
-        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable, false, true);
+        await addSection("Registro temperature", async () => withOutOfServiceTemperatureRows(await fetchTemperatures(start, end), oosAssets, start, end), tempTable, false, true);
       } else if (kind === "sanitations") {
-        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, false, true);
+        await addSection("Registro sanificazioni", async () => withOutOfServiceSanitationRows(await fetchSanitations(start, end), oosAssets, start, end), sanitTable, false, true);
       } else if (kind === "production") {
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable);
       } else if (kind === "incoming") {
@@ -1317,8 +1363,8 @@ export default function Reports() {
         await addSection("Registro controllo olio frittura", () => fetchOilChecks(start, end), oilTable, true);
         await addSection("Registro preparazioni / mise en place", () => fetchPreparations(start, end), preparationsTable, true);
       } else if (kind === "full") {
-        await addSection("Registro temperature", () => fetchTemperatures(start, end), tempTable, false, true);
-        await addSection("Registro sanificazioni", () => fetchSanitations(start, end), sanitTable, true, true);
+        await addSection("Registro temperature", async () => withOutOfServiceTemperatureRows(await fetchTemperatures(start, end), oosAssets, start, end), tempTable, false, true);
+        await addSection("Registro sanificazioni", async () => withOutOfServiceSanitationRows(await fetchSanitations(start, end), oosAssets, start, end), sanitTable, true, true);
         await addSection("Registro produzioni", () => fetchProduction(start, end), productionTable, true);
         await addSection("Registro ingresso merci", () => fetchIncoming(start, end), incomingTable, true);
         await addSection("Registro abbattimenti", () => fetchBlastChillings(start, end), blastTable, true);
