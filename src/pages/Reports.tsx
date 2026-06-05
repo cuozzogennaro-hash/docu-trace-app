@@ -1063,6 +1063,8 @@ export default function Reports() {
         aslIncludeAnagrafiche ? fetchSuppliersList() : Promise.resolve([]),
         fetchOutOfServiceAssets(start, end),
       ]);
+      const tempsWithOos = withOutOfServiceTemperatureRows(temps, oosAssets, start, end);
+      const sanitWithOos = withOutOfServiceSanitationRows(sanit, oosAssets, start, end);
 
       // Switch to landscape for tables, keep cover/index/signature portrait? Mix is awkward.
       // To keep it simple: from here on we add landscape pages by re-creating sections with addPage({orientation}).
@@ -1115,17 +1117,15 @@ export default function Reports() {
 
       sections.push({ title: "Registro temperature", landscape: true, render: () => {
         drawHeader(doc, "Registro temperature", label, logo);
-        outOfServiceNotice(doc, oosAssets);
-        const sy = oosAssets.length ? 52 + 8 + oosAssets.length * 4.2 + 6 : 52;
-        if (temps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
-        else tempTable(doc, temps, sy);
+        const sy = outOfServiceNotice(doc, oosAssets);
+        if (tempsWithOos.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
+        else tempTable(doc, tempsWithOos, sy);
       } });
       sections.push({ title: "Registro sanificazioni", landscape: true, render: () => {
         drawHeader(doc, "Registro sanificazioni", label, logo);
-        outOfServiceNotice(doc, oosAssets);
-        const sy = oosAssets.length ? 52 + 8 + oosAssets.length * 4.2 + 6 : 52;
-        if (sanit.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
-        else sanitTable(doc, sanit, sy);
+        const sy = outOfServiceNotice(doc, oosAssets);
+        if (sanitWithOos.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
+        else sanitTable(doc, sanitWithOos, sy);
       } });
       sections.push({ title: "Registro produzioni", landscape: true, render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
       sections.push({ title: "Registro ingresso merci", landscape: true, render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
