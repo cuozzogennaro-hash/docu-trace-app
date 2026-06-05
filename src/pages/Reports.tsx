@@ -1288,8 +1288,7 @@ export default function Reports() {
         drawHeader(doc, title, label, logo);
         let sy = 52;
         if (withOos && oosAssets.length) {
-          outOfServiceNotice(doc, oosAssets);
-          sy = 52 + 8 + oosAssets.length * 4.2 + 6;
+          sy = outOfServiceNotice(doc, oosAssets);
         }
         const rows = await fetcher();
         if (rows.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
