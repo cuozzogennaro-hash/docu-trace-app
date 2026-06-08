@@ -63,6 +63,14 @@ function AuthOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function RootRedirect() {
+  const { session, loading } = useAuth();
+  const { operator } = useOperatorSession();
+  if (loading) return <LoadingScreen />;
+  if (session || operator) return <Navigate to="/app" replace />;
+  return <Navigate to="/auth" replace />;
+}
+
 function LoadingScreen() {
   const { t } = useTranslation();
   return (
@@ -88,7 +96,8 @@ const App = () => (
             <Route path="/termini" element={<TermsPage />} />
             <Route path="/rimborsi" element={<RefundPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/" element={<Landing />} />
+            <Route path="/welcome" element={<Landing />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route element={<Protected />}>
               <Route path="/app" element={<Index />} />
               <Route path="/sanificazione" element={<Sanitations />} />
