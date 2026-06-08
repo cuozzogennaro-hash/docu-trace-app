@@ -95,7 +95,7 @@ export default function Production() {
       setOperatorDepts(dpJson?.rows ?? []);
     } else {
       const [rmRes, prRes] = await Promise.all([
-        supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at, department_id, expiry_date").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
+        supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at, department_id, expiry_date, born_in, raised_in, slaughtered_in").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
         supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").eq("production_date", today).order("created_at", { ascending: false }),
       ]);
       m = rmRes.data ?? [];
@@ -198,13 +198,46 @@ export default function Production() {
         selectedNames,
         manualIngredients.trim(),
       ].filter(Boolean).join(", ") || null;
+      // === Origine carne: prefisso automatico SOLO per la coda bilance (Macelleria) ===
+      // Non altera prodotti, ingredienti o log HACCP: agisce solo sul payload inviato alla bilancia.
+      const meatPrefix = (() => {
+        if (!isMacelleria(productDeptId)) return "";
+        const haystack = `${name} ${combinedIngredients ?? ""}`.toLowerCase();
+        const meatRe = /\b(bovino|suino|vitell[oa]|carne)\b/;
+        if (!meatRe.test(haystack)) return "";
+        const selectedMats = Array.from(selected)
+          .map((id) => materials.find((m: any) => m.id === id))
+          .filter(Boolean) as any[];
+        const origins = selectedMats
+          .flatMap((m) => [m.slaughtered_in, m.raised_in, m.born_in])
+          .map((s) => (s ?? "").toString().trim())
+          .filter(Boolean);
+        if (origins.length === 0) return "";
+        const norm = (s: string) =>
+          s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
+        const EU = new Set([
+          "austria","belgio","bulgaria","cipro","croazia","danimarca","estonia",
+          "finlandia","francia","germania","grecia","irlanda","lettonia","lituania",
+          "lussemburgo","malta","paesi bassi","olanda","polonia","portogallo",
+          "repubblica ceca","cechia","romania","slovacchia","slovenia","spagna",
+          "svezia","ungheria",
+        ]);
+        const isItaly = origins.some((o) => ["italia","italy","it"].includes(norm(o)));
+        if (isItaly) return "Carne origine It, ";
+        const isEu = origins.some((o) => EU.has(norm(o)));
+        if (isEu) return "Carne origine Ue, ";
+        return "";
+      })();
+      const queueIngredients = meatPrefix
+        ? `${meatPrefix}${combinedIngredients ?? ""}`.replace(/,\s*$/, "")
+        : combinedIngredients;
       const { error: qErr } = await supabase.from("scales_queue").insert({
         user_id: user!.id,
         store_id: store.id,
         plu_code: pluCode.trim(),
         product_name: name,
         lot_number: lot,
-        ingredients: combinedIngredients,
+        ingredients: queueIngredients,
       } as any);
       if (qErr) toast.error(`Coda bilance: ${qErr.message}`);
       else toast.success("Inviato alla coda bilance");
