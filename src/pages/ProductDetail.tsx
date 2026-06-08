@@ -308,11 +308,23 @@ export default function ProductDetail() {
       ""
     ).toLowerCase().trim();
     const _isSalumeria = _deptName.startsWith("salum");
+    // Deduplica globale (case-insensitive) per evitare ripetizioni di
+    // sotto-ingredienti, allergeni, additivi e conservanti tra i vari
+    // componenti (es. più salumi/formaggi con stesso "sale" o "E250").
+    const _seen = new Set<string>();
+    const _normTok = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+    const _take = (s: string) => {
+      const k = _normTok(s);
+      if (!k || _seen.has(k)) return false;
+      _seen.add(k);
+      return true;
+    };
 
     for (const m of ingredients as any[]) {
       const cat = m.category || "materia_prima";
       if (cat === "aroma") {
-        aromas.push({ text: m.product_name, bold: false });
+        if (m.product_name && _take(m.product_name))
+          aromas.push({ text: m.product_name, bold: false });
       } else if (cat === "additivo_allergene") {
         // Distinguiamo additivi veri (es. "E250, E301") da materie prime che
         // sono allergeni (es. "Latte"). Per gli allergeni stampiamo SOLO il
@@ -322,13 +334,14 @@ export default function ProductDetail() {
         const isAllergen = allergenNamesDb.includes(nameLc);
         const codes = (m.ingredients && String(m.ingredients).trim()) || "";
         if (isAllergen || !codes) {
-          additives.push({ text: m.product_name, bold: true });
+          if (m.product_name && _take(m.product_name))
+            additives.push({ text: m.product_name, bold: true });
         } else {
           codes
             .split(",")
             .map((s) => s.trim())
             .filter(Boolean)
-            .forEach((c) => additives.push({ text: c, bold: true }));
+            .forEach((c) => { if (_take(c)) additives.push({ text: c, bold: true }); });
         }
       } else {
           const meat = detectMeat(m.product_name);
@@ -346,24 +359,27 @@ export default function ProductDetail() {
             origin = allItaly ? "Italia" : "UE";
           }
           const subIngredients = (m.ingredients && String(m.ingredients).trim()) || "";
-          if (_isSalumeria) {
-            // Salumeria: mostra SEMPRE il nome del prodotto; se ha una
-            // sotto-lista di ingredienti, la accodiamo tra parentesi.
-            const label = subIngredients
-              ? `${m.product_name} (${subIngredients})`
-              : m.product_name;
-            others.push({ text: label, bold: false });
-          } else if (meat) {
-            meats.push({ text: `carne di ${meat} (${origin})`, bold: false });
+          if (meat && !subIngredients) {
+            const txt = `carne di ${meat} (${origin})`;
+            if (_take(txt)) meats.push({ text: txt, bold: false });
           } else if (subIngredients) {
-            // Materia prima già lavorata (es. Salumeria): in etichetta riportiamo
-            // SOLO la sua lista ingredienti, non il nome del prodotto.
-            subIngredients
+            // Componente composito (salume/formaggio/semilavorato):
+            // mostriamo il nome del componente e SOLO i sotto-ingredienti
+            // non ancora visti, per evitare duplicazioni tra più componenti.
+            const subs = subIngredients
               .split(",")
               .map((s) => s.trim())
-              .filter(Boolean)
-              .forEach((ing) => others.push({ text: ing, bold: false }));
-          } else {
+              .filter(Boolean);
+            const uniqueSubs = subs.filter((s) => _take(s));
+            const nameOk = m.product_name && _take(m.product_name);
+            if (nameOk && uniqueSubs.length) {
+              others.push({ text: `${m.product_name} (${uniqueSubs.join(", ")})`, bold: false });
+            } else if (nameOk) {
+              others.push({ text: m.product_name, bold: false });
+            } else {
+              uniqueSubs.forEach((s) => others.push({ text: s, bold: false }));
+            }
+          } else if (m.product_name && _take(m.product_name)) {
             others.push({ text: `${m.product_name} (${origin})`, bold: false });
           }
       }
@@ -378,7 +394,7 @@ export default function ProductDetail() {
         .split(/[,;\n]+/)
         .map((s) => s.trim())
         .filter(Boolean)
-        .forEach((t) => parts.push({ text: t, bold: false }));
+        .forEach((t) => { if (_take(t)) parts.push({ text: t, bold: false }); });
     }
     const ingredientsList = parts.map((p) => p.text).join(", ");
     return {
