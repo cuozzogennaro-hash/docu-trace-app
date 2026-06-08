@@ -88,7 +88,8 @@ const App = () => (
             <Route path="/termini" element={<TermsPage />} />
             <Route path="/rimborsi" element={<RefundPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
-            <Route path="/" element={<Landing />} />
+            <Route path="/welcome" element={<Landing />} />
+            <Route path="/" element={<RootRedirect />} />
             <Route element={<Protected />}>
               <Route path="/app" element={<Index />} />
               <Route path="/sanificazione" element={<Sanitations />} />
