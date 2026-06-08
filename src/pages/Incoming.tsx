@@ -15,9 +15,10 @@ import { Link } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { useCurrentStore } from "@/hooks/useCurrentStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Thermometer, AlertTriangle } from "lucide-react";
+import { Thermometer, AlertTriangle, Scale } from "lucide-react";
 
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
@@ -43,6 +44,8 @@ type ProductLine = {
   ingredients: string;
   intakeTemperature: string;
   intakeStorageMode: "refrigerated" | "frozen" | "ambient";
+  pluCode: string;
+  scaleIngredients: string;
 };
 
 function newProductLine(date?: string): ProductLine {
@@ -65,6 +68,8 @@ function newProductLine(date?: string): ProductLine {
     ingredients: "",
     intakeTemperature: "",
     intakeStorageMode: "refrigerated",
+    pluCode: "",
+    scaleIngredients: "",
   };
 }
 
@@ -75,6 +80,7 @@ export default function Incoming() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const { session } = useAuth();
   const { operator } = useOperatorSession();
+  const { store, scaleIntegrationActive } = useCurrentStore();
   const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
   const { departments: deptsFromHook, visibleDepartments: visibleFromHook } = useDepartments();
   const [operatorDepts, setOperatorDepts] = useState<{ id: string; name: string; sort_order: number }[]>([]);
@@ -195,6 +201,8 @@ export default function Incoming() {
       ingredients: r.ingredients ?? "",
       intakeTemperature: "",
       intakeStorageMode: "refrigerated",
+      pluCode: "",
+      scaleIngredients: "",
     };
   }
 
@@ -303,6 +311,8 @@ export default function Incoming() {
             ingredients: p.ingredients || "",
             intakeTemperature: "",
             intakeStorageMode: "refrigerated",
+            pluCode: "",
+            scaleIngredients: "",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
@@ -416,6 +426,35 @@ export default function Incoming() {
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
+
+    // Coda bilance di reparto: solo se l'integrazione è attiva e la riga ha PLU
+    if (scaleIntegrationActive && store) {
+      const queueRows = validLines
+        .filter((l) => l.pluCode.trim())
+        .map((l) => {
+          const dept = departments.find((d) => d.id === l.departmentId) as any;
+          return {
+            user_id: user!.id,
+            store_id: store.id,
+            plu_code: l.pluCode.trim(),
+            product_name: l.productName,
+            lot_number: l.internalLot,
+            ingredients: l.scaleIngredients.trim() || l.ingredients.trim() || null,
+            department_code: dept?.scale_department_code ?? null,
+            supplier_lot: l.supplierLot.trim() || null,
+            born_in: isMacelleria(l.departmentId) ? (l.bornIn.trim() || null) : null,
+            raised_in: isMacelleria(l.departmentId) ? (l.raisedIn.trim() || null) : null,
+            slaughtered_in: isMacelleria(l.departmentId) ? (l.slaughteredIn.trim() || null) : null,
+            slaughterhouse_cee: isMacelleria(l.departmentId) ? (l.slaughterMark.trim() || null) : null,
+          };
+        });
+      if (queueRows.length > 0) {
+        const { error: qErr } = await supabase.from("scales_queue").insert(queueRows as any);
+        if (qErr) toast.error(`Coda bilance: ${qErr.message}`);
+        else toast.success(`${queueRows.length} ${queueRows.length === 1 ? "riga inviata" : "righe inviate"} alla coda bilance`);
+      }
+    }
+
     toast.success(`${validLines.length} prodott${validLines.length === 1 ? "o registrato" : "i registrati"}`);
     setSupplierName("");
     setDocumentDate(new Date().toISOString().slice(0, 10));
@@ -700,6 +739,48 @@ export default function Incoming() {
                   </div>
                 </div>
               )}
+              {scaleIntegrationActive && !isOperatorAdmin && line.departmentId && (() => {
+                const dept = departments.find((d) => d.id === line.departmentId) as any;
+                const code = dept?.scale_department_code;
+                return (
+                  <div className="mt-3 p-3 rounded-md bg-indigo-50 border border-indigo-200 space-y-2">
+                    <Label className="text-xs font-semibold text-indigo-900 flex items-center gap-1.5">
+                      <Scale size={14} /> Invio a Bilance di Reparto
+                    </Label>
+                    {code != null ? (
+                      <p className="text-[11px] text-indigo-900/80">
+                        Reparto bilancia: <strong>codice {code}</strong>. Compila il PLU per accodare l'invio.
+                      </p>
+                    ) : (
+                      <p className="text-[11px] text-amber-800">
+                        Nessun "Codice Reparto Bilancia" configurato per questo reparto (Impostazioni → Reparti).
+                      </p>
+                    )}
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
+                      <div className="space-y-1">
+                        <Label className="text-xs">Codice PLU bilancia</Label>
+                        <Input
+                          value={line.pluCode}
+                          onChange={(e) => updateLine(idx, { pluCode: e.target.value })}
+                          placeholder="es. 1023"
+                          className="font-mono"
+                        />
+                      </div>
+                      <div className="space-y-1">
+                        <Label className="text-xs">Ingredienti per etichetta bilancia (opzionale)</Label>
+                        <Input
+                          value={line.scaleIngredients}
+                          onChange={(e) => updateLine(idx, { scaleIngredients: e.target.value })}
+                          placeholder="se vuoto usa quelli del prodotto"
+                        />
+                      </div>
+                    </div>
+                    <p className="text-[11px] text-indigo-900/70">
+                      Al salvataggio verrà accodato un record in <strong>scales_queue</strong> (stato <em>pending</em>) con PLU, lotto interno, lotto fornitore{isMacelleria(line.departmentId) ? " e passaporto carne (Nato/Allevato/Macellato + Bollo CE)" : ""}.
+                    </p>
+                  </div>
+                );
+              })()}
               {isCucina(line.departmentId) && (() => {
                 const tempNum = parseFloat(line.intakeTemperature.replace(",", "."));
                 const hasTemp = !Number.isNaN(tempNum);
