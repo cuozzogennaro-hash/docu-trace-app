@@ -201,6 +201,8 @@ export default function Incoming() {
       ingredients: r.ingredients ?? "",
       intakeTemperature: "",
       intakeStorageMode: "refrigerated",
+      pluCode: "",
+      scaleIngredients: "",
     };
   }
 
@@ -309,6 +311,8 @@ export default function Incoming() {
             ingredients: p.ingredients || "",
             intakeTemperature: "",
             intakeStorageMode: "refrigerated",
+            pluCode: "",
+            scaleIngredients: "",
           }))
         );
         toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
