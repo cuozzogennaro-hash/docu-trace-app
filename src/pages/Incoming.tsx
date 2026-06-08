@@ -427,7 +427,7 @@ export default function Incoming() {
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
 
-    // Coda bilance di reparto (solo Macelleria): slot tracciabilità 1-10
+    // Coda lotti bilance (solo Macelleria): slot tracciabilità bovina 1-10
     if (scaleIntegrationActive && store) {
       const queueRows = validLines
         .filter((l) => isMacelleria(l.departmentId) && l.pluCode.trim())
@@ -436,12 +436,9 @@ export default function Incoming() {
           return {
             user_id: user!.id,
             store_id: store.id,
-            plu_code: l.pluCode.trim(), // slot bilancia 1-10
-            product_name: null,
-            lot_number: l.internalLot,
-            ingredients: null,
+            scale_slot_number: parseInt(l.pluCode.trim(), 10),
+            lot_code: l.internalLot,
             department_code: dept?.scale_department_code ?? null,
-            supplier_lot: l.supplierLot.trim() || null,
             born_in: l.bornIn.trim() || null,
             raised_in: l.raisedIn.trim() || null,
             slaughtered_in: l.slaughteredIn.trim() || null,
@@ -449,9 +446,9 @@ export default function Incoming() {
           };
         });
       if (queueRows.length > 0) {
-        const { error: qErr } = await supabase.from("scales_queue").insert(queueRows as any);
-        if (qErr) toast.error(`Coda bilance: ${qErr.message}`);
-        else toast.success(`${queueRows.length} ${queueRows.length === 1 ? "riga inviata" : "righe inviate"} alla coda bilance`);
+        const { error: qErr } = await supabase.from("scales_lotti_queue").insert(queueRows as any);
+        if (qErr) toast.error(`Coda lotti bilance: ${qErr.message}`);
+        else toast.success(`${queueRows.length} ${queueRows.length === 1 ? "tracciabilità inviata" : "tracciabilità inviate"} alla coda lotti bilance`);
       }
     }
 
@@ -771,7 +768,7 @@ export default function Incoming() {
                       </Select>
                     </div>
                     <p className="text-[11px] text-indigo-900/70">
-                      Al salvataggio verrà accodato un record in <strong>scales_queue</strong> con il numero di slot scelto e il passaporto bovino (Nato/Allevato/Macellato + Bollo CE + Lotto fornitore). Nessun PLU o ingrediente viene inviato.
+                      Al salvataggio verrà accodato un record in <strong>scales_lotti_queue</strong> con il numero di slot scelto e il passaporto bovino (Nato/Allevato/Macellato + Bollo CE). Nessun PLU o ingrediente viene inviato.
                     </p>
                   </div>
                 );
