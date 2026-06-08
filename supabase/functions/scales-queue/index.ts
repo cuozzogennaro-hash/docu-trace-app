@@ -63,7 +63,9 @@ Deno.serve(async (req) => {
     .update({ status: "processed" })
     .eq("store_id", store.id)
     .eq("status", "pending")
-    .select("plu_code, product_name, lot_number, ingredients");
+    .select(
+      "plu_code, product_name, lot_number, ingredients, department_code, born_in, raised_in, slaughtered_in, slaughterhouse_cee, supplier_lot",
+    );
 
   if (updErr) {
     console.error("queue pull error", updErr);

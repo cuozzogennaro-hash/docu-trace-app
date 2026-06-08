@@ -16,18 +16,21 @@ const isProtected = (name: string) => PROTECTED_NAMES.includes(name.trim().toLow
 export default function DepartmentsTab() {
   const { departments, hiddenIds, setHidden, reload } = useDepartments();
   const [open, setOpen] = useState(false);
-  const [editing, setEditing] = useState<{ id: string; name: string } | null>(null);
+  const [editing, setEditing] = useState<{ id: string; name: string; scale_department_code?: number | null } | null>(null);
   const [name, setName] = useState("");
+  const [scaleCode, setScaleCode] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
   function openNew() {
     setEditing(null);
     setName("");
+    setScaleCode("");
     setOpen(true);
   }
-  function openEdit(d: { id: string; name: string }) {
+  function openEdit(d: { id: string; name: string; scale_department_code?: number | null }) {
     setEditing(d);
     setName(d.name);
+    setScaleCode(d.scale_department_code != null ? String(d.scale_department_code) : "");
     setOpen(true);
   }
 
@@ -37,16 +40,21 @@ export default function DepartmentsTab() {
     if (!editing && isProtected(trimmed)) {
       return toast.error("Questo reparto è già predefinito");
     }
+    const scaleCodeNum = scaleCode.trim() === "" ? null : parseInt(scaleCode.trim(), 10);
+    if (scaleCodeNum !== null && (!Number.isFinite(scaleCodeNum) || scaleCodeNum < 0)) {
+      return toast.error("Codice reparto bilancia non valido");
+    }
     setBusy(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setBusy(false); return toast.error("Sessione non valida"); }
     const res = editing
-      ? await supabase.from("departments").update({ name: trimmed }).eq("id", editing.id)
+      ? await supabase.from("departments").update({ name: trimmed, scale_department_code: scaleCodeNum } as any).eq("id", editing.id)
       : await supabase.from("departments").insert({
           user_id: user.id,
           name: trimmed,
           sort_order: (departments[departments.length - 1]?.sort_order ?? 0) + 1,
-        });
+          scale_department_code: scaleCodeNum,
+        } as any);
     setBusy(false);
     if (res.error) return toast.error(res.error.message);
     toast.success(editing ? "Reparto aggiornato" : "Reparto aggiunto");
@@ -82,9 +90,25 @@ export default function DepartmentsTab() {
             <DialogHeader>
               <DialogTitle>{editing ? "Modifica reparto" : "Nuovo reparto"}</DialogTitle>
             </DialogHeader>
-            <div className="space-y-2">
-              <Label>Nome</Label>
-              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="es. Pescheria" />
+            <div className="space-y-3">
+              <div className="space-y-2">
+                <Label>Nome</Label>
+                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="es. Pescheria" />
+              </div>
+              <div className="space-y-2">
+                <Label>Codice Reparto Bilancia</Label>
+                <Input
+                  type="number"
+                  min={0}
+                  inputMode="numeric"
+                  value={scaleCode}
+                  onChange={(e) => setScaleCode(e.target.value)}
+                  placeholder="es. 1 (Macelleria), 2 (Salumeria)"
+                />
+                <p className="text-xs text-muted-foreground">
+                  Codice numerico interno usato dalle bilance di reparto per identificare questo reparto. Lascia vuoto se non utilizzato.
+                </p>
+              </div>
             </div>
             <DialogFooter>
               <Button variant="ghost" onClick={() => setOpen(false)}>Annulla</Button>
