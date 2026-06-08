@@ -95,7 +95,7 @@ export default function Production() {
       setOperatorDepts(dpJson?.rows ?? []);
     } else {
       const [rmRes, prRes] = await Promise.all([
-        supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at, department_id, expiry_date").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
+        supabase.from("raw_materials").select("id, product_name, internal_lot, category, is_out_of_stock, created_at, department_id, expiry_date, born_in, raised_in, slaughtered_in").eq("is_out_of_stock", false).order("created_at", { ascending: false }),
         supabase.from("products").select("*, product_ingredients(raw_materials(product_name, internal_lot))").eq("production_date", today).order("created_at", { ascending: false }),
       ]);
       m = rmRes.data ?? [];
