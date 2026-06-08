@@ -46,7 +46,6 @@ export default function Production() {
   const [manualIngredients, setManualIngredients] = useState("");
   // Bilance di reparto (visibile solo se scaleIntegrationActive)
   const [pluCode, setPluCode] = useState("");
-  const [scaleIngredients, setScaleIngredients] = useState("");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
@@ -191,13 +190,21 @@ export default function Production() {
     }
     // Coda bilance: inserisce solo se l'integrazione è attiva e PLU è compilato
     if (scaleIntegrationActive && store && pluCode.trim()) {
+      const selectedNames = Array.from(selected)
+        .map((id) => materials.find((m: any) => m.id === id)?.product_name)
+        .filter(Boolean)
+        .join(", ");
+      const combinedIngredients = [
+        selectedNames,
+        manualIngredients.trim(),
+      ].filter(Boolean).join(", ") || null;
       const { error: qErr } = await supabase.from("scales_queue").insert({
         user_id: user!.id,
         store_id: store.id,
         plu_code: pluCode.trim(),
         product_name: name,
         lot_number: lot,
-        ingredients: scaleIngredients.trim() || manualIngredients.trim() || null,
+        ingredients: combinedIngredients,
       } as any);
       if (qErr) toast.error(`Coda bilance: ${qErr.message}`);
       else toast.success("Inviato alla coda bilance");
@@ -225,7 +232,6 @@ export default function Production() {
     setRequiresBlastChilling(false);
     setManualIngredients("");
     setPluCode("");
-    setScaleIngredients("");
     setLot(generateInternalLot("P", new Date()));
     load();
   }
@@ -386,24 +392,14 @@ export default function Production() {
                 </div>
               </div>
             </div>
-            <div className="grid lg:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Codice PLU bilancia</Label>
-                <Input
-                  value={pluCode}
-                  onChange={(e) => setPluCode(e.target.value)}
-                  placeholder="es. 1042"
-                  className="font-mono"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Ingredienti per etichetta bilancia (opzionale)</Label>
-                <Input
-                  value={scaleIngredients}
-                  onChange={(e) => setScaleIngredients(e.target.value)}
-                  placeholder="Se vuoto verranno usati gli ingredienti manuali"
-                />
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Codice PLU bilancia</Label>
+              <Input
+                value={pluCode}
+                onChange={(e) => setPluCode(e.target.value)}
+                placeholder="es. 1042"
+                className="font-mono"
+              />
             </div>
             <p className="text-[11px] text-muted-foreground">
               La riga verrà aggiunta solo se compili il codice PLU. Il lotto inviato sarà quello interno del prodotto (<span className="font-mono">{lot}</span>).
