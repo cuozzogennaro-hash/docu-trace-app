@@ -90,7 +90,7 @@ export default function SubscriptionPage() {
             <ShieldCheck className="text-primary-foreground" size={24} />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold">HACCP Pro</h1>
+            <h1 className="font-display text-2xl font-bold">HACCP Trace</h1>
             <p className="text-sm text-muted-foreground">{t("Abbonamento mensile")}</p>
           </div>
         </div>

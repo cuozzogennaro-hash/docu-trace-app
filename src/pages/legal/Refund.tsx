@@ -20,7 +20,7 @@ export default function RefundPage() {
 
         <h2>Free trial period</h2>
         <p>
-          The HACCP Pro subscription includes a 30-day free trial. No charge is made during the trial:
+          The HACCP Trace subscription includes a 30-day free trial. No charge is made during the trial:
           you can cancel at any time before the end of the trial at no cost.
         </p>
 
@@ -58,7 +58,7 @@ export default function RefundPage() {
 
       <h2>Periodo di prova gratuita</h2>
       <p>
-        L'abbonamento HACCP Pro include 30 giorni di prova gratuita. Nessun addebito viene effettuato
+        L'abbonamento HACCP Trace include 30 giorni di prova gratuita. Nessun addebito viene effettuato
         durante la prova: puoi annullare in qualsiasi momento prima del termine senza alcun costo.
       </p>
 

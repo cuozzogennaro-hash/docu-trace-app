@@ -177,7 +177,7 @@ export default function AppShell() {
             <ShieldCheck className="text-primary-foreground" size={20} />
           </div>
           <div>
-            <div className="font-display font-bold">HACCP Pro</div>
+            <div className="font-display font-bold">HACCP Trace</div>
             <div className="text-xs text-muted-foreground">{t("Autocontrollo")}</div>
           </div>
         </div>
@@ -231,7 +231,7 @@ export default function AppShell() {
                   <ShieldCheck className="text-primary-foreground" size={20} />
                 </div>
                 <div>
-                  <div className="font-display font-bold">HACCP Pro</div>
+                  <div className="font-display font-bold">HACCP Trace</div>
                   <div className="text-xs text-muted-foreground">{t("Autocontrollo")}</div>
                 </div>
               </div>
@@ -272,7 +272,7 @@ export default function AppShell() {
               </div>
             </SheetContent>
           </Sheet>
-          <span className="font-display font-bold text-sm">HACCP Pro</span>
+          <span className="font-display font-bold text-sm">HACCP Trace</span>
         </div>
         <div className="flex items-center gap-1">
           <LanguageSwitcher variant="icon" />

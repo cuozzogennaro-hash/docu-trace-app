@@ -1,6 +1,6 @@
 {
-  "name": "HACCP PRO",
-  "short_name": "HACCP PRO",
+  "name": "HACCP TRACE",
+  "short_name": "HACCP TRACE",
   "description": "App professionale HACCP: sanificazione, temperature e tracciabilità",
   "start_url": "/",
   "display": "standalone",

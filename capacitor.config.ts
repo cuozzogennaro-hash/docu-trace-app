@@ -2,7 +2,7 @@ import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
   appId: 'app.lovable.220cd5d1565d4443b75610dfe60373cf',
-  appName: 'HACCP Pro',
+  appName: 'HACCP Trace',
   webDir: 'dist',
   // NOTE: do NOT add a `server.url` block here for the Play Store / App Store build.
   // Loading remote content at runtime is forbidden by Google Play policy and will
