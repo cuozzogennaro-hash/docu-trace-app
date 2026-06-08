@@ -833,6 +833,7 @@ export type Database = {
           last_seen_at: string | null
           onboarding_completed: boolean
           push_token: Json | null
+          store_id: string | null
         }
         Insert: {
           business_name?: string | null
@@ -842,6 +843,7 @@ export type Database = {
           last_seen_at?: string | null
           onboarding_completed?: boolean
           push_token?: Json | null
+          store_id?: string | null
         }
         Update: {
           business_name?: string | null
@@ -851,8 +853,17 @@ export type Database = {
           last_seen_at?: string | null
           onboarding_completed?: boolean
           push_token?: Json | null
+          store_id?: string | null
         }
-        Relationships: []
+        Relationships: [
+          {
+            foreignKeyName: "profiles_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
       }
       raw_materials: {
         Row: {
@@ -1157,6 +1168,86 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      scales_queue: {
+        Row: {
+          created_at: string
+          id: number
+          ingredients: string | null
+          lot_number: string | null
+          plu_code: string
+          product_name: string | null
+          status: string
+          store_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          created_at?: string
+          id?: never
+          ingredients?: string | null
+          lot_number?: string | null
+          plu_code: string
+          product_name?: string | null
+          status?: string
+          store_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          created_at?: string
+          id?: never
+          ingredients?: string | null
+          lot_number?: string | null
+          plu_code?: string
+          product_name?: string | null
+          status?: string
+          store_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scales_queue_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
+      stores: {
+        Row: {
+          address: string | null
+          created_at: string
+          id: string
+          name: string
+          scale_api_key: string
+          scale_integration_active: boolean
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          name: string
+          scale_api_key?: string
+          scale_integration_active?: boolean
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          address?: string | null
+          created_at?: string
+          id?: string
+          name?: string
+          scale_api_key?: string
+          scale_integration_active?: boolean
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
       }
       subscriptions: {
         Row: {
