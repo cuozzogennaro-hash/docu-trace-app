@@ -431,7 +431,7 @@ export default function Reports() {
 
   function productionTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data prod.", "Prodotto", "Reparto", "Lotto interno", "Conservazione", "Note"]],
       body: rows.map((r) => [
         formatDate(r.production_date),
@@ -454,7 +454,7 @@ export default function Reports() {
 
   function incomingTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data doc.", "Fornitore", "DDT n.", "Prodotto", "Reparto", "Lotto fornitore", "Lotto interno", "Q.tà", "Scadenza"]],
       body: rows.map((r) => [
         formatDate(r.document_date ?? r.created_at),
@@ -474,7 +474,7 @@ export default function Reports() {
 
   function blastTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Inizio", "Fine", "Prodotto", "Ciclo", "Abbattitore", "T. inizio", "T. fine", "Esito", "Note"]],
       body: rows.map((r) => [
         new Date(r.started_at).toLocaleString("it-IT"),
@@ -500,7 +500,7 @@ export default function Reports() {
 
   function holdingTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data/ora", "Prodotto", "Modalità", "Attrezzatura", "Temp.", "Esito", "Note"]],
       body: rows.map((r) => [
         new Date(r.recorded_at).toLocaleString("it-IT"),
@@ -524,7 +524,7 @@ export default function Reports() {
 
   function oilTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data/ora", "Friggitrice", "Azione", "Comp. polari %", "Esito", "Note"]],
       body: rows.map((r) => [
         new Date(r.checked_at).toLocaleString("it-IT"),
@@ -541,7 +541,7 @@ export default function Reports() {
 
   function preparationsTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data/ora", "Preparazione", "Conservazione", "Scadenza interna", "Ingredienti", "Note"]],
       body: rows.map((r) => [
         new Date(r.prepared_at).toLocaleString("it-IT"),
@@ -665,7 +665,7 @@ export default function Reports() {
     const boxH = 12 + split.length * 4.2;
     doc.setFillColor(254, 242, 242);
     doc.setDrawColor(220, 80, 80);
-    const y = 50;
+    const y = 34;
     doc.roundedRect(margin, y, pageW - margin * 2, boxH, 2, 2, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
@@ -832,7 +832,7 @@ export default function Reports() {
 
   function operatorsTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Nome", "Ruolo", "Stato", "Permessi", "Attivo dal"]],
       body: rows.map((r) => [
         r.name ?? "—",
@@ -891,7 +891,7 @@ export default function Reports() {
 
   function suppliersTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Fornitore", "P.IVA"]],
       body: rows.map((r) => [r.name ?? "—", r.vat ?? "—"]),
       styles: { fontSize: 9, cellPadding: 2.5 },
@@ -901,7 +901,7 @@ export default function Reports() {
 
   function ncTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data", "Attrezzatura", "Area", "Gravità", "Titolo", "Descrizione", "Azione correttiva", "Stato", "Risolta il"]],
       body: rows.map((r) => [
         formatDate(r.detected_at),
@@ -1365,7 +1365,7 @@ export default function Reports() {
       ) => {
         if (newPage) doc.addPage();
         drawHeader(doc, title, label, logo);
-        let sy = 52;
+        let sy = 36;
         if (withOos && oosAssets.length) {
           sy = outOfServiceNotice(doc, oosAssets);
         }
