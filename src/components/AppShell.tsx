@@ -14,6 +14,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
+import logoShield from "@/assets/logo-shield.png";
 
 type NavItem = { to: string; icon: any; label: string; end?: boolean };
 type NavGroup = { key: string; label: string | null; items: NavItem[] };
