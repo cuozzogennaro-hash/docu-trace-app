@@ -370,7 +370,7 @@ export default function Reports() {
     return (data ?? []) as any[];
   }
 
-  function tempTable(doc: jsPDF, rows: any[], startY: number = 52) {
+  function tempTable(doc: jsPDF, rows: any[], startY: number = 36) {
     autoTable(doc, {
       startY,
       head: [["Data", "Attrezzatura", "Range (°C)", "Temp. (°C)", "Esito", "Operatore", "Note"]],
@@ -406,7 +406,7 @@ export default function Reports() {
     });
   }
 
-  function sanitTable(doc: jsPDF, rows: any[], startY: number = 52) {
+  function sanitTable(doc: jsPDF, rows: any[], startY: number = 36) {
     autoTable(doc, {
       startY,
       head: [["Data", "Attrezzatura/Area", "Prodotto usato", "Operatore", "Note"]],
