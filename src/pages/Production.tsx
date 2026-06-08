@@ -245,8 +245,8 @@ export default function Production() {
           const rawOrigin = (m.origin && String(m.origin).trim()) || traceCountries[0] || "";
           let origin = rawOrigin || "UE";
           if (traceCountries.length > 0) {
-            const norm = traceCountries.map((c) => c.toLowerCase());
-            const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
+            const normCountries = traceCountries.map((c) => c.toLowerCase());
+            const allItaly = normCountries.every((c) => c === "italia" || c === "italy" || c === "it");
             origin = allItaly ? "Italia" : "UE";
           }
           const subIngredients = (m.ingredients && String(m.ingredients).trim()) || "";
