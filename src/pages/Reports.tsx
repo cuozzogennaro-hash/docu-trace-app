@@ -1152,7 +1152,7 @@ export default function Reports() {
     try {
       const { start, end, label } = aslPeriodRange(aslPeriodKind, aslCustomStart, aslCustomEnd);
       const logo = await logoDataUrl();
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
       // ---- COVER ----
       drawAslCover(doc, label, logo);
@@ -1180,7 +1180,7 @@ export default function Reports() {
       // To keep it simple: from here on we add landscape pages by re-creating sections with addPage({orientation}).
       // jsPDF supports per-page orientation via addPage(format, orientation).
 
-      type Section = { title: string; render: () => void; landscape?: boolean };
+      type Section = { title: string; render: () => void };
       const sections: Section[] = [];
 
       if (aslIncludeAnagrafiche) {
@@ -1191,7 +1191,6 @@ export default function Reports() {
             if (operatorsRows.length === 0) emptyMsg(doc, "Nessun operatore configurato.");
             else operatorsTable(doc, operatorsRows);
           },
-          landscape: true,
         });
         sections.push({
           title: "Attrezzature e punti di controllo",
@@ -1200,7 +1199,6 @@ export default function Reports() {
             if (assetsRows.length === 0) emptyMsg(doc, "Nessuna attrezzatura configurata.");
             else assetsTable(doc, assetsRows);
           },
-          landscape: true,
         });
         sections.push({
           title: "Fornitori",
@@ -1209,7 +1207,6 @@ export default function Reports() {
             if (suppliersRows.length === 0) emptyMsg(doc, "Nessun fornitore registrato.");
             else suppliersTable(doc, suppliersRows);
           },
-          landscape: true,
         });
       }
 
@@ -1221,33 +1218,31 @@ export default function Reports() {
             drawHeader(doc, "Sintesi del periodo", label, logo);
             drawSummarySection(doc, summary);
           },
-          landscape: false,
         });
       }
 
-      sections.push({ title: "Registro temperature", landscape: true, render: () => {
+      sections.push({ title: "Registro temperature", render: () => {
         drawHeader(doc, "Registro temperature", label, logo);
         const sy = outOfServiceNotice(doc, oosAssets);
         if (tempsWithOos.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
         else tempTable(doc, tempsWithOos, sy);
       } });
-      sections.push({ title: "Registro sanificazioni", landscape: true, render: () => {
+      sections.push({ title: "Registro sanificazioni", render: () => {
         drawHeader(doc, "Registro sanificazioni", label, logo);
         const sy = outOfServiceNotice(doc, oosAssets);
         if (sanitWithOos.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
         else sanitTable(doc, sanitWithOos, sy);
       } });
-      sections.push({ title: "Registro produzioni", landscape: true, render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
-      sections.push({ title: "Registro ingresso merci", landscape: true, render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
-      sections.push({ title: "Registro abbattimenti", landscape: true, render: () => { drawHeader(doc, "Registro abbattimenti", label, logo); if (blast.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else blastTable(doc, blast); } });
-      sections.push({ title: "Mantenimento caldo/freddo", landscape: true, render: () => { drawHeader(doc, "Mantenimento caldo/freddo", label, logo); if (hold.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else holdingTable(doc, hold); } });
-      sections.push({ title: "Controllo olio frittura", landscape: true, render: () => { drawHeader(doc, "Controllo olio frittura", label, logo); if (oils.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else oilTable(doc, oils); } });
-      sections.push({ title: "Preparazioni / mise en place", landscape: true, render: () => { drawHeader(doc, "Preparazioni / mise en place", label, logo); if (preps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else preparationsTable(doc, preps); } });
+      sections.push({ title: "Registro produzioni", render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
+      sections.push({ title: "Registro ingresso merci", render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
+      sections.push({ title: "Registro abbattimenti", render: () => { drawHeader(doc, "Registro abbattimenti", label, logo); if (blast.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else blastTable(doc, blast); } });
+      sections.push({ title: "Mantenimento caldo/freddo", render: () => { drawHeader(doc, "Mantenimento caldo/freddo", label, logo); if (hold.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else holdingTable(doc, hold); } });
+      sections.push({ title: "Controllo olio frittura", render: () => { drawHeader(doc, "Controllo olio frittura", label, logo); if (oils.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else oilTable(doc, oils); } });
+      sections.push({ title: "Preparazioni / mise en place", render: () => { drawHeader(doc, "Preparazioni / mise en place", label, logo); if (preps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else preparationsTable(doc, preps); } });
 
       if (aslIncludeNc) {
         sections.push({
           title: "Non conformità e azioni correttive",
-          landscape: true,
           render: () => {
             drawHeader(doc, "Non conformità e azioni correttive", label, logo);
             if (ncs.length === 0) emptyMsg(doc, "Nessuna non conformità rilevata nel periodo selezionato.");
@@ -1258,18 +1253,17 @@ export default function Reports() {
 
       sections.push({
         title: "Dichiarazione e firma",
-        landscape: false,
         render: () => drawSignaturePage(doc, aslSignatureData),
       });
 
       // Reserve index page (page 2)
-      doc.addPage("a4", "portrait");
+      doc.addPage("a4", "landscape");
       const indexPageNumber = doc.getNumberOfPages();
 
       // Render sections, recording page numbers
       const indexEntries: { title: string; page: number }[] = [];
       for (const s of sections) {
-        doc.addPage("a4", s.landscape ? "landscape" : "portrait");
+        doc.addPage("a4", "landscape");
         indexEntries.push({ title: s.title, page: doc.getNumberOfPages() });
         s.render();
       }
@@ -1278,7 +1272,7 @@ export default function Reports() {
       if (aslIncludePhotos) {
         const withPhotos = (inc as any[]).filter((r) => r.document_image_url).slice(0, 30);
         if (withPhotos.length > 0) {
-          doc.addPage("a4", "portrait");
+          doc.addPage("a4", "landscape");
           indexEntries.push({ title: "Allegati fotografici DDT", page: doc.getNumberOfPages() });
           drawHeader(doc, "Allegati fotografici DDT", label, logo);
           let py = 40;
@@ -1306,7 +1300,7 @@ export default function Reports() {
               let w = maxW, h = maxW / ratio;
               if (h > maxH) { h = maxH; w = h * ratio; }
               if (py + h + 16 > pageH - 14) {
-                doc.addPage("a4", "portrait");
+                doc.addPage("a4", "landscape");
                 drawHeader(doc, "Allegati fotografici DDT", label, logo);
                 py = 40;
               }
