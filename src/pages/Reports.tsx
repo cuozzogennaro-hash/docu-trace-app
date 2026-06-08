@@ -203,30 +203,36 @@ export default function Reports() {
 
   function drawHeader(doc: jsPDF, title: string, periodLabel: string, logo: Awaited<ReturnType<typeof logoDataUrl>>) {
     const pageW = doc.internal.pageSize.getWidth();
+    // dynamic accent band
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageW, 28, "F");
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 28, pageW, 1.5, "F");
     let x = 14;
     if (logo) {
-      const maxH = 18;
+      const maxH = 14;
       const ratio = logo.w / logo.h;
       const h = maxH;
       const w = h * ratio;
-      try { doc.addImage(logo.data, "PNG", 14, 10, w, h); } catch {}
+      try { doc.addImage(logo.data, "PNG", 14, 7, w, h); } catch {}
       x = 14 + w + 6;
     }
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.text(company.business_name ?? "Azienda", x, 16);
+    doc.setFontSize(12);
+    doc.text(company.business_name ?? "Azienda", x, 13);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     const subParts = [company.vat && `P.IVA ${company.vat}`, company.address, company.city].filter(Boolean);
-    doc.text(subParts.join(" • "), x, 21);
+    doc.text(subParts.join(" • "), x, 18);
+    // title block top-right
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(title, pageW / 2, 36, { align: "center" });
+    doc.setFontSize(13);
+    doc.text(title, pageW - 14, 13, { align: "right" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Periodo: ${periodLabel}`, pageW / 2, 42, { align: "center" });
-    doc.setDrawColor(180);
-    doc.line(14, 46, pageW - 14, 46);
+    doc.setFontSize(8);
+    doc.text(`Periodo: ${periodLabel}`, pageW - 14, 19, { align: "right" });
+    doc.setTextColor(0);
   }
 
   function drawFooter(doc: jsPDF) {
