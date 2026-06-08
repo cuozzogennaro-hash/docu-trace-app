@@ -768,7 +768,7 @@ export default function Incoming() {
                       </Select>
                     </div>
                     <p className="text-[11px] text-indigo-900/70">
-                      Al salvataggio verrà accodato un record in <strong>scales_queue</strong> con il numero di slot scelto e il passaporto bovino (Nato/Allevato/Macellato + Bollo CE + Lotto fornitore). Nessun PLU o ingrediente viene inviato.
+                      Al salvataggio verrà accodato un record in <strong>scales_lotti_queue</strong> con il numero di slot scelto e il passaporto bovino (Nato/Allevato/Macellato + Bollo CE). Nessun PLU o ingrediente viene inviato.
                     </p>
                   </div>
                 );
