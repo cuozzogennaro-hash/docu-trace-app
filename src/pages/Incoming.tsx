@@ -415,7 +415,7 @@ export default function Incoming() {
       raised_in: isMacelleria(l.departmentId) ? l.raisedIn.trim() : null,
       slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
       slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : null,
-      ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
+            ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
       intake_temperature: isCucina(l.departmentId) && l.intakeTemperature.trim()
         ? parseFloat(l.intakeTemperature.replace(",", "."))
         : null,
@@ -427,25 +427,25 @@ export default function Incoming() {
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
 
-    // Coda bilance di reparto: solo se l'integrazione è attiva e la riga ha PLU
+    // Coda bilance di reparto (solo Macelleria): slot tracciabilità 1-10
     if (scaleIntegrationActive && store) {
       const queueRows = validLines
-        .filter((l) => l.pluCode.trim())
+        .filter((l) => isMacelleria(l.departmentId) && l.pluCode.trim())
         .map((l) => {
           const dept = departments.find((d) => d.id === l.departmentId) as any;
           return {
             user_id: user!.id,
             store_id: store.id,
-            plu_code: l.pluCode.trim(),
-            product_name: l.productName,
+            plu_code: l.pluCode.trim(), // slot bilancia 1-10
+            product_name: null,
             lot_number: l.internalLot,
-            ingredients: l.scaleIngredients.trim() || l.ingredients.trim() || null,
+            ingredients: null,
             department_code: dept?.scale_department_code ?? null,
             supplier_lot: l.supplierLot.trim() || null,
-            born_in: isMacelleria(l.departmentId) ? (l.bornIn.trim() || null) : null,
-            raised_in: isMacelleria(l.departmentId) ? (l.raisedIn.trim() || null) : null,
-            slaughtered_in: isMacelleria(l.departmentId) ? (l.slaughteredIn.trim() || null) : null,
-            slaughterhouse_cee: isMacelleria(l.departmentId) ? (l.slaughterMark.trim() || null) : null,
+            born_in: l.bornIn.trim() || null,
+            raised_in: l.raisedIn.trim() || null,
+            slaughtered_in: l.slaughteredIn.trim() || null,
+            slaughterhouse_cee: l.slaughterMark.trim() || null,
           };
         });
       if (queueRows.length > 0) {
