@@ -203,30 +203,36 @@ export default function Reports() {
 
   function drawHeader(doc: jsPDF, title: string, periodLabel: string, logo: Awaited<ReturnType<typeof logoDataUrl>>) {
     const pageW = doc.internal.pageSize.getWidth();
+    // dynamic accent band
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageW, 28, "F");
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 28, pageW, 1.5, "F");
     let x = 14;
     if (logo) {
-      const maxH = 18;
+      const maxH = 14;
       const ratio = logo.w / logo.h;
       const h = maxH;
       const w = h * ratio;
-      try { doc.addImage(logo.data, "PNG", 14, 10, w, h); } catch {}
+      try { doc.addImage(logo.data, "PNG", 14, 7, w, h); } catch {}
       x = 14 + w + 6;
     }
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(13);
-    doc.text(company.business_name ?? "Azienda", x, 16);
+    doc.setFontSize(12);
+    doc.text(company.business_name ?? "Azienda", x, 13);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
     const subParts = [company.vat && `P.IVA ${company.vat}`, company.address, company.city].filter(Boolean);
-    doc.text(subParts.join(" • "), x, 21);
+    doc.text(subParts.join(" • "), x, 18);
+    // title block top-right
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(title, pageW / 2, 36, { align: "center" });
+    doc.setFontSize(13);
+    doc.text(title, pageW - 14, 13, { align: "right" });
     doc.setFont("helvetica", "normal");
-    doc.setFontSize(10);
-    doc.text(`Periodo: ${periodLabel}`, pageW / 2, 42, { align: "center" });
-    doc.setDrawColor(180);
-    doc.line(14, 46, pageW - 14, 46);
+    doc.setFontSize(8);
+    doc.text(`Periodo: ${periodLabel}`, pageW - 14, 19, { align: "right" });
+    doc.setTextColor(0);
   }
 
   function drawFooter(doc: jsPDF) {
@@ -234,6 +240,8 @@ export default function Reports() {
     const pageH = doc.internal.pageSize.getHeight();
     const total = doc.getNumberOfPages();
     for (let i = 1; i <= total; i++) {
+      // skip cover (page 1) to preserve dark design
+      if (i === 1) continue;
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(120);
@@ -364,7 +372,7 @@ export default function Reports() {
     return (data ?? []) as any[];
   }
 
-  function tempTable(doc: jsPDF, rows: any[], startY: number = 52) {
+  function tempTable(doc: jsPDF, rows: any[], startY: number = 36) {
     autoTable(doc, {
       startY,
       head: [["Data", "Attrezzatura", "Range (°C)", "Temp. (°C)", "Esito", "Operatore", "Note"]],
@@ -400,7 +408,7 @@ export default function Reports() {
     });
   }
 
-  function sanitTable(doc: jsPDF, rows: any[], startY: number = 52) {
+  function sanitTable(doc: jsPDF, rows: any[], startY: number = 36) {
     autoTable(doc, {
       startY,
       head: [["Data", "Attrezzatura/Area", "Prodotto usato", "Operatore", "Note"]],
@@ -425,7 +433,7 @@ export default function Reports() {
 
   function productionTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data prod.", "Prodotto", "Reparto", "Lotto interno", "Conservazione", "Note"]],
       body: rows.map((r) => [
         formatDate(r.production_date),
@@ -448,7 +456,7 @@ export default function Reports() {
 
   function incomingTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data doc.", "Fornitore", "DDT n.", "Prodotto", "Reparto", "Lotto fornitore", "Lotto interno", "Q.tà", "Scadenza"]],
       body: rows.map((r) => [
         formatDate(r.document_date ?? r.created_at),
@@ -468,7 +476,7 @@ export default function Reports() {
 
   function blastTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Inizio", "Fine", "Prodotto", "Ciclo", "Abbattitore", "T. inizio", "T. fine", "Esito", "Note"]],
       body: rows.map((r) => [
         new Date(r.started_at).toLocaleString("it-IT"),
@@ -494,7 +502,7 @@ export default function Reports() {
 
   function holdingTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data/ora", "Prodotto", "Modalità", "Attrezzatura", "Temp.", "Esito", "Note"]],
       body: rows.map((r) => [
         new Date(r.recorded_at).toLocaleString("it-IT"),
@@ -518,7 +526,7 @@ export default function Reports() {
 
   function oilTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data/ora", "Friggitrice", "Azione", "Comp. polari %", "Esito", "Note"]],
       body: rows.map((r) => [
         new Date(r.checked_at).toLocaleString("it-IT"),
@@ -535,7 +543,7 @@ export default function Reports() {
 
   function preparationsTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data/ora", "Preparazione", "Conservazione", "Scadenza interna", "Ingredienti", "Note"]],
       body: rows.map((r) => [
         new Date(r.prepared_at).toLocaleString("it-IT"),
@@ -553,7 +561,7 @@ export default function Reports() {
   function emptyMsg(doc: jsPDF, text: string) {
     doc.setFontSize(11);
     doc.setTextColor(120);
-    doc.text(text, doc.internal.pageSize.getWidth() / 2, 70, { align: "center" });
+    doc.text(text, doc.internal.pageSize.getWidth() / 2, 50, { align: "center" });
     doc.setTextColor(0);
   }
 
@@ -589,8 +597,10 @@ export default function Reports() {
       .from("non_conformities")
       .select("detected_at, area, severity, status, title, description, corrective_action, resolved_at, asset_id, assets:asset_id(name)")
       .eq("user_id", user!.id)
-      .lt("detected_at", `${end}T00:00:00`)
-      .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`)
+      // Tutte le NC rilevanti per il periodo: rilevate nel periodo, OPPURE ancora aperte (anche se rilevate prima)
+      .or(
+        `and(detected_at.gte.${start}T00:00:00,detected_at.lt.${end}T00:00:00),and(status.eq.open,detected_at.lt.${end}T00:00:00)`
+      )
       .order("detected_at", { ascending: true });
     return (data ?? []) as any[];
   }
@@ -657,7 +667,7 @@ export default function Reports() {
     const boxH = 12 + split.length * 4.2;
     doc.setFillColor(254, 242, 242);
     doc.setDrawColor(220, 80, 80);
-    const y = 50;
+    const y = 34;
     doc.roundedRect(margin, y, pageW - margin * 2, boxH, 2, 2, "FD");
     doc.setFont("helvetica", "bold");
     doc.setFontSize(9.5);
@@ -733,98 +743,123 @@ export default function Reports() {
   function drawAslCover(doc: jsPDF, periodLabel: string, logo: Awaited<ReturnType<typeof logoDataUrl>>) {
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
-    // soft background band
-    doc.setFillColor(245, 247, 250);
-    doc.rect(0, 0, pageW, 70, "F");
+    // Sfondo a due tonalità (dinamico, landscape)
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageW, pageH, "F");
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageW * 0.42, pageH, "F");
+    // accento
+    doc.setFillColor(59, 130, 246);
+    doc.rect(pageW * 0.42 - 1.5, 0, 1.5, pageH, "F");
+
+    // Logo grande in alto a sinistra
     if (logo) {
-      const maxH = 28;
+      const maxH = 40;
       const ratio = logo.w / logo.h;
       const h = maxH;
       const w = h * ratio;
-      try { doc.addImage(logo.data, "PNG", (pageW - w) / 2, 22, w, h); } catch {}
+      const cx = pageW * 0.21;
+      try { doc.addImage(logo.data, "PNG", cx - w / 2, 30, w, h); } catch {}
     }
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("Pacchetto Ispezione HACCP", pageW / 2, 95, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.setTextColor(90);
-    doc.text("Documento di autocontrollo — Reg. CE 852/2004 e Reg. UE 1169/2011", pageW / 2, 104, { align: "center" });
-    doc.setTextColor(0);
 
-    // Company block
-    doc.setDrawColor(220);
-    doc.roundedRect(20, 120, pageW - 40, 60, 3, 3, "S");
+    // Blocco azienda nella colonna sinistra
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(company.business_name ?? "—", 28, 132);
+    doc.setFontSize(18);
+    doc.text(company.business_name ?? "—", pageW * 0.21, logo ? 85 : 60, { align: "center", maxWidth: pageW * 0.38 });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(200);
+    let y = (logo ? 85 : 60) + 10;
+    if (company.vat) { doc.text(`P.IVA ${company.vat}`, pageW * 0.21, y, { align: "center" }); y += 5; }
+    const addr = [company.address, company.city].filter(Boolean).join(" — ");
+    if (addr) { doc.text(addr, pageW * 0.21, y, { align: "center", maxWidth: pageW * 0.38 }); y += 5; }
+    if (company.phone) { doc.text(`Tel ${company.phone}`, pageW * 0.21, y, { align: "center" }); y += 5; }
+    if (company.email) { doc.text(company.email, pageW * 0.21, y, { align: "center" }); }
+
+    // Colonna destra: titolo + periodo
+    const rx = pageW * 0.42 + 18;
+    doc.setTextColor(148, 163, 184);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    let y = 140;
-    const lines: string[] = [];
-    if (company.vat) lines.push(`Partita IVA: ${company.vat}`);
-    const addr = [company.address, company.city].filter(Boolean).join(" — ");
-    if (addr) lines.push(addr);
-    if (company.phone) lines.push(`Telefono: ${company.phone}`);
-    if (company.email) lines.push(`Email: ${company.email}`);
-    lines.forEach((l) => { doc.text(l, 28, y); y += 6; });
-
-    // Period block
+    doc.text("DOCUMENTO HACCP", rx, 50);
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Periodo di riferimento", 28, 200);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(14);
-    doc.text(periodLabel, 28, 210);
+    doc.setFontSize(32);
+    doc.text("Pacchetto", rx, 70);
+    doc.text("Ispezione ASL", rx, 86);
 
+    // banda colorata sotto il titolo
+    doc.setFillColor(59, 130, 246);
+    doc.rect(rx, 92, 50, 2, "F");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(203, 213, 225);
+    doc.text("Documentazione di autocontrollo — Reg. CE 852/2004 e Reg. UE 1169/2011", rx, 104, { maxWidth: pageW - rx - 18 });
+
+    // Box periodo + data
+    const boxY = 125;
+    doc.setDrawColor(59, 130, 246);
+    doc.setFillColor(30, 41, 59);
+    doc.roundedRect(rx, boxY, pageW - rx - 18, 38, 3, 3, "FD");
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(9);
+    doc.text("PERIODO DI RIFERIMENTO", rx + 8, boxY + 9);
+    doc.text("DATA EMISSIONE", rx + (pageW - rx - 18) / 2 + 4, boxY + 9);
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Data emissione documento", pageW - 28, 200, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(14);
-    doc.text(new Date().toLocaleDateString("it-IT"), pageW - 28, 210, { align: "right" });
+    doc.setFontSize(16);
+    doc.text(periodLabel, rx + 8, boxY + 22, { maxWidth: (pageW - rx - 18) / 2 - 12 });
+    doc.text(new Date().toLocaleDateString("it-IT"), rx + (pageW - rx - 18) / 2 + 4, boxY + 22);
 
-    // Footer note
+    // Footer cover
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(120);
+    doc.setTextColor(148, 163, 184);
     doc.text(
-      "Il presente documento riepiloga le registrazioni HACCP relative al periodo indicato.\nCostituisce documentazione di autocontrollo ai sensi della normativa vigente.",
+      "Il presente documento riepiloga le registrazioni HACCP del periodo. Costituisce documentazione di autocontrollo ai sensi della normativa vigente.",
       pageW / 2,
-      pageH - 30,
-      { align: "center" },
+      pageH - 14,
+      { align: "center", maxWidth: pageW - 40 },
     );
     doc.setTextColor(0);
   }
 
   function drawAslIndex(doc: jsPDF, sections: { title: string; page: number }[]) {
     const pageW = doc.internal.pageSize.getWidth();
+    // Banda titolo
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageW, 22, "F");
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 22, pageW, 1.5, "F");
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Indice del documento", pageW / 2, 24, { align: "center" });
-    doc.setDrawColor(220);
-    doc.line(20, 30, pageW - 20, 30);
+    doc.setFontSize(14);
+    doc.text("Indice del documento", 14, 14);
+    doc.setTextColor(0);
     doc.setFontSize(11);
-    let y = 44;
+    let y = 38;
     sections.forEach((s, i) => {
       doc.setFont("helvetica", "normal");
-      doc.text(`${i + 1}. ${s.title}`, 24, y);
+      doc.text(`${i + 1}. ${s.title}`, 20, y);
       // dotted leader
       const tw = doc.getTextWidth(`${i + 1}. ${s.title}`);
-      const dotsStart = 24 + tw + 4;
+      const dotsStart = 20 + tw + 4;
       const dotsEnd = pageW - 30;
       doc.setTextColor(180);
       let x = dotsStart;
       while (x < dotsEnd) { doc.text(".", x, y); x += 2; }
       doc.setTextColor(0);
       doc.setFont("helvetica", "bold");
-      doc.text(String(s.page), pageW - 24, y, { align: "right" });
-      y += 8;
+      doc.text(String(s.page), pageW - 20, y, { align: "right" });
+      y += 9;
     });
   }
 
   function operatorsTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Nome", "Ruolo", "Stato", "Permessi", "Attivo dal"]],
       body: rows.map((r) => [
         r.name ?? "—",
@@ -839,26 +874,51 @@ export default function Reports() {
   }
 
   function assetsTable(doc: jsPDF, rows: any[]) {
-    autoTable(doc, {
-      startY: 52,
-      head: [["Attrezzatura", "Tipo", "Reparto", "Range temp. (°C)", "Prodotto sanificante"]],
-      body: rows.map((r) => [
+    // Raggruppa per reparto e ordina per nome
+    const sorted = [...rows].sort((a, b) => {
+      const da = (a.departments?.name ?? "ZZZ_Senza reparto").localeCompare(b.departments?.name ?? "ZZZ_Senza reparto", "it");
+      if (da !== 0) return da;
+      return (a.name ?? "").localeCompare(b.name ?? "", "it");
+    });
+    const body: any[] = [];
+    let lastDept: string | null = null;
+    sorted.forEach((r) => {
+      const dept = r.departments?.name ?? "Senza reparto";
+      if (dept !== lastDept) {
+        body.push([{
+          content: dept.toUpperCase(),
+          colSpan: 4,
+          styles: {
+            fillColor: [59, 130, 246],
+            textColor: 255,
+            fontStyle: "bold",
+            fontSize: 9,
+            halign: "left",
+          },
+        }]);
+        lastDept = dept;
+      }
+      body.push([
         r.name ?? "—",
         r.asset_type ?? "—",
-        r.departments?.name ?? "—",
         r.target_temp_min != null && r.target_temp_max != null
           ? `${r.target_temp_min} / ${r.target_temp_max}`
           : "—",
         r.cleaning_product ?? "—",
-      ]),
+      ]);
+    });
+    autoTable(doc, {
+      startY: 36,
+      head: [["Attrezzatura", "Tipo", "Range temp. (°C)", "Prodotto sanificante"]],
+      body,
       styles: { fontSize: 9, cellPadding: 2.5 },
-      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
     });
   }
 
   function suppliersTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Fornitore", "P.IVA"]],
       body: rows.map((r) => [r.name ?? "—", r.vat ?? "—"]),
       styles: { fontSize: 9, cellPadding: 2.5 },
@@ -868,7 +928,7 @@ export default function Reports() {
 
   function ncTable(doc: jsPDF, rows: any[]) {
     autoTable(doc, {
-      startY: 52,
+      startY: 36,
       head: [["Data", "Attrezzatura", "Area", "Gravità", "Titolo", "Descrizione", "Azione correttiva", "Stato", "Risolta il"]],
       body: rows.map((r) => [
         formatDate(r.detected_at),
@@ -940,13 +1000,13 @@ export default function Reports() {
       prepTotal: buckets.preps.length,
       ncTotal: buckets.ncs.length,
       ncOpen: buckets.ncs.filter((r) => r.status === "open" || r.status === "in_progress").length,
-      ncClosed: buckets.ncs.filter((r) => r.status === "closed" || r.resolved_at).length,
+      ncClosed: buckets.ncs.filter((r) => r.status === "resolved" || r.status === "closed" || r.resolved_at).length,
     };
   }
 
   function drawSummarySection(doc: jsPDF, s: SummaryStats) {
     const pageW = doc.internal.pageSize.getWidth();
-    // KPI cards grid 4x2
+    // KPI cards grid
     const cards: { label: string; value: string; tone?: "ok" | "warn" | "neutral" }[] = [
       { label: "Rilevazioni temperatura", value: String(s.tempTotal), tone: "neutral" },
       { label: "Conformi", value: String(s.tempInRange), tone: "ok" },
@@ -958,36 +1018,42 @@ export default function Reports() {
       { label: "Holding caldo/freddo", value: `${s.holdingTotal} (${s.holdingAnomalies} anom.)`, tone: s.holdingAnomalies > 0 ? "warn" : "ok" },
       { label: "Controlli olio frittura", value: `${s.oilTotal} (${s.oilAnomalies} anom.)`, tone: s.oilAnomalies > 0 ? "warn" : "ok" },
       { label: "Preparazioni / mise en place", value: String(s.prepTotal), tone: "neutral" },
+      { label: "Non conformità totali", value: String(s.ncTotal), tone: s.ncTotal > 0 ? "warn" : "ok" },
       { label: "Non conformità aperte", value: String(s.ncOpen), tone: s.ncOpen > 0 ? "warn" : "ok" },
       { label: "Non conformità chiuse", value: String(s.ncClosed), tone: "ok" },
     ];
-    const cols = 4;
+    const cols = 5;
     const gap = 4;
     const margin = 14;
     const cw = (pageW - margin * 2 - gap * (cols - 1)) / cols;
-    const ch = 22;
-    let x = margin, y = 56;
+    const ch = 24;
+    let x = margin, y = 40;
     cards.forEach((c, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       x = margin + col * (cw + gap);
-      y = 56 + row * (ch + gap);
+      y = 40 + row * (ch + gap);
       // tone fill
       if (c.tone === "warn") doc.setFillColor(254, 242, 242);
       else if (c.tone === "ok") doc.setFillColor(240, 253, 244);
       else doc.setFillColor(248, 250, 252);
       doc.setDrawColor(220);
       doc.roundedRect(x, y, cw, ch, 2, 2, "FD");
+      // barra accento sinistra
+      if (c.tone === "warn") doc.setFillColor(239, 68, 68);
+      else if (c.tone === "ok") doc.setFillColor(34, 197, 94);
+      else doc.setFillColor(59, 130, 246);
+      doc.rect(x, y, 1.8, ch, "F");
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
+      doc.setFontSize(15);
       if (c.tone === "warn") doc.setTextColor(185, 28, 28);
       else if (c.tone === "ok") doc.setTextColor(21, 128, 61);
       else doc.setTextColor(30, 41, 59);
-      doc.text(c.value, x + 4, y + 11);
+      doc.text(c.value, x + 5, y + 12);
       doc.setTextColor(80);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
-      doc.text(c.label, x + 4, y + 17, { maxWidth: cw - 8 });
+      doc.text(c.label, x + 5, y + 19, { maxWidth: cw - 10 });
       doc.setTextColor(0);
     });
 
@@ -1088,7 +1154,7 @@ export default function Reports() {
     try {
       const { start, end, label } = aslPeriodRange(aslPeriodKind, aslCustomStart, aslCustomEnd);
       const logo = await logoDataUrl();
-      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
 
       // ---- COVER ----
       drawAslCover(doc, label, logo);
@@ -1116,7 +1182,7 @@ export default function Reports() {
       // To keep it simple: from here on we add landscape pages by re-creating sections with addPage({orientation}).
       // jsPDF supports per-page orientation via addPage(format, orientation).
 
-      type Section = { title: string; render: () => void; landscape?: boolean };
+      type Section = { title: string; render: () => void };
       const sections: Section[] = [];
 
       if (aslIncludeAnagrafiche) {
@@ -1127,7 +1193,6 @@ export default function Reports() {
             if (operatorsRows.length === 0) emptyMsg(doc, "Nessun operatore configurato.");
             else operatorsTable(doc, operatorsRows);
           },
-          landscape: true,
         });
         sections.push({
           title: "Attrezzature e punti di controllo",
@@ -1136,7 +1201,6 @@ export default function Reports() {
             if (assetsRows.length === 0) emptyMsg(doc, "Nessuna attrezzatura configurata.");
             else assetsTable(doc, assetsRows);
           },
-          landscape: true,
         });
         sections.push({
           title: "Fornitori",
@@ -1145,7 +1209,6 @@ export default function Reports() {
             if (suppliersRows.length === 0) emptyMsg(doc, "Nessun fornitore registrato.");
             else suppliersTable(doc, suppliersRows);
           },
-          landscape: true,
         });
       }
 
@@ -1157,33 +1220,31 @@ export default function Reports() {
             drawHeader(doc, "Sintesi del periodo", label, logo);
             drawSummarySection(doc, summary);
           },
-          landscape: false,
         });
       }
 
-      sections.push({ title: "Registro temperature", landscape: true, render: () => {
+      sections.push({ title: "Registro temperature", render: () => {
         drawHeader(doc, "Registro temperature", label, logo);
         const sy = outOfServiceNotice(doc, oosAssets);
         if (tempsWithOos.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
         else tempTable(doc, tempsWithOos, sy);
       } });
-      sections.push({ title: "Registro sanificazioni", landscape: true, render: () => {
+      sections.push({ title: "Registro sanificazioni", render: () => {
         drawHeader(doc, "Registro sanificazioni", label, logo);
         const sy = outOfServiceNotice(doc, oosAssets);
         if (sanitWithOos.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato.");
         else sanitTable(doc, sanitWithOos, sy);
       } });
-      sections.push({ title: "Registro produzioni", landscape: true, render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
-      sections.push({ title: "Registro ingresso merci", landscape: true, render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
-      sections.push({ title: "Registro abbattimenti", landscape: true, render: () => { drawHeader(doc, "Registro abbattimenti", label, logo); if (blast.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else blastTable(doc, blast); } });
-      sections.push({ title: "Mantenimento caldo/freddo", landscape: true, render: () => { drawHeader(doc, "Mantenimento caldo/freddo", label, logo); if (hold.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else holdingTable(doc, hold); } });
-      sections.push({ title: "Controllo olio frittura", landscape: true, render: () => { drawHeader(doc, "Controllo olio frittura", label, logo); if (oils.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else oilTable(doc, oils); } });
-      sections.push({ title: "Preparazioni / mise en place", landscape: true, render: () => { drawHeader(doc, "Preparazioni / mise en place", label, logo); if (preps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else preparationsTable(doc, preps); } });
+      sections.push({ title: "Registro produzioni", render: () => { drawHeader(doc, "Registro produzioni", label, logo); if (prods.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else productionTable(doc, prods); } });
+      sections.push({ title: "Registro ingresso merci", render: () => { drawHeader(doc, "Registro ingresso merci", label, logo); if (inc.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else incomingTable(doc, inc); } });
+      sections.push({ title: "Registro abbattimenti", render: () => { drawHeader(doc, "Registro abbattimenti", label, logo); if (blast.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else blastTable(doc, blast); } });
+      sections.push({ title: "Mantenimento caldo/freddo", render: () => { drawHeader(doc, "Mantenimento caldo/freddo", label, logo); if (hold.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else holdingTable(doc, hold); } });
+      sections.push({ title: "Controllo olio frittura", render: () => { drawHeader(doc, "Controllo olio frittura", label, logo); if (oils.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else oilTable(doc, oils); } });
+      sections.push({ title: "Preparazioni / mise en place", render: () => { drawHeader(doc, "Preparazioni / mise en place", label, logo); if (preps.length === 0) emptyMsg(doc, "Nessuna registrazione nel periodo selezionato."); else preparationsTable(doc, preps); } });
 
       if (aslIncludeNc) {
         sections.push({
           title: "Non conformità e azioni correttive",
-          landscape: true,
           render: () => {
             drawHeader(doc, "Non conformità e azioni correttive", label, logo);
             if (ncs.length === 0) emptyMsg(doc, "Nessuna non conformità rilevata nel periodo selezionato.");
@@ -1194,18 +1255,17 @@ export default function Reports() {
 
       sections.push({
         title: "Dichiarazione e firma",
-        landscape: false,
         render: () => drawSignaturePage(doc, aslSignatureData),
       });
 
       // Reserve index page (page 2)
-      doc.addPage("a4", "portrait");
+      doc.addPage("a4", "landscape");
       const indexPageNumber = doc.getNumberOfPages();
 
       // Render sections, recording page numbers
       const indexEntries: { title: string; page: number }[] = [];
       for (const s of sections) {
-        doc.addPage("a4", s.landscape ? "landscape" : "portrait");
+        doc.addPage("a4", "landscape");
         indexEntries.push({ title: s.title, page: doc.getNumberOfPages() });
         s.render();
       }
@@ -1214,10 +1274,10 @@ export default function Reports() {
       if (aslIncludePhotos) {
         const withPhotos = (inc as any[]).filter((r) => r.document_image_url).slice(0, 30);
         if (withPhotos.length > 0) {
-          doc.addPage("a4", "portrait");
+          doc.addPage("a4", "landscape");
           indexEntries.push({ title: "Allegati fotografici DDT", page: doc.getNumberOfPages() });
           drawHeader(doc, "Allegati fotografici DDT", label, logo);
-          let py = 56;
+          let py = 40;
           const pageW = doc.internal.pageSize.getWidth();
           const pageH = doc.internal.pageSize.getHeight();
           for (const r of withPhotos) {
@@ -1242,9 +1302,9 @@ export default function Reports() {
               let w = maxW, h = maxW / ratio;
               if (h > maxH) { h = maxH; w = h * ratio; }
               if (py + h + 16 > pageH - 14) {
-                doc.addPage("a4", "portrait");
+                doc.addPage("a4", "landscape");
                 drawHeader(doc, "Allegati fotografici DDT", label, logo);
-                py = 56;
+                py = 40;
               }
               doc.setFontSize(9);
               doc.setFont("helvetica", "bold");
@@ -1332,7 +1392,7 @@ export default function Reports() {
       ) => {
         if (newPage) doc.addPage();
         drawHeader(doc, title, label, logo);
-        let sy = 52;
+        let sy = 36;
         if (withOos && oosAssets.length) {
           sy = outOfServiceNotice(doc, oosAssets);
         }
