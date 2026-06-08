@@ -15,9 +15,10 @@ import { Link } from "react-router-dom";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { useCurrentStore } from "@/hooks/useCurrentStore";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { Thermometer, AlertTriangle } from "lucide-react";
+import { Thermometer, AlertTriangle, Scale } from "lucide-react";
 
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
@@ -43,6 +44,8 @@ type ProductLine = {
   ingredients: string;
   intakeTemperature: string;
   intakeStorageMode: "refrigerated" | "frozen" | "ambient";
+  pluCode: string;
+  scaleIngredients: string;
 };
 
 function newProductLine(date?: string): ProductLine {
@@ -65,6 +68,8 @@ function newProductLine(date?: string): ProductLine {
     ingredients: "",
     intakeTemperature: "",
     intakeStorageMode: "refrigerated",
+    pluCode: "",
+    scaleIngredients: "",
   };
 }
 
@@ -75,6 +80,7 @@ export default function Incoming() {
   const [imageFile, setImageFile] = useState<File | null>(null);
   const { session } = useAuth();
   const { operator } = useOperatorSession();
+  const { store, scaleIntegrationActive } = useCurrentStore();
   const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
   const { departments: deptsFromHook, visibleDepartments: visibleFromHook } = useDepartments();
   const [operatorDepts, setOperatorDepts] = useState<{ id: string; name: string; sort_order: number }[]>([]);
