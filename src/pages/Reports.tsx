@@ -1082,11 +1082,12 @@ export default function Reports() {
 
   function drawSignaturePage(doc: jsPDF, signatureData: string | null) {
     const pageW = doc.internal.pageSize.getWidth();
+    const pageH = doc.internal.pageSize.getHeight();
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Dichiarazione del responsabile dell'autocontrollo", pageW / 2, 28, { align: "center" });
+    doc.setFontSize(15);
+    doc.text("Dichiarazione del responsabile dell'autocontrollo", pageW / 2, 20, { align: "center" });
     doc.setDrawColor(220);
-    doc.line(20, 33, pageW - 20, 33);
+    doc.line(20, 25, pageW - 20, 25);
 
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
@@ -1095,14 +1096,16 @@ export default function Reports() {
       `dichiara che le registrazioni contenute nel presente documento sono veritiere, complete e relative alle attività svolte nel periodo indicato in copertina. ` +
       `Le procedure di autocontrollo sono state attuate secondo il piano HACCP aziendale, in conformità al Reg. CE 852/2004 e successive modifiche. ` +
       `Eventuali non conformità rilevate sono state oggetto di idonea azione correttiva, come documentato nelle sezioni dedicate del presente fascicolo.`;
-    doc.text(text, 20, 48, { maxWidth: pageW - 40, lineHeightFactor: 1.5 });
+    doc.text(text, 20, 35, { maxWidth: pageW - 40, lineHeightFactor: 1.4 });
 
-    // Signature box
-    const sigBoxY = 110;
-    const sigBoxH = 50;
-    const colW = (pageW - 40 - 10) / 2;
+    // Signature row: place/date | firma | timbro on the same line so nothing
+    // overflows the page bottom (A4 landscape pageH ≈ 210mm; footer at pageH-8).
+    const sigBoxY = 80;
+    const sigBoxH = 45;
+    const gap = 8;
+    const colW = (pageW - 40 - gap * 2) / 3;
 
-    // Left: place / date
+    // 1) Place / date
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
     doc.text("Luogo e data", 20, sigBoxY);
@@ -1112,24 +1115,36 @@ export default function Reports() {
     doc.setFont("helvetica", "normal");
     doc.text(placeDate, 20, sigBoxY + sigBoxH - 2);
 
-    // Right: signature
-    const rx = 20 + colW + 10;
+    // 2) Signature
+    const rx = 20 + colW + gap;
     doc.setFont("helvetica", "bold");
     doc.text("Firma del responsabile", rx, sigBoxY);
     doc.line(rx, sigBoxY + sigBoxH, rx + colW, sigBoxY + sigBoxH);
     if (signatureData) {
       try {
-        // place image above the line
         doc.addImage(signatureData, "PNG", rx + 4, sigBoxY + 6, colW - 8, sigBoxH - 10);
       } catch {}
     }
 
-    // Stamp area
+    // 3) Stamp area (same row, kept above footer)
+    const sx = rx + colW + gap;
     doc.setFont("helvetica", "bold");
     doc.setFontSize(10);
-    doc.text("Timbro aziendale", 20, sigBoxY + sigBoxH + 18);
+    doc.text("Timbro aziendale", sx, sigBoxY);
     doc.setDrawColor(200);
-    doc.roundedRect(20, sigBoxY + sigBoxH + 22, 70, 35, 2, 2, "S");
+    doc.roundedRect(sx, sigBoxY + 4, colW, sigBoxH - 4, 2, 2, "S");
+
+    // Closing note above footer
+    doc.setFont("helvetica", "italic");
+    doc.setFontSize(8);
+    doc.setTextColor(120);
+    doc.text(
+      "Documento prodotto ai sensi del Reg. CE 852/2004 — autocontrollo HACCP",
+      pageW / 2,
+      pageH - 16,
+      { align: "center" },
+    );
+    doc.setTextColor(0);
   }
 
   async function handleSignatureFile(file: File) {
