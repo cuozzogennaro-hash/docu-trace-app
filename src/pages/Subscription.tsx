@@ -12,6 +12,7 @@ import { getPaddleEnvironment } from "@/lib/paddle";
 import { isInAppCheckoutBlocked } from "@/lib/platform";
 import { toast } from "sonner";
 import { useTranslation } from "react-i18next";
+import logoShield from "@/assets/logo-shield.png";
 
 const FEATURE_KEYS = [
   "Registrazione temperature, sanificazioni e abbattimenti",
@@ -86,9 +87,7 @@ export default function SubscriptionPage() {
           {t("Indietro")}
         </button>
         <div className="flex items-center gap-3">
-          <div className="h-12 w-12 rounded-xl bg-gradient-primary flex items-center justify-center">
-            <ShieldCheck className="text-primary-foreground" size={24} />
-          </div>
+          <img src={logoShield} alt="HACCP Trace" className="h-12 w-12 rounded-xl object-contain bg-white" />
           <div>
             <h1 className="font-display text-2xl font-bold">HACCP Trace</h1>
             <p className="text-sm text-muted-foreground">{t("Abbonamento mensile")}</p>

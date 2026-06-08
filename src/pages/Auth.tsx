@@ -14,6 +14,7 @@ import { toast } from "sonner";
 import { ShieldCheck, Building2, UserCircle2, AtSign, Loader2, Gift } from "lucide-react";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
+import logoShield from "@/assets/logo-shield.png";
 
 export default function AuthPage() {
   const { session, loading } = useAuth();
@@ -145,9 +146,7 @@ export default function AuthPage() {
           </div>
         </div>
         <div className="flex items-center justify-center gap-3 mb-8">
-          <div className="h-12 w-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-elevated">
-            <ShieldCheck className="text-primary-foreground" />
-          </div>
+          <img src={logoShield} alt="HACCP Trace" className="h-14 w-14 rounded-2xl object-contain bg-white shadow-elevated" />
           <div>
             <h1 className="font-display text-2xl font-bold">HACCP Trace — Gestione Autocontrollo Alimentare</h1>
             <p className="text-xs text-muted-foreground">{t("Autocontrollo alimentare smart")}</p>
