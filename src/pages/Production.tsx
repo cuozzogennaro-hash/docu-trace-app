@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { useCurrentStore } from "@/hooks/useCurrentStore";
 import { productionLabel, useActivityProfile } from "@/hooks/useActivityProfile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +30,7 @@ export default function Production() {
   const { session } = useAuth();
   const { operator } = useOperatorSession();
   const { profile } = useActivityProfile();
+  const { store, scaleIntegrationActive } = useCurrentStore();
   const pageLabel = productionLabel(profile);
   const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
   const [name, setName] = useState("");
@@ -42,6 +44,9 @@ export default function Production() {
   const [storageMode, setStorageMode] = useState<"refrigerato" | "abbattuto" | "surgelato">("refrigerato");
   const [requiresBlastChilling, setRequiresBlastChilling] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
+  // Bilance di reparto (visibile solo se scaleIntegrationActive)
+  const [pluCode, setPluCode] = useState("");
+  const [scaleIngredients, setScaleIngredients] = useState("");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
@@ -184,6 +189,19 @@ export default function Production() {
       }));
       await supabase.from("product_ingredients").insert(ingredients);
     }
+    // Coda bilance: inserisce solo se l'integrazione è attiva e PLU è compilato
+    if (scaleIntegrationActive && store && pluCode.trim()) {
+      const { error: qErr } = await supabase.from("scales_queue").insert({
+        user_id: user!.id,
+        store_id: store.id,
+        plu_code: pluCode.trim(),
+        product_name: name,
+        lot_number: lot,
+        ingredients: scaleIngredients.trim() || manualIngredients.trim() || null,
+      } as any);
+      if (qErr) toast.error(`Coda bilance: ${qErr.message}`);
+      else toast.success("Inviato alla coda bilance");
+    }
     if (needsBlast) {
       await (supabase as any).from("blast_chillings").insert({
         user_id: user!.id,
@@ -206,6 +224,8 @@ export default function Production() {
     setStorageMode("refrigerato");
     setRequiresBlastChilling(false);
     setManualIngredients("");
+    setPluCode("");
+    setScaleIngredients("");
     setLot(generateInternalLot("P", new Date()));
     load();
   }
