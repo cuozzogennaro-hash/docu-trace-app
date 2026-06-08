@@ -375,6 +375,42 @@ export default function Production() {
           />
         </div>
 
+        {scaleIntegrationActive && (
+          <div className="mt-4 p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary">⚖️</span>
+              <div>
+                <div className="font-semibold text-sm">Bilance di reparto</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Punto vendita: <strong>{store?.name}</strong> — questi dati saranno messi in coda per la sincronizzazione con le bilance.
+                </div>
+              </div>
+            </div>
+            <div className="grid lg:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Codice PLU bilancia</Label>
+                <Input
+                  value={pluCode}
+                  onChange={(e) => setPluCode(e.target.value)}
+                  placeholder="es. 1042"
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Ingredienti per etichetta bilancia (opzionale)</Label>
+                <Input
+                  value={scaleIngredients}
+                  onChange={(e) => setScaleIngredients(e.target.value)}
+                  placeholder="Se vuoto verranno usati gli ingredienti manuali"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              La riga verrà aggiunta solo se compili il codice PLU. Il lotto inviato sarà quello interno del prodotto (<span className="font-mono">{lot}</span>).
+            </p>
+          </div>
+        )}
+
         <div className="mt-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
             <Label>Ingredienti</Label>
