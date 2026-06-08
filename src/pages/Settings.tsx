@@ -12,13 +12,14 @@ import RecurringTab from "@/components/settings/RecurringTab";
 import LabelRulesTab from "@/components/settings/LabelRulesTab";
 import AllergensTab from "@/components/settings/AllergensTab";
 import ActivityProfileTab from "@/components/settings/ActivityProfileTab";
-import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building, Repeat, BookOpen, AlertTriangle, Briefcase } from "lucide-react";
+import StoresTab from "@/components/settings/StoresTab";
+import { Building2, Users, Wrench, Leaf, FlaskConical, Tag, Building, Repeat, BookOpen, AlertTriangle, Briefcase, Store } from "lucide-react";
 
 export default function Settings() {
   const [sp, setSp] = useSearchParams();
   const { t } = useTranslation();
   const tabMap: Record<string, string> = {
-    azienda: "company", profilo: "profile", reparti: "departments", operatori: "operators", attrezzature: "assets",
+    azienda: "company", profilo: "profile", punti_vendita: "stores", reparti: "departments", operatori: "operators", attrezzature: "assets",
     aromi: "aromi", additivi: "additivi", allergeni: "allergeni", ricorrenti: "recurring",
     etichette: "etichette", logiche: "logiche",
   };
@@ -31,6 +32,7 @@ export default function Settings() {
         <TabsList className="flex flex-wrap h-auto gap-1 w-full max-w-4xl mb-6">
           <TabsTrigger value="company" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Building2 size={14} className="hidden sm:inline" /> {t("Azienda")}</TabsTrigger>
           <TabsTrigger value="profile" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Briefcase size={14} className="hidden sm:inline" /> {t("Profilo")}</TabsTrigger>
+          <TabsTrigger value="stores" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Store size={14} className="hidden sm:inline" /> {t("Punti Vendita")}</TabsTrigger>
           <TabsTrigger value="departments" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Building size={14} className="hidden sm:inline" /> {t("Reparti")}</TabsTrigger>
           <TabsTrigger value="operators" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Users size={14} className="hidden sm:inline" /> {t("Operatori")}</TabsTrigger>
           <TabsTrigger value="assets" className="gap-1.5 text-xs sm:text-sm flex-1 min-w-[calc(33%-4px)] sm:min-w-0"><Wrench size={14} className="hidden sm:inline" /> {t("Attrezz.")}</TabsTrigger>
@@ -43,6 +45,7 @@ export default function Settings() {
         </TabsList>
         <TabsContent value="company"><CompanyTab /></TabsContent>
         <TabsContent value="profile"><ActivityProfileTab /></TabsContent>
+        <TabsContent value="stores"><StoresTab /></TabsContent>
         <TabsContent value="departments"><DepartmentsTab /></TabsContent>
         <TabsContent value="operators"><OperatorsTab /></TabsContent>
         <TabsContent value="assets"><AssetsTab /></TabsContent>
