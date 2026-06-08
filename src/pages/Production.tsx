@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { useDepartments } from "@/hooks/useDepartments";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { useCurrentStore } from "@/hooks/useCurrentStore";
 import { productionLabel, useActivityProfile } from "@/hooks/useActivityProfile";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -29,6 +30,7 @@ export default function Production() {
   const { session } = useAuth();
   const { operator } = useOperatorSession();
   const { profile } = useActivityProfile();
+  const { store, scaleIntegrationActive } = useCurrentStore();
   const pageLabel = productionLabel(profile);
   const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
   const [name, setName] = useState("");
@@ -42,6 +44,9 @@ export default function Production() {
   const [storageMode, setStorageMode] = useState<"refrigerato" | "abbattuto" | "surgelato">("refrigerato");
   const [requiresBlastChilling, setRequiresBlastChilling] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
+  // Bilance di reparto (visibile solo se scaleIntegrationActive)
+  const [pluCode, setPluCode] = useState("");
+  const [scaleIngredients, setScaleIngredients] = useState("");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
@@ -184,6 +189,19 @@ export default function Production() {
       }));
       await supabase.from("product_ingredients").insert(ingredients);
     }
+    // Coda bilance: inserisce solo se l'integrazione è attiva e PLU è compilato
+    if (scaleIntegrationActive && store && pluCode.trim()) {
+      const { error: qErr } = await supabase.from("scales_queue").insert({
+        user_id: user!.id,
+        store_id: store.id,
+        plu_code: pluCode.trim(),
+        product_name: name,
+        lot_number: lot,
+        ingredients: scaleIngredients.trim() || manualIngredients.trim() || null,
+      } as any);
+      if (qErr) toast.error(`Coda bilance: ${qErr.message}`);
+      else toast.success("Inviato alla coda bilance");
+    }
     if (needsBlast) {
       await (supabase as any).from("blast_chillings").insert({
         user_id: user!.id,
@@ -206,6 +224,8 @@ export default function Production() {
     setStorageMode("refrigerato");
     setRequiresBlastChilling(false);
     setManualIngredients("");
+    setPluCode("");
+    setScaleIngredients("");
     setLot(generateInternalLot("P", new Date()));
     load();
   }
@@ -354,6 +374,42 @@ export default function Production() {
             className="min-h-[70px]"
           />
         </div>
+
+        {scaleIntegrationActive && (
+          <div className="mt-4 p-4 rounded-lg border border-primary/30 bg-primary/5 space-y-3">
+            <div className="flex items-center gap-2">
+              <span className="inline-flex h-7 w-7 items-center justify-center rounded-md bg-primary/15 text-primary">⚖️</span>
+              <div>
+                <div className="font-semibold text-sm">Bilance di reparto</div>
+                <div className="text-[11px] text-muted-foreground">
+                  Punto vendita: <strong>{store?.name}</strong> — questi dati saranno messi in coda per la sincronizzazione con le bilance.
+                </div>
+              </div>
+            </div>
+            <div className="grid lg:grid-cols-2 gap-3">
+              <div className="space-y-1">
+                <Label className="text-xs">Codice PLU bilancia</Label>
+                <Input
+                  value={pluCode}
+                  onChange={(e) => setPluCode(e.target.value)}
+                  placeholder="es. 1042"
+                  className="font-mono"
+                />
+              </div>
+              <div className="space-y-1">
+                <Label className="text-xs">Ingredienti per etichetta bilancia (opzionale)</Label>
+                <Input
+                  value={scaleIngredients}
+                  onChange={(e) => setScaleIngredients(e.target.value)}
+                  placeholder="Se vuoto verranno usati gli ingredienti manuali"
+                />
+              </div>
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              La riga verrà aggiunta solo se compili il codice PLU. Il lotto inviato sarà quello interno del prodotto (<span className="font-mono">{lot}</span>).
+            </p>
+          </div>
+        )}
 
         <div className="mt-5">
           <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-2 mb-2">
