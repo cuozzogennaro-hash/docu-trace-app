@@ -595,8 +595,10 @@ export default function Reports() {
       .from("non_conformities")
       .select("detected_at, area, severity, status, title, description, corrective_action, resolved_at, asset_id, assets:asset_id(name)")
       .eq("user_id", user!.id)
-      .lt("detected_at", `${end}T00:00:00`)
-      .or(`status.eq.open,resolved_at.gte.${start}T00:00:00`)
+      // Tutte le NC rilevanti per il periodo: rilevate nel periodo, OPPURE ancora aperte (anche se rilevate prima)
+      .or(
+        `and(detected_at.gte.${start}T00:00:00,detected_at.lt.${end}T00:00:00),and(status.eq.open,detected_at.lt.${end}T00:00:00)`
+      )
       .order("detected_at", { ascending: true });
     return (data ?? []) as any[];
   }
