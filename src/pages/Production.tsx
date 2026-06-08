@@ -46,7 +46,6 @@ export default function Production() {
   const [manualIngredients, setManualIngredients] = useState("");
   // Bilance di reparto (visibile solo se scaleIntegrationActive)
   const [pluCode, setPluCode] = useState("");
-  const [scaleIngredients, setScaleIngredients] = useState("");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
   const [searchQuery, setSearchQuery] = useState<string>("");
   const [materials, setMaterials] = useState<any[]>([]);
