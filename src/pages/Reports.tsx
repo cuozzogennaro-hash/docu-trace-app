@@ -240,6 +240,8 @@ export default function Reports() {
     const pageH = doc.internal.pageSize.getHeight();
     const total = doc.getNumberOfPages();
     for (let i = 1; i <= total; i++) {
+      // skip cover (page 1) to preserve dark design
+      if (i === 1) continue;
       doc.setPage(i);
       doc.setFontSize(8);
       doc.setTextColor(120);
