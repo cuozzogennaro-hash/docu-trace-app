@@ -739,44 +739,39 @@ export default function Incoming() {
                   </div>
                 </div>
               )}
-              {scaleIntegrationActive && !isOperatorAdmin && line.departmentId && (() => {
+              {scaleIntegrationActive && !isOperatorAdmin && isMacelleria(line.departmentId) && (() => {
                 const dept = departments.find((d) => d.id === line.departmentId) as any;
                 const code = dept?.scale_department_code;
                 return (
                   <div className="mt-3 p-3 rounded-md bg-indigo-50 border border-indigo-200 space-y-2">
                     <Label className="text-xs font-semibold text-indigo-900 flex items-center gap-1.5">
-                      <Scale size={14} /> Invio a Bilance di Reparto
+                      <Scale size={14} /> Invio a Bilancia Macelleria — Slot Tracciabilità
                     </Label>
                     {code != null ? (
                       <p className="text-[11px] text-indigo-900/80">
-                        Reparto bilancia: <strong>codice {code}</strong>. Compila il PLU per accodare l'invio.
+                        Reparto bilancia: <strong>codice {code}</strong>. Scegli lo slot di memoria (1-10) da sovrascrivere con questa carcassa.
                       </p>
                     ) : (
                       <p className="text-[11px] text-amber-800">
                         Nessun "Codice Reparto Bilancia" configurato per questo reparto (Impostazioni → Reparti).
                       </p>
                     )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Codice PLU bilancia</Label>
-                        <Input
-                          value={line.pluCode}
-                          onChange={(e) => updateLine(idx, { pluCode: e.target.value })}
-                          placeholder="es. 1023"
-                          className="font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Ingredienti per etichetta bilancia (opzionale)</Label>
-                        <Input
-                          value={line.scaleIngredients}
-                          onChange={(e) => updateLine(idx, { scaleIngredients: e.target.value })}
-                          placeholder="se vuoto usa quelli del prodotto"
-                        />
-                      </div>
+                    <div className="space-y-1 max-w-[260px]">
+                      <Label className="text-xs">Slot Bilancia (1-10) *</Label>
+                      <Select
+                        value={line.pluCode}
+                        onValueChange={(v) => updateLine(idx, { pluCode: v })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Seleziona Slot Bilancia (1-10)" /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                            <SelectItem key={n} value={String(n)}>Slot {n}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <p className="text-[11px] text-indigo-900/70">
-                      Al salvataggio verrà accodato un record in <strong>scales_queue</strong> (stato <em>pending</em>) con PLU, lotto interno, lotto fornitore{isMacelleria(line.departmentId) ? " e passaporto carne (Nato/Allevato/Macellato + Bollo CE)" : ""}.
+                      Al salvataggio verrà accodato un record in <strong>scales_queue</strong> con il numero di slot scelto e il passaporto bovino (Nato/Allevato/Macellato + Bollo CE + Lotto fornitore). Nessun PLU o ingrediente viene inviato.
                     </p>
                   </div>
                 );
