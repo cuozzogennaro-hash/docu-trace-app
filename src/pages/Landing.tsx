@@ -3,6 +3,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { Button } from "@/components/ui/button";
 import { CheckCircle2, Thermometer, ClipboardList, ShieldCheck, Archive, FileText } from "lucide-react";
+import logoShield from "@/assets/logo-shield.png";
 
 export default function Landing() {
   const { session, loading } = useAuth();
@@ -32,7 +33,10 @@ export default function Landing() {
     <div className="min-h-screen bg-background text-foreground">
       <header className="border-b">
         <div className="container mx-auto px-4 py-4 flex items-center justify-between">
-          <div className="font-bold text-xl">HACCP Trace</div>
+          <div className="flex items-center gap-2">
+            <img src={logoShield} alt="HACCP Trace" className="h-8 w-8 rounded-lg object-contain" />
+            <span className="font-bold text-xl">HACCP Trace</span>
+          </div>
           <div className="flex items-center gap-2">
             <Link to="/auth"><Button variant="ghost">Accedi</Button></Link>
             <Link to="/auth"><Button>Inizia ora</Button></Link>
