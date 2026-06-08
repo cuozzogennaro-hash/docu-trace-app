@@ -392,24 +392,14 @@ export default function Production() {
                 </div>
               </div>
             </div>
-            <div className="grid lg:grid-cols-2 gap-3">
-              <div className="space-y-1">
-                <Label className="text-xs">Codice PLU bilancia</Label>
-                <Input
-                  value={pluCode}
-                  onChange={(e) => setPluCode(e.target.value)}
-                  placeholder="es. 1042"
-                  className="font-mono"
-                />
-              </div>
-              <div className="space-y-1">
-                <Label className="text-xs">Ingredienti per etichetta bilancia (opzionale)</Label>
-                <Input
-                  value={scaleIngredients}
-                  onChange={(e) => setScaleIngredients(e.target.value)}
-                  placeholder="Se vuoto verranno usati gli ingredienti manuali"
-                />
-              </div>
+            <div className="space-y-1">
+              <Label className="text-xs">Codice PLU bilancia</Label>
+              <Input
+                value={pluCode}
+                onChange={(e) => setPluCode(e.target.value)}
+                placeholder="es. 1042"
+                className="font-mono"
+              />
             </div>
             <p className="text-[11px] text-muted-foreground">
               La riga verrà aggiunta solo se compili il codice PLU. Il lotto inviato sarà quello interno del prodotto (<span className="font-mono">{lot}</span>).
