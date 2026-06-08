@@ -847,20 +847,45 @@ export default function Reports() {
   }
 
   function assetsTable(doc: jsPDF, rows: any[]) {
-    autoTable(doc, {
-      startY: 52,
-      head: [["Attrezzatura", "Tipo", "Reparto", "Range temp. (°C)", "Prodotto sanificante"]],
-      body: rows.map((r) => [
+    // Raggruppa per reparto e ordina per nome
+    const sorted = [...rows].sort((a, b) => {
+      const da = (a.departments?.name ?? "ZZZ_Senza reparto").localeCompare(b.departments?.name ?? "ZZZ_Senza reparto", "it");
+      if (da !== 0) return da;
+      return (a.name ?? "").localeCompare(b.name ?? "", "it");
+    });
+    const body: any[] = [];
+    let lastDept: string | null = null;
+    sorted.forEach((r) => {
+      const dept = r.departments?.name ?? "Senza reparto";
+      if (dept !== lastDept) {
+        body.push([{
+          content: dept.toUpperCase(),
+          colSpan: 4,
+          styles: {
+            fillColor: [59, 130, 246],
+            textColor: 255,
+            fontStyle: "bold",
+            fontSize: 9,
+            halign: "left",
+          },
+        }]);
+        lastDept = dept;
+      }
+      body.push([
         r.name ?? "—",
         r.asset_type ?? "—",
-        r.departments?.name ?? "—",
         r.target_temp_min != null && r.target_temp_max != null
           ? `${r.target_temp_min} / ${r.target_temp_max}`
           : "—",
         r.cleaning_product ?? "—",
-      ]),
+      ]);
+    });
+    autoTable(doc, {
+      startY: 36,
+      head: [["Attrezzatura", "Tipo", "Range temp. (°C)", "Prodotto sanificante"]],
+      body,
       styles: { fontSize: 9, cellPadding: 2.5 },
-      headStyles: { fillColor: [60, 60, 80], textColor: 255 },
+      headStyles: { fillColor: [30, 41, 59], textColor: 255 },
     });
   }
 
