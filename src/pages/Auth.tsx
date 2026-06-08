@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { ShieldCheck, Building2, UserCircle2, AtSign, Loader2 } from "lucide-react";
+import { ShieldCheck, Building2, UserCircle2, AtSign, Loader2, Gift } from "lucide-react";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
