@@ -190,47 +190,74 @@ export default function Production() {
     }
     // Coda bilance: inserisce solo se l'integrazione è attiva e PLU è compilato
     if (scaleIntegrationActive && store && pluCode.trim()) {
-      const selectedNames = Array.from(selected)
-        .map((id) => materials.find((m: any) => m.id === id)?.product_name)
-        .filter(Boolean)
-        .join(", ");
-      const combinedIngredients = [
-        selectedNames,
-        manualIngredients.trim(),
-      ].filter(Boolean).join(", ") || null;
-      // === Origine carne: prefisso automatico SOLO per la coda bilance (Macelleria) ===
-      // Non altera prodotti, ingredienti o log HACCP: agisce solo sul payload inviato alla bilancia.
-      const meatPrefix = (() => {
-        if (!isMacelleria(productDeptId)) return "";
-        const haystack = `${name} ${combinedIngredients ?? ""}`.toLowerCase();
-        const meatRe = /\b(bovino|suino|vitell[oa]|carne)\b/;
-        if (!meatRe.test(haystack)) return "";
-        const selectedMats = Array.from(selected)
-          .map((id) => materials.find((m: any) => m.id === id))
-          .filter(Boolean) as any[];
-        const origins = selectedMats
-          .flatMap((m) => [m.slaughtered_in, m.raised_in, m.born_in])
-          .map((s) => (s ?? "").toString().trim())
-          .filter(Boolean);
-        if (origins.length === 0) return "";
-        const norm = (s: string) =>
-          s.toLowerCase().normalize("NFD").replace(/[\u0300-\u036f]/g, "");
-        const EU = new Set([
-          "austria","belgio","bulgaria","cipro","croazia","danimarca","estonia",
-          "finlandia","francia","germania","grecia","irlanda","lettonia","lituania",
-          "lussemburgo","malta","paesi bassi","olanda","polonia","portogallo",
-          "repubblica ceca","cechia","romania","slovacchia","slovenia","spagna",
-          "svezia","ungheria",
-        ]);
-        const isItaly = origins.some((o) => ["italia","italy","it"].includes(norm(o)));
-        if (isItaly) return "Carne origine It, ";
-        const isEu = origins.some((o) => EU.has(norm(o)));
-        if (isEu) return "Carne origine Ue, ";
-        return "";
-      })();
-      const queueIngredients = meatPrefix
-        ? `${meatPrefix}${combinedIngredients ?? ""}`.replace(/,\s*$/, "")
-        : combinedIngredients;
+      // === Costruzione lista ingredienti per la bilancia ===
+      // Replica la stessa logica usata in ProductDetail per le etichette dei
+      // prodotti multicomponente: categorie, tracciabilità carne (Italia/UE),
+      // sotto-ingredienti delle materie prime già lavorate e ingredienti manuali.
+      const MEAT_KEYWORDS: Record<string, string> = {
+        tacchino: "tacchino", pollo: "pollo", gallina: "gallina", cappone: "cappone",
+        manzo: "manzo", bovino: "bovino", bovina: "bovino", vitello: "vitello",
+        vitellone: "vitellone", suino: "suino", maiale: "suino", agnello: "agnello",
+        pecora: "pecora", capra: "capra", capretto: "capretto", coniglio: "coniglio",
+        cavallo: "cavallo", anatra: "anatra", oca: "oca", faraona: "faraona",
+        cinghiale: "cinghiale", struzzo: "struzzo", quaglia: "quaglia",
+      };
+      const detectMeat = (nm: string) => {
+        const n = (nm || "").toLowerCase();
+        for (const k of Object.keys(MEAT_KEYWORDS)) if (n.includes(k)) return MEAT_KEYWORDS[k];
+        return null;
+      };
+      const _isSalumeriaProd = isSalumeria(productDeptId);
+      const selectedMats = Array.from(selected)
+        .map((id) => materials.find((m: any) => m.id === id))
+        .filter(Boolean) as any[];
+      const meats: string[] = [];
+      const aromas: string[] = [];
+      const additives: string[] = [];
+      const others: string[] = [];
+      for (const m of selectedMats) {
+        const cat = m.category || "materia_prima";
+        if (cat === "aroma") {
+          if (m.product_name) aromas.push(m.product_name);
+        } else if (cat === "additivo_allergene") {
+          const codes = (m.ingredients && String(m.ingredients).trim()) || "";
+          if (!codes) {
+            if (m.product_name) additives.push(m.product_name);
+          } else {
+            codes.split(",").map((s: string) => s.trim()).filter(Boolean)
+              .forEach((c: string) => additives.push(c));
+          }
+        } else {
+          const meat = detectMeat(m.product_name || "");
+          const traceCountries = [m.born_in, m.raised_in, m.slaughtered_in]
+            .map((v) => (v ? String(v).trim() : "")).filter(Boolean);
+          const rawOrigin = (m.origin && String(m.origin).trim()) || traceCountries[0] || "";
+          let origin = rawOrigin || "UE";
+          if (traceCountries.length > 0) {
+            const norm = traceCountries.map((c) => c.toLowerCase());
+            const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
+            origin = allItaly ? "Italia" : "UE";
+          }
+          const subIngredients = (m.ingredients && String(m.ingredients).trim()) || "";
+          if (_isSalumeriaProd) {
+            others.push(subIngredients ? `${m.product_name} (${subIngredients})` : m.product_name);
+          } else if (meat) {
+            meats.push(`carne di ${meat} (${origin})`);
+          } else if (subIngredients) {
+            subIngredients.split(",").map((s: string) => s.trim()).filter(Boolean)
+              .forEach((ing: string) => others.push(ing));
+          } else if (m.product_name) {
+            others.push(`${m.product_name} (${origin})`);
+          }
+        }
+      }
+      const parts: string[] = [...meats, ...others, ...aromas, ...additives];
+      const manualRaw = manualIngredients.trim();
+      if (manualRaw) {
+        manualRaw.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
+          .forEach((t) => parts.push(t));
+      }
+      const queueIngredients = parts.join(", ") || null;
       const { error: qErr } = await supabase.from("scales_queue").insert({
         user_id: user!.id,
         store_id: store.id,
