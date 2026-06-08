@@ -215,17 +215,28 @@ export default function Production() {
       const aromas: string[] = [];
       const additives: string[] = [];
       const others: string[] = [];
+      // Set di deduplica globale (case-insensitive) per evitare ripetizioni
+      // tra sotto-ingredienti dei vari componenti (salumi, formaggi, ecc.),
+      // allergeni, additivi e ingredienti manuali.
+      const seen = new Set<string>();
+      const norm = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+      const take = (s: string) => {
+        const k = norm(s);
+        if (!k || seen.has(k)) return false;
+        seen.add(k);
+        return true;
+      };
       for (const m of selectedMats) {
         const cat = m.category || "materia_prima";
         if (cat === "aroma") {
-          if (m.product_name) aromas.push(m.product_name);
+          if (m.product_name && take(m.product_name)) aromas.push(m.product_name);
         } else if (cat === "additivo_allergene") {
           const codes = (m.ingredients && String(m.ingredients).trim()) || "";
           if (!codes) {
-            if (m.product_name) additives.push(m.product_name);
+            if (m.product_name && take(m.product_name)) additives.push(m.product_name);
           } else {
             codes.split(",").map((s: string) => s.trim()).filter(Boolean)
-              .forEach((c: string) => additives.push(c));
+              .forEach((c: string) => { if (take(c)) additives.push(c); });
           }
         } else {
           const meat = detectMeat(m.product_name || "");
@@ -234,19 +245,33 @@ export default function Production() {
           const rawOrigin = (m.origin && String(m.origin).trim()) || traceCountries[0] || "";
           let origin = rawOrigin || "UE";
           if (traceCountries.length > 0) {
-            const norm = traceCountries.map((c) => c.toLowerCase());
-            const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
+            const normCountries = traceCountries.map((c) => c.toLowerCase());
+            const allItaly = normCountries.every((c) => c === "italia" || c === "italy" || c === "it");
             origin = allItaly ? "Italia" : "UE";
           }
           const subIngredients = (m.ingredients && String(m.ingredients).trim()) || "";
-          if (_isSalumeriaProd) {
-            others.push(subIngredients ? `${m.product_name} (${subIngredients})` : m.product_name);
-          } else if (meat) {
-            meats.push(`carne di ${meat} (${origin})`);
+          if (meat && !subIngredients) {
+            const txt = `carne di ${meat} (${origin})`;
+            if (take(txt)) meats.push(txt);
           } else if (subIngredients) {
-            subIngredients.split(",").map((s: string) => s.trim()).filter(Boolean)
-              .forEach((ing: string) => others.push(ing));
-          } else if (m.product_name) {
+            // Componente composito (es. salume / formaggio / semilavorato):
+            // mostriamo il nome del componente seguito SOLO dai sotto-
+            // ingredienti non ancora visti, così da razionalizzare allergeni,
+            // additivi e conservanti già presenti in altri componenti.
+            const subs = subIngredients
+              .split(",")
+              .map((s: string) => s.trim())
+              .filter(Boolean);
+            const uniqueSubs = subs.filter((s) => take(s));
+            const nameOk = m.product_name && take(m.product_name);
+            if (nameOk && uniqueSubs.length) {
+              others.push(`${m.product_name} (${uniqueSubs.join(", ")})`);
+            } else if (nameOk) {
+              others.push(m.product_name);
+            } else if (uniqueSubs.length) {
+              uniqueSubs.forEach((s) => others.push(s));
+            }
+          } else if (m.product_name && take(m.product_name)) {
             others.push(`${m.product_name} (${origin})`);
           }
         }
@@ -255,7 +280,7 @@ export default function Production() {
       const manualRaw = manualIngredients.trim();
       if (manualRaw) {
         manualRaw.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
-          .forEach((t) => parts.push(t));
+          .forEach((t) => { if (take(t)) parts.push(t); });
       }
       const queueIngredients = parts.join(", ") || null;
       const { error: qErr } = await supabase.from("scales_queue").insert({
