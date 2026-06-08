@@ -174,9 +174,7 @@ export default function AppShell() {
       {/* Desktop sidebar */}
       <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border p-4 shadow-soft overflow-y-auto">
         <div className="flex items-center gap-3 px-2 py-3 mb-4">
-          <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-            <ShieldCheck className="text-primary-foreground" size={20} />
-          </div>
+          <img src={logoShield} alt="HACCP Trace" className="h-10 w-10 rounded-xl object-contain bg-white" />
           <div>
             <div className="font-display font-bold">HACCP Trace</div>
             <div className="text-xs text-muted-foreground">{t("Autocontrollo")}</div>
@@ -228,9 +226,7 @@ export default function AppShell() {
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0 flex flex-col">
               <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
-                <div className="h-10 w-10 rounded-xl bg-gradient-primary flex items-center justify-center">
-                  <ShieldCheck className="text-primary-foreground" size={20} />
-                </div>
+                <img src={logoShield} alt="HACCP Trace" className="h-10 w-10 rounded-xl object-contain bg-white" />
                 <div>
                   <div className="font-display font-bold">HACCP Trace</div>
                   <div className="text-xs text-muted-foreground">{t("Autocontrollo")}</div>
@@ -273,6 +269,7 @@ export default function AppShell() {
               </div>
             </SheetContent>
           </Sheet>
+          <img src={logoShield} alt="" className="h-7 w-7 rounded-md object-contain" />
           <span className="font-display font-bold text-sm">HACCP Trace</span>
         </div>
         <div className="flex items-center gap-1">
