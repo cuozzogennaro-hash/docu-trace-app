@@ -1172,6 +1172,62 @@ export type Database = {
           },
         ]
       }
+      scales_lotti_queue: {
+        Row: {
+          born_in: string | null
+          created_at: string
+          department_code: number | null
+          id: number
+          lot_code: string | null
+          raised_in: string | null
+          scale_slot_number: number
+          slaughtered_in: string | null
+          slaughterhouse_cee: string | null
+          status: string
+          store_id: string
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          born_in?: string | null
+          created_at?: string
+          department_code?: number | null
+          id?: never
+          lot_code?: string | null
+          raised_in?: string | null
+          scale_slot_number: number
+          slaughtered_in?: string | null
+          slaughterhouse_cee?: string | null
+          status?: string
+          store_id: string
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          born_in?: string | null
+          created_at?: string
+          department_code?: number | null
+          id?: never
+          lot_code?: string | null
+          raised_in?: string | null
+          scale_slot_number?: number
+          slaughtered_in?: string | null
+          slaughterhouse_cee?: string | null
+          status?: string
+          store_id?: string
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: [
+          {
+            foreignKeyName: "scales_lotti_queue_store_id_fkey"
+            columns: ["store_id"]
+            isOneToOne: false
+            referencedRelation: "stores"
+            referencedColumns: ["id"]
+          },
+        ]
+      }
       scales_queue: {
         Row: {
           born_in: string | null
