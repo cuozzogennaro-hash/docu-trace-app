@@ -415,7 +415,7 @@ export default function Incoming() {
       raised_in: isMacelleria(l.departmentId) ? l.raisedIn.trim() : null,
       slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
       slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : null,
-      ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
+            ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
       intake_temperature: isCucina(l.departmentId) && l.intakeTemperature.trim()
         ? parseFloat(l.intakeTemperature.replace(",", "."))
         : null,
@@ -427,25 +427,25 @@ export default function Incoming() {
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
 
-    // Coda bilance di reparto: solo se l'integrazione è attiva e la riga ha PLU
+    // Coda bilance di reparto (solo Macelleria): slot tracciabilità 1-10
     if (scaleIntegrationActive && store) {
       const queueRows = validLines
-        .filter((l) => l.pluCode.trim())
+        .filter((l) => isMacelleria(l.departmentId) && l.pluCode.trim())
         .map((l) => {
           const dept = departments.find((d) => d.id === l.departmentId) as any;
           return {
             user_id: user!.id,
             store_id: store.id,
-            plu_code: l.pluCode.trim(),
-            product_name: l.productName,
+            plu_code: l.pluCode.trim(), // slot bilancia 1-10
+            product_name: null,
             lot_number: l.internalLot,
-            ingredients: l.scaleIngredients.trim() || l.ingredients.trim() || null,
+            ingredients: null,
             department_code: dept?.scale_department_code ?? null,
             supplier_lot: l.supplierLot.trim() || null,
-            born_in: isMacelleria(l.departmentId) ? (l.bornIn.trim() || null) : null,
-            raised_in: isMacelleria(l.departmentId) ? (l.raisedIn.trim() || null) : null,
-            slaughtered_in: isMacelleria(l.departmentId) ? (l.slaughteredIn.trim() || null) : null,
-            slaughterhouse_cee: isMacelleria(l.departmentId) ? (l.slaughterMark.trim() || null) : null,
+            born_in: l.bornIn.trim() || null,
+            raised_in: l.raisedIn.trim() || null,
+            slaughtered_in: l.slaughteredIn.trim() || null,
+            slaughterhouse_cee: l.slaughterMark.trim() || null,
           };
         });
       if (queueRows.length > 0) {
@@ -739,44 +739,39 @@ export default function Incoming() {
                   </div>
                 </div>
               )}
-              {scaleIntegrationActive && !isOperatorAdmin && line.departmentId && (() => {
+              {scaleIntegrationActive && !isOperatorAdmin && isMacelleria(line.departmentId) && (() => {
                 const dept = departments.find((d) => d.id === line.departmentId) as any;
                 const code = dept?.scale_department_code;
                 return (
                   <div className="mt-3 p-3 rounded-md bg-indigo-50 border border-indigo-200 space-y-2">
                     <Label className="text-xs font-semibold text-indigo-900 flex items-center gap-1.5">
-                      <Scale size={14} /> Invio a Bilance di Reparto
+                      <Scale size={14} /> Invio a Bilancia Macelleria — Slot Tracciabilità
                     </Label>
                     {code != null ? (
                       <p className="text-[11px] text-indigo-900/80">
-                        Reparto bilancia: <strong>codice {code}</strong>. Compila il PLU per accodare l'invio.
+                        Reparto bilancia: <strong>codice {code}</strong>. Scegli lo slot di memoria (1-10) da sovrascrivere con questa carcassa.
                       </p>
                     ) : (
                       <p className="text-[11px] text-amber-800">
                         Nessun "Codice Reparto Bilancia" configurato per questo reparto (Impostazioni → Reparti).
                       </p>
                     )}
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Codice PLU bilancia</Label>
-                        <Input
-                          value={line.pluCode}
-                          onChange={(e) => updateLine(idx, { pluCode: e.target.value })}
-                          placeholder="es. 1023"
-                          className="font-mono"
-                        />
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Ingredienti per etichetta bilancia (opzionale)</Label>
-                        <Input
-                          value={line.scaleIngredients}
-                          onChange={(e) => updateLine(idx, { scaleIngredients: e.target.value })}
-                          placeholder="se vuoto usa quelli del prodotto"
-                        />
-                      </div>
+                    <div className="space-y-1 max-w-[260px]">
+                      <Label className="text-xs">Slot Bilancia (1-10) *</Label>
+                      <Select
+                        value={line.pluCode}
+                        onValueChange={(v) => updateLine(idx, { pluCode: v })}
+                      >
+                        <SelectTrigger><SelectValue placeholder="Seleziona Slot Bilancia (1-10)" /></SelectTrigger>
+                        <SelectContent>
+                          {Array.from({ length: 10 }, (_, i) => i + 1).map((n) => (
+                            <SelectItem key={n} value={String(n)}>Slot {n}</SelectItem>
+                          ))}
+                        </SelectContent>
+                      </Select>
                     </div>
                     <p className="text-[11px] text-indigo-900/70">
-                      Al salvataggio verrà accodato un record in <strong>scales_queue</strong> (stato <em>pending</em>) con PLU, lotto interno, lotto fornitore{isMacelleria(line.departmentId) ? " e passaporto carne (Nato/Allevato/Macellato + Bollo CE)" : ""}.
+                      Al salvataggio verrà accodato un record in <strong>scales_queue</strong> con il numero di slot scelto e il passaporto bovino (Nato/Allevato/Macellato + Bollo CE + Lotto fornitore). Nessun PLU o ingrediente viene inviato.
                     </p>
                   </div>
                 );
