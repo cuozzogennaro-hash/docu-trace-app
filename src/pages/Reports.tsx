@@ -998,13 +998,13 @@ export default function Reports() {
       prepTotal: buckets.preps.length,
       ncTotal: buckets.ncs.length,
       ncOpen: buckets.ncs.filter((r) => r.status === "open" || r.status === "in_progress").length,
-      ncClosed: buckets.ncs.filter((r) => r.status === "closed" || r.resolved_at).length,
+      ncClosed: buckets.ncs.filter((r) => r.status === "resolved" || r.status === "closed" || r.resolved_at).length,
     };
   }
 
   function drawSummarySection(doc: jsPDF, s: SummaryStats) {
     const pageW = doc.internal.pageSize.getWidth();
-    // KPI cards grid 4x2
+    // KPI cards grid
     const cards: { label: string; value: string; tone?: "ok" | "warn" | "neutral" }[] = [
       { label: "Rilevazioni temperatura", value: String(s.tempTotal), tone: "neutral" },
       { label: "Conformi", value: String(s.tempInRange), tone: "ok" },
@@ -1016,14 +1016,15 @@ export default function Reports() {
       { label: "Holding caldo/freddo", value: `${s.holdingTotal} (${s.holdingAnomalies} anom.)`, tone: s.holdingAnomalies > 0 ? "warn" : "ok" },
       { label: "Controlli olio frittura", value: `${s.oilTotal} (${s.oilAnomalies} anom.)`, tone: s.oilAnomalies > 0 ? "warn" : "ok" },
       { label: "Preparazioni / mise en place", value: String(s.prepTotal), tone: "neutral" },
+      { label: "Non conformità totali", value: String(s.ncTotal), tone: s.ncTotal > 0 ? "warn" : "ok" },
       { label: "Non conformità aperte", value: String(s.ncOpen), tone: s.ncOpen > 0 ? "warn" : "ok" },
       { label: "Non conformità chiuse", value: String(s.ncClosed), tone: "ok" },
     ];
-    const cols = 4;
+    const cols = 5;
     const gap = 4;
     const margin = 14;
     const cw = (pageW - margin * 2 - gap * (cols - 1)) / cols;
-    const ch = 22;
+    const ch = 24;
     let x = margin, y = 40;
     cards.forEach((c, i) => {
       const col = i % cols;
@@ -1036,16 +1037,21 @@ export default function Reports() {
       else doc.setFillColor(248, 250, 252);
       doc.setDrawColor(220);
       doc.roundedRect(x, y, cw, ch, 2, 2, "FD");
+      // barra accento sinistra
+      if (c.tone === "warn") doc.setFillColor(239, 68, 68);
+      else if (c.tone === "ok") doc.setFillColor(34, 197, 94);
+      else doc.setFillColor(59, 130, 246);
+      doc.rect(x, y, 1.8, ch, "F");
       doc.setFont("helvetica", "bold");
-      doc.setFontSize(14);
+      doc.setFontSize(15);
       if (c.tone === "warn") doc.setTextColor(185, 28, 28);
       else if (c.tone === "ok") doc.setTextColor(21, 128, 61);
       else doc.setTextColor(30, 41, 59);
-      doc.text(c.value, x + 4, y + 11);
+      doc.text(c.value, x + 5, y + 12);
       doc.setTextColor(80);
       doc.setFont("helvetica", "normal");
       doc.setFontSize(7.5);
-      doc.text(c.label, x + 4, y + 17, { maxWidth: cw - 8 });
+      doc.text(c.label, x + 5, y + 19, { maxWidth: cw - 10 });
       doc.setTextColor(0);
     });
 
