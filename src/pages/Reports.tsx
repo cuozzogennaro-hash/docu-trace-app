@@ -741,92 +741,117 @@ export default function Reports() {
   function drawAslCover(doc: jsPDF, periodLabel: string, logo: Awaited<ReturnType<typeof logoDataUrl>>) {
     const pageW = doc.internal.pageSize.getWidth();
     const pageH = doc.internal.pageSize.getHeight();
-    // soft background band
-    doc.setFillColor(245, 247, 250);
-    doc.rect(0, 0, pageW, 70, "F");
+    // Sfondo a due tonalità (dinamico, landscape)
+    doc.setFillColor(15, 23, 42);
+    doc.rect(0, 0, pageW, pageH, "F");
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageW * 0.42, pageH, "F");
+    // accento
+    doc.setFillColor(59, 130, 246);
+    doc.rect(pageW * 0.42 - 1.5, 0, 1.5, pageH, "F");
+
+    // Logo grande in alto a sinistra
     if (logo) {
-      const maxH = 28;
+      const maxH = 40;
       const ratio = logo.w / logo.h;
       const h = maxH;
       const w = h * ratio;
-      try { doc.addImage(logo.data, "PNG", (pageW - w) / 2, 22, w, h); } catch {}
+      const cx = pageW * 0.21;
+      try { doc.addImage(logo.data, "PNG", cx - w / 2, 30, w, h); } catch {}
     }
-    doc.setFont("helvetica", "bold");
-    doc.setFontSize(22);
-    doc.text("Pacchetto Ispezione HACCP", pageW / 2, 95, { align: "center" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(12);
-    doc.setTextColor(90);
-    doc.text("Documento di autocontrollo — Reg. CE 852/2004 e Reg. UE 1169/2011", pageW / 2, 104, { align: "center" });
-    doc.setTextColor(0);
 
-    // Company block
-    doc.setDrawColor(220);
-    doc.roundedRect(20, 120, pageW - 40, 60, 3, 3, "S");
+    // Blocco azienda nella colonna sinistra
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(14);
-    doc.text(company.business_name ?? "—", 28, 132);
+    doc.setFontSize(18);
+    doc.text(company.business_name ?? "—", pageW * 0.21, logo ? 85 : 60, { align: "center", maxWidth: pageW * 0.38 });
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(9);
+    doc.setTextColor(200);
+    let y = (logo ? 85 : 60) + 10;
+    if (company.vat) { doc.text(`P.IVA ${company.vat}`, pageW * 0.21, y, { align: "center" }); y += 5; }
+    const addr = [company.address, company.city].filter(Boolean).join(" — ");
+    if (addr) { doc.text(addr, pageW * 0.21, y, { align: "center", maxWidth: pageW * 0.38 }); y += 5; }
+    if (company.phone) { doc.text(`Tel ${company.phone}`, pageW * 0.21, y, { align: "center" }); y += 5; }
+    if (company.email) { doc.text(company.email, pageW * 0.21, y, { align: "center" }); }
+
+    // Colonna destra: titolo + periodo
+    const rx = pageW * 0.42 + 18;
+    doc.setTextColor(148, 163, 184);
     doc.setFont("helvetica", "normal");
     doc.setFontSize(10);
-    let y = 140;
-    const lines: string[] = [];
-    if (company.vat) lines.push(`Partita IVA: ${company.vat}`);
-    const addr = [company.address, company.city].filter(Boolean).join(" — ");
-    if (addr) lines.push(addr);
-    if (company.phone) lines.push(`Telefono: ${company.phone}`);
-    if (company.email) lines.push(`Email: ${company.email}`);
-    lines.forEach((l) => { doc.text(l, 28, y); y += 6; });
-
-    // Period block
+    doc.text("DOCUMENTO HACCP", rx, 50);
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Periodo di riferimento", 28, 200);
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(14);
-    doc.text(periodLabel, 28, 210);
+    doc.setFontSize(32);
+    doc.text("Pacchetto", rx, 70);
+    doc.text("Ispezione ASL", rx, 86);
 
+    // banda colorata sotto il titolo
+    doc.setFillColor(59, 130, 246);
+    doc.rect(rx, 92, 50, 2, "F");
+
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(11);
+    doc.setTextColor(203, 213, 225);
+    doc.text("Documentazione di autocontrollo — Reg. CE 852/2004 e Reg. UE 1169/2011", rx, 104, { maxWidth: pageW - rx - 18 });
+
+    // Box periodo + data
+    const boxY = 125;
+    doc.setDrawColor(59, 130, 246);
+    doc.setFillColor(30, 41, 59);
+    doc.roundedRect(rx, boxY, pageW - rx - 18, 38, 3, 3, "FD");
+    doc.setTextColor(148, 163, 184);
+    doc.setFontSize(9);
+    doc.text("PERIODO DI RIFERIMENTO", rx + 8, boxY + 9);
+    doc.text("DATA EMISSIONE", rx + (pageW - rx - 18) / 2 + 4, boxY + 9);
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(11);
-    doc.text("Data emissione documento", pageW - 28, 200, { align: "right" });
-    doc.setFont("helvetica", "normal");
-    doc.setFontSize(14);
-    doc.text(new Date().toLocaleDateString("it-IT"), pageW - 28, 210, { align: "right" });
+    doc.setFontSize(16);
+    doc.text(periodLabel, rx + 8, boxY + 22, { maxWidth: (pageW - rx - 18) / 2 - 12 });
+    doc.text(new Date().toLocaleDateString("it-IT"), rx + (pageW - rx - 18) / 2 + 4, boxY + 22);
 
-    // Footer note
+    // Footer cover
+    doc.setFont("helvetica", "normal");
     doc.setFontSize(8);
-    doc.setTextColor(120);
+    doc.setTextColor(148, 163, 184);
     doc.text(
-      "Il presente documento riepiloga le registrazioni HACCP relative al periodo indicato.\nCostituisce documentazione di autocontrollo ai sensi della normativa vigente.",
+      "Il presente documento riepiloga le registrazioni HACCP del periodo. Costituisce documentazione di autocontrollo ai sensi della normativa vigente.",
       pageW / 2,
-      pageH - 30,
-      { align: "center" },
+      pageH - 14,
+      { align: "center", maxWidth: pageW - 40 },
     );
     doc.setTextColor(0);
   }
 
   function drawAslIndex(doc: jsPDF, sections: { title: string; page: number }[]) {
     const pageW = doc.internal.pageSize.getWidth();
+    // Banda titolo
+    doc.setFillColor(30, 41, 59);
+    doc.rect(0, 0, pageW, 22, "F");
+    doc.setFillColor(59, 130, 246);
+    doc.rect(0, 22, pageW, 1.5, "F");
+    doc.setTextColor(255);
     doc.setFont("helvetica", "bold");
-    doc.setFontSize(16);
-    doc.text("Indice del documento", pageW / 2, 24, { align: "center" });
-    doc.setDrawColor(220);
-    doc.line(20, 30, pageW - 20, 30);
+    doc.setFontSize(14);
+    doc.text("Indice del documento", 14, 14);
+    doc.setTextColor(0);
     doc.setFontSize(11);
-    let y = 44;
+    let y = 38;
     sections.forEach((s, i) => {
       doc.setFont("helvetica", "normal");
-      doc.text(`${i + 1}. ${s.title}`, 24, y);
+      doc.text(`${i + 1}. ${s.title}`, 20, y);
       // dotted leader
       const tw = doc.getTextWidth(`${i + 1}. ${s.title}`);
-      const dotsStart = 24 + tw + 4;
+      const dotsStart = 20 + tw + 4;
       const dotsEnd = pageW - 30;
       doc.setTextColor(180);
       let x = dotsStart;
       while (x < dotsEnd) { doc.text(".", x, y); x += 2; }
       doc.setTextColor(0);
       doc.setFont("helvetica", "bold");
-      doc.text(String(s.page), pageW - 24, y, { align: "right" });
-      y += 8;
+      doc.text(String(s.page), pageW - 20, y, { align: "right" });
+      y += 9;
     });
   }
 
