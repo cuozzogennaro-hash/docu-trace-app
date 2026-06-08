@@ -559,7 +559,7 @@ export default function Reports() {
   function emptyMsg(doc: jsPDF, text: string) {
     doc.setFontSize(11);
     doc.setTextColor(120);
-    doc.text(text, doc.internal.pageSize.getWidth() / 2, 70, { align: "center" });
+    doc.text(text, doc.internal.pageSize.getWidth() / 2, 50, { align: "center" });
     doc.setTextColor(0);
   }
 
@@ -999,12 +999,12 @@ export default function Reports() {
     const margin = 14;
     const cw = (pageW - margin * 2 - gap * (cols - 1)) / cols;
     const ch = 22;
-    let x = margin, y = 56;
+    let x = margin, y = 40;
     cards.forEach((c, i) => {
       const col = i % cols;
       const row = Math.floor(i / cols);
       x = margin + col * (cw + gap);
-      y = 56 + row * (ch + gap);
+      y = 40 + row * (ch + gap);
       // tone fill
       if (c.tone === "warn") doc.setFillColor(254, 242, 242);
       else if (c.tone === "ok") doc.setFillColor(240, 253, 244);
@@ -1250,7 +1250,7 @@ export default function Reports() {
           doc.addPage("a4", "portrait");
           indexEntries.push({ title: "Allegati fotografici DDT", page: doc.getNumberOfPages() });
           drawHeader(doc, "Allegati fotografici DDT", label, logo);
-          let py = 56;
+          let py = 40;
           const pageW = doc.internal.pageSize.getWidth();
           const pageH = doc.internal.pageSize.getHeight();
           for (const r of withPhotos) {
@@ -1277,7 +1277,7 @@ export default function Reports() {
               if (py + h + 16 > pageH - 14) {
                 doc.addPage("a4", "portrait");
                 drawHeader(doc, "Allegati fotografici DDT", label, logo);
-                py = 56;
+                py = 40;
               }
               doc.setFontSize(9);
               doc.setFont("helvetica", "bold");
