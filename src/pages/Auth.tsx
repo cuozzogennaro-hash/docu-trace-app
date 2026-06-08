@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { ShieldCheck, Building2, UserCircle2, AtSign, Loader2 } from "lucide-react";
+import { ShieldCheck, Building2, UserCircle2, AtSign, Loader2, Gift } from "lucide-react";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 
@@ -135,6 +135,15 @@ export default function AuthPage() {
         <LanguageSwitcher variant="full" />
       </div>
       <div className="w-full max-w-md">
+        <div className="mb-6 rounded-xl bg-gradient-accent p-4 text-accent-foreground shadow-soft">
+          <div className="flex items-start gap-3">
+            <Gift className="mt-0.5 shrink-0" size={20} />
+            <div>
+              <p className="font-semibold text-sm">{t("Prova gratuita per 30 giorni")}</p>
+              <p className="text-xs opacity-90 mt-0.5">{t("Nessuna carta di credito richiesta. Cancellazione in qualsiasi momento.")}</p>
+            </div>
+          </div>
+        </div>
         <div className="flex items-center justify-center gap-3 mb-8">
           <div className="h-12 w-12 rounded-2xl bg-gradient-primary flex items-center justify-center shadow-elevated">
             <ShieldCheck className="text-primary-foreground" />
