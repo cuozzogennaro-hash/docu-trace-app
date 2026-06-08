@@ -149,7 +149,7 @@ export default function AuthPage() {
             <ShieldCheck className="text-primary-foreground" />
           </div>
           <div>
-            <h1 className="font-display text-2xl font-bold">HACCP Pro — Gestione Autocontrollo Alimentare</h1>
+            <h1 className="font-display text-2xl font-bold">HACCP Trace — Gestione Autocontrollo Alimentare</h1>
             <p className="text-xs text-muted-foreground">{t("Autocontrollo alimentare smart")}</p>
           </div>
         </div>

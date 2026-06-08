@@ -12,7 +12,7 @@ const EMAIL_BUGS = "Cuozzogennaro@gmail.com";
 
 export default function Support() {
   const [message, setMessage] = useState(
-    "Ciao, ho bisogno di assistenza con HACCP Pro."
+    "Ciao, ho bisogno di assistenza con HACCP Trace."
   );
 
   const waUrl = `https://wa.me/${SUPPORT_PHONE}?text=${encodeURIComponent(message)}`;

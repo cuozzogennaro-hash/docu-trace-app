@@ -16,7 +16,7 @@ export default function TermsPage() {
 
         <h2>1. Seller</h2>
         <p>
-          The HACCP Pro service (the "Service") is provided by
+          The HACCP Trace service (the "Service") is provided by
           <strong> Gennaro Cuozzo, sole proprietor</strong> ("we", the "Seller").
           By using the Service, you fully accept these Terms.
         </p>
@@ -29,7 +29,7 @@ export default function TermsPage() {
 
         <h2>3. Description of the Service</h2>
         <p>
-          HACCP Pro is a SaaS application for managing food self-monitoring: temperature logging,
+          HACCP Trace is a SaaS application for managing food self-monitoring: temperature logging,
           sanitation, blast chilling, production, labels, HACCP reports and audit-ready packages
           for inspections.
         </p>
@@ -73,7 +73,7 @@ export default function TermsPage() {
           Buyer terms are available here: <a href="https://www.paddle.com/legal/checkout-buyer-terms" target="_blank" rel="noopener noreferrer">Paddle Buyer Terms</a>.
         </p>
         <p>
-          The HACCP Pro subscription is €19.99 per month, with a 30-day free trial. At the end
+          The HACCP Trace subscription is €19.99 per month, with a 30-day free trial. At the end
           of the trial, the first month is automatically charged unless cancelled. Renewal is
           monthly until cancellation.
         </p>
@@ -147,7 +147,7 @@ export default function TermsPage() {
 
       <h2>1. Venditore</h2>
       <p>
-        Il servizio HACCP Pro (di seguito "il Servizio") è fornito da
+        Il servizio HACCP Trace (di seguito "il Servizio") è fornito da
         <strong> Gennaro Cuozzo, ditta individuale</strong> (di seguito "noi", "il Venditore").
         Utilizzando il Servizio l'utente accetta integralmente i presenti Termini.
       </p>
@@ -161,7 +161,7 @@ export default function TermsPage() {
 
       <h2>3. Descrizione del Servizio</h2>
       <p>
-        HACCP Pro è un'applicazione SaaS per la gestione dell'autocontrollo alimentare:
+        HACCP Trace è un'applicazione SaaS per la gestione dell'autocontrollo alimentare:
         registrazione temperature, sanificazioni, abbattimenti, produzione, etichette, report HACCP
         e pacchetti per le visite ASL.
       </p>
@@ -204,7 +204,7 @@ export default function TermsPage() {
         I termini di acquisto sono disponibili qui: <a href="https://www.paddle.com/legal/checkout-buyer-terms" target="_blank" rel="noopener noreferrer">Paddle Buyer Terms</a>.
       </p>
       <p>
-        L'abbonamento HACCP Pro è di 19,99 € al mese, con 30 giorni di prova gratuita.
+        L'abbonamento HACCP Trace è di 19,99 € al mese, con 30 giorni di prova gratuita.
         Al termine della prova viene addebitato automaticamente il primo mese, salvo annullamento.
         Il rinnovo è mensile fino a disdetta.
       </p>

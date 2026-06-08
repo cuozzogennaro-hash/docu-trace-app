@@ -169,7 +169,7 @@ export const en: Record<string, string> = {
   "Accedi con Google": "Sign in with Google",
   "Registrati con Google": "Sign up with Google",
   "oppure": "or",
-  "Benvenuto in HACCP Pro": "Welcome to HACCP Pro",
+  "Benvenuto in HACCP Trace": "Welcome to HACCP Trace",
   "Gestione semplificata dell'autocontrollo HACCP": "Simplified HACCP self-monitoring management",
   "Credenziali non valide": "Invalid credentials",
 

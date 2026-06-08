@@ -17,7 +17,7 @@ export default function PrivacyPage() {
         <h2>1. Data Controller</h2>
         <p>
           The data controller is <strong>Gennaro Cuozzo, sole proprietor</strong>, provider of the
-          HACCP Pro application. For any request regarding the processing of personal data, please
+          HACCP Trace application. For any request regarding the processing of personal data, please
           contact us via the details shown in the app.
         </p>
 
@@ -109,7 +109,7 @@ export default function PrivacyPage() {
       <h2>1. Titolare del trattamento</h2>
       <p>
         Titolare del trattamento è <strong>Gennaro Cuozzo, ditta individuale</strong>, che fornisce
-        l'applicazione HACCP Pro. Per qualsiasi richiesta relativa al trattamento dei dati personali
+        l'applicazione HACCP Trace. Per qualsiasi richiesta relativa al trattamento dei dati personali
         è possibile contattarci tramite i recapiti indicati nell'app.
       </p>
 
