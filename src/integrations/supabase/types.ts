@@ -244,6 +244,7 @@ export type Database = {
           created_at: string
           id: string
           name: string
+          scale_department_code: number | null
           sort_order: number
           updated_at: string
           user_id: string
@@ -252,6 +253,7 @@ export type Database = {
           created_at?: string
           id?: string
           name: string
+          scale_department_code?: number | null
           sort_order?: number
           updated_at?: string
           user_id: string
@@ -260,6 +262,7 @@ export type Database = {
           created_at?: string
           id?: string
           name?: string
+          scale_department_code?: number | null
           sort_order?: number
           updated_at?: string
           user_id?: string
@@ -1171,38 +1174,56 @@ export type Database = {
       }
       scales_queue: {
         Row: {
+          born_in: string | null
           created_at: string
+          department_code: number | null
           id: number
           ingredients: string | null
           lot_number: string | null
           plu_code: string
           product_name: string | null
+          raised_in: string | null
+          slaughtered_in: string | null
+          slaughterhouse_cee: string | null
           status: string
           store_id: string
+          supplier_lot: string | null
           updated_at: string
           user_id: string
         }
         Insert: {
+          born_in?: string | null
           created_at?: string
+          department_code?: number | null
           id?: never
           ingredients?: string | null
           lot_number?: string | null
           plu_code: string
           product_name?: string | null
+          raised_in?: string | null
+          slaughtered_in?: string | null
+          slaughterhouse_cee?: string | null
           status?: string
           store_id: string
+          supplier_lot?: string | null
           updated_at?: string
           user_id: string
         }
         Update: {
+          born_in?: string | null
           created_at?: string
+          department_code?: number | null
           id?: never
           ingredients?: string | null
           lot_number?: string | null
           plu_code?: string
           product_name?: string | null
+          raised_in?: string | null
+          slaughtered_in?: string | null
+          slaughterhouse_cee?: string | null
           status?: string
           store_id?: string
+          supplier_lot?: string | null
           updated_at?: string
           user_id?: string
         }
