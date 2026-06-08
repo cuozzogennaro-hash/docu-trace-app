@@ -232,7 +232,6 @@ export default function Production() {
     setRequiresBlastChilling(false);
     setManualIngredients("");
     setPluCode("");
-    setScaleIngredients("");
     setLot(generateInternalLot("P", new Date()));
     load();
   }
