@@ -114,6 +114,30 @@ export default function ConsulenteDashboard() {
     };
   }, [user]);
 
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    async function loadPartner() {
+      const { data, error } = await supabase
+        .from("consulenti_partner")
+        .select("codice_partner, studio_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (cancelled) return;
+      if (!error && data) {
+        setPartner(data as PartnerData);
+      }
+      setPartnerLoading(false);
+    }
+
+    loadPartner();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
   const counts = useMemo(() => {
     const total = clienti.length;
     const green = clienti.filter((c) => getStatus(c.last_seen_at) === "green").length;
