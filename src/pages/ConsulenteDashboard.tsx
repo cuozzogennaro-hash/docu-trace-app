@@ -12,7 +12,8 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { Building2, ShieldCheck, AlertTriangle, Eye } from "lucide-react";
+import { Building2, ShieldCheck, AlertTriangle, Eye, Copy } from "lucide-react";
+import { toast } from "sonner";
 
 type Cliente = {
   id: string;
@@ -74,10 +75,17 @@ const STATUS_META: Record<
   },
 };
 
+type PartnerData = {
+  codice_partner: string;
+  studio_name: string | null;
+};
+
 export default function ConsulenteDashboard() {
   const { user } = useAuth();
   const [clienti, setClienti] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [partner, setPartner] = useState<PartnerData | null>(null);
+  const [partnerLoading, setPartnerLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
@@ -101,6 +109,30 @@ export default function ConsulenteDashboard() {
     }
 
     load();
+    return () => {
+      cancelled = true;
+    };
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) return;
+    let cancelled = false;
+
+    async function loadPartner() {
+      const { data, error } = await supabase
+        .from("consulenti_partner")
+        .select("codice_partner, studio_name")
+        .eq("user_id", user.id)
+        .single();
+
+      if (cancelled) return;
+      if (!error && data) {
+        setPartner(data as PartnerData);
+      }
+      setPartnerLoading(false);
+    }
+
+    loadPartner();
     return () => {
       cancelled = true;
     };
@@ -138,6 +170,16 @@ export default function ConsulenteDashboard() {
     [counts]
   );
 
+  async function handleCopyCode() {
+    if (!partner?.codice_partner) return;
+    try {
+      await navigator.clipboard.writeText(partner.codice_partner);
+      toast.success("Codice copiato!");
+    } catch {
+      toast.error("Impossibile copiare il codice");
+    }
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
@@ -148,6 +190,47 @@ export default function ConsulenteDashboard() {
           Sicurezza Alimentare — Monitoraggio dei clienti assegnati
         </p>
       </div>
+
+      {/* Partner Code Card */}
+      <Card className="mb-8 border border-primary/20 bg-primary/[0.03] shadow-soft">
+        <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">
+              Il tuo Codice Partner Esclusivo
+            </p>
+            {partnerLoading ? (
+              <p className="text-sm text-muted-foreground italic">Caricamento…</p>
+            ) : partner ? (
+              <div className="flex items-center gap-3">
+                <span className="font-display text-3xl font-bold tracking-tight text-foreground">
+                  {partner.codice_partner}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={handleCopyCode}
+                >
+                  <Copy size={14} />
+                  Copia Codice
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">
+                Codice Partner in fase di generazione dall'amministratore
+              </p>
+            )}
+          </div>
+          {partner?.studio_name && (
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Studio
+              </p>
+              <p className="font-medium">{partner.studio_name}</p>
+            </div>
+          )}
+        </div>
+      </Card>
 
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
