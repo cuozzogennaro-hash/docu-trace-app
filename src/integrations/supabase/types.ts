@@ -1695,6 +1695,7 @@ export type Database = {
         }
         Returns: Json
       }
+      super_admin_revoke_partner: { Args: { p_user_id: string }; Returns: Json }
       super_admin_traffic_overview: { Args: { p_days?: number }; Returns: Json }
       touch_last_seen: { Args: never; Returns: undefined }
       unaccent_safe: { Args: { input: string }; Returns: string }
