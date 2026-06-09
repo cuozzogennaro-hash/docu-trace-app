@@ -1,24 +1,43 @@
+import { useEffect, useRef, useState } from "react";
 import { Navigate, useLocation } from "react-router-dom";
 import { useSubscription } from "@/hooks/useSubscription";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
+import { supabase } from "@/integrations/supabase/client";
+import { getPaddleEnvironment } from "@/lib/paddle";
 
 /**
- * Blocca l'accesso all'app se il titolare non ha un abbonamento attivo
- * (compresa prova/grace di 7gg per past_due e accesso fino a fine periodo per annullato).
- * Gli operatori che hanno fatto login con PIN passano sempre — l'accesso
- * dipende dal titolare che li ha invitati.
+ * Hard paywall post-trial.
+ * - Operatore con PIN: passa sempre (dipende dal titolare).
+ * - Titolare senza abbonamento: avvia silenziosamente il trial di 14gg.
+ * - Titolare con trial attivo o abbonamento `active` (o grazia past_due / canceled fino a fine periodo): naviga.
+ * - Tutti gli altri stati: redirect inesorabile a /abbonamento.
  */
 export default function SubscriptionGate({ children }: { children: React.ReactNode }) {
   const { user, loading: authLoading } = useAuth();
   const { operator } = useOperatorSession();
-  const { loading, hasAccess } = useSubscription();
+  const { loading, subscription, hasAccess, refetch } = useSubscription();
   const location = useLocation();
+  const startingRef = useRef(false);
+  const [starting, setStarting] = useState(false);
 
-  // Operatore senza sessione titolare → l'accesso è già garantito dal titolare
+  useEffect(() => {
+    if (!user || loading || subscription || startingRef.current) return;
+    startingRef.current = true;
+    setStarting(true);
+    (async () => {
+      try {
+        await supabase.rpc("start_local_trial" as any, { p_env: getPaddleEnvironment() });
+      } finally {
+        await refetch();
+        setStarting(false);
+      }
+    })();
+  }, [user, loading, subscription, refetch]);
+
   if (operator && !user) return <>{children}</>;
 
-  if (authLoading || (user && loading)) {
+  if (authLoading || (user && (loading || starting))) {
     return (
       <div className="min-h-screen flex items-center justify-center text-muted-foreground">
         Caricamento…

@@ -11,7 +11,7 @@ import { Label } from "@/components/ui/label";
 import { Card } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
-import { ShieldCheck, Building2, UserCircle2, AtSign, Loader2, Gift } from "lucide-react";
+import { Building2, UserCircle2, AtSign, Loader2 } from "lucide-react";
 import { getPaddleEnvironment } from "@/lib/paddle";
 import LanguageSwitcher from "@/components/LanguageSwitcher";
 import logoShield from "@/assets/logo-shield.png";
@@ -48,7 +48,7 @@ export default function AuthPage() {
         if (error) throw error;
         if (data.session) {
           await supabase.rpc("start_local_trial" as any, { p_env: getPaddleEnvironment() });
-          toast.success(t("Benvenuto! Hai 30 giorni di prova gratuita."));
+          toast.success(t("Benvenuto!"));
         } else {
           toast.success(t("Account creato. Controlla la tua email per confermare."));
         }
@@ -136,15 +136,6 @@ export default function AuthPage() {
         <LanguageSwitcher variant="full" />
       </div>
       <div className="w-full max-w-md">
-        <div className="mb-6 rounded-xl bg-gradient-accent p-4 text-accent-foreground shadow-soft">
-          <div className="flex items-start gap-3">
-            <Gift className="mt-0.5 shrink-0" size={20} />
-            <div>
-              <p className="font-semibold text-sm">{t("Prova gratuita per 30 giorni")}</p>
-              <p className="text-xs opacity-90 mt-0.5">{t("Nessuna carta di credito richiesta. Cancellazione in qualsiasi momento.")}</p>
-            </div>
-          </div>
-        </div>
         <div className="flex items-center justify-center gap-3 mb-8">
           <img src={logoShield} alt="HACCP Trace" className="h-14 w-14 rounded-2xl object-contain bg-white shadow-elevated" />
           <div>
@@ -217,7 +208,7 @@ export default function AuthPage() {
                   </div>
                 )}
                 <Button type="submit" disabled={busy} className="w-full bg-gradient-primary">
-                  {busy ? t("Attendi…") : mode === "signin" ? t("Accedi") : mode === "signup" ? t("Crea account (30gg gratis)") : t("Invia link reset")}
+                  {busy ? t("Attendi…") : mode === "signin" ? t("Accedi") : mode === "signup" ? t("Crea account") : t("Invia link reset")}
                 </Button>
                 <div className="relative my-2">
                   <div className="absolute inset-0 flex items-center"><span className="w-full border-t" /></div>
@@ -237,7 +228,7 @@ export default function AuthPage() {
                   ) : (
                     <>
                       <button type="button" onClick={() => setMode("signup")} className="text-muted-foreground hover:text-foreground underline">
-                        {t("Registrati (30gg gratis)")}
+                        {t("Registrati")}
                       </button>
                       <button type="button" onClick={() => setMode("forgot")} className="text-muted-foreground hover:text-foreground underline">
                         {t("Password dimenticata?")}
@@ -250,7 +241,6 @@ export default function AuthPage() {
           </Tabs>
         </Card>
         <div className="mt-6 text-center text-xs text-muted-foreground space-x-3">
-          <a href="/abbonamento" className="underline hover:text-foreground">{t("Prezzi")}</a>
           <a href="/termini" className="underline hover:text-foreground">{t("Termini")}</a>
           <a href="/rimborsi" className="underline hover:text-foreground">{t("Rimborsi")}</a>
           <a href="/privacy" className="underline hover:text-foreground">{t("Privacy")}</a>
