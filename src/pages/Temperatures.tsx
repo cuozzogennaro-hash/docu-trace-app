@@ -13,6 +13,11 @@ import { Thermometer, ShieldCheck, AlertTriangle, XCircle } from "lucide-react";
 
 export default function Temperatures() {
   const { assets, refresh } = useAssets();
+  // Solo attrezzature che richiedono rilevazione temperatura
+  // (hanno almeno una soglia min/max impostata)
+  const tempAssets = assets.filter(
+    (a: any) => a.target_temp_min != null || a.target_temp_max != null,
+  );
   const [assetId, setAssetId] = useState("");
   const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
   const [temperature, setTemperature] = useState("");
@@ -76,7 +81,7 @@ export default function Temperatures() {
             <Select value={assetId} onValueChange={setAssetId}>
               <SelectTrigger><SelectValue placeholder="Seleziona frigo/attrezzatura" /></SelectTrigger>
               <SelectContent>
-                {assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                {tempAssets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
@@ -137,8 +142,8 @@ export default function Temperatures() {
         {(() => {
           const doneAssetIds = new Set(rows.map((r) => r.asset_id));
           const assignedAssetIds = new Set(assignments.map((a) => a.asset_id));
-          const notDone = assets.filter((a) => assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
-          const unassigned = assets.filter((a) => !assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
+          const notDone = tempAssets.filter((a) => assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
+          const unassigned = tempAssets.filter((a) => !assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
 
           return (
             <>
