@@ -12,6 +12,17 @@ import { toast } from "sonner";
 import { Thermometer, ShieldCheck, AlertTriangle, XCircle, Wrench, PowerOff } from "lucide-react";
 import AssetServiceDialog, { reactivateAsset } from "@/components/AssetServiceDialog";
 
+function periodBounds(eventDate: string) {
+  const ed = new Date(eventDate + "T00:00:00");
+  const monthStart = new Date(ed.getFullYear(), ed.getMonth(), 1);
+  const day = ed.getDay();
+  const diff = day === 0 ? -6 : 1 - day;
+  const weekStart = new Date(ed);
+  weekStart.setDate(ed.getDate() + diff);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { monthStart: fmt(monthStart), weekStart: fmt(weekStart), today: eventDate };
+}
+
 export default function Temperatures() {
   const { assets, refresh } = useAssets();
   // Solo attrezzature che richiedono rilevazione temperatura
@@ -25,12 +36,14 @@ export default function Temperatures() {
   const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
   const [temperature, setTemperature] = useState("");
   const [rows, setRows] = useState<any[]>([]);
+  const [periodRows, setPeriodRows] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [pinOpen, setPinOpen] = useState(false);
 
   async function load() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    const { monthStart } = periodBounds(eventDate);
     const { data } = await supabase
       .from("temperatures")
       .select("*, assets(name, target_temp_min, target_temp_max)")
@@ -38,9 +51,16 @@ export default function Temperatures() {
       .order("event_date", { ascending: false })
       .limit(30);
     setRows(data ?? []);
+    const { data: period } = await supabase
+      .from("temperatures")
+      .select("id, asset_id, event_date, operator, temperature, assets(name, target_temp_min, target_temp_max)")
+      .gte("event_date", monthStart)
+      .lte("event_date", eventDate)
+      .order("event_date", { ascending: false });
+    setPeriodRows(period ?? []);
     const { data: tasks } = await supabase
       .from("task_assignments")
-      .select("asset_id, operator_id")
+      .select("asset_id, operator_id, frequency")
       .eq("user_id", user.id)
       .eq("task_type", "temperature");
     const opIds = Array.from(new Set((tasks ?? []).map((t: any) => t.operator_id).filter(Boolean)));
@@ -167,13 +187,61 @@ export default function Temperatures() {
         })}
 
         {(() => {
-          const doneAssetIds = new Set(rows.map((r) => r.asset_id));
+          const { monthStart, weekStart } = periodBounds(eventDate);
+          const assignmentDone = new Map<string, any>();
+          for (const a of assignments) {
+            const start = a.frequency === "monthly" ? monthStart : a.frequency === "weekly" ? weekStart : eventDate;
+            const rec = periodRows.find(
+              (r) => r.asset_id === a.asset_id && r.event_date >= start && r.event_date <= eventDate,
+            );
+            if (rec) assignmentDone.set(a.asset_id, rec);
+          }
+          const todayIds = new Set(rows.map((r) => r.asset_id));
+          const extraDone = Array.from(assignmentDone.entries())
+            .filter(([assetId, rec]) => !todayIds.has(assetId) && rec.event_date !== eventDate)
+            .map(([, rec]) => rec);
           const assignedAssetIds = new Set(assignments.map((a) => a.asset_id));
-          const notDone = tempAssets.filter((a) => assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
-          const unassigned = tempAssets.filter((a) => !assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
+          const notDone = tempAssets.filter(
+            (a) => assignedAssetIds.has(a.id) && !todayIds.has(a.id) && !assignmentDone.has(a.id),
+          );
+          const unassigned = tempAssets.filter(
+            (a) => !assignedAssetIds.has(a.id) && !todayIds.has(a.id),
+          );
 
           return (
             <>
+              {extraDone.map((r) => {
+                const min = r.assets?.target_temp_min;
+                const max = r.assets?.target_temp_max;
+                const outOfRange =
+                  (min != null && r.temperature < min) || (max != null && r.temperature > max);
+                return (
+                  <Card
+                    key={`ex-${r.id}`}
+                    className={`p-4 flex items-center justify-between border-l-4 ${
+                      outOfRange ? "border-l-destructive" : "border-l-green-500"
+                    }`}
+                  >
+                    <div>
+                      <div className="font-semibold">{r.assets?.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {r.event_date} • {r.operator || "—"} •{" "}
+                        <span className={outOfRange ? "text-destructive font-medium" : "text-green-700 font-medium"}>
+                          {outOfRange ? "Fuori range" : "Rilevata nel periodo"}
+                        </span>
+                      </div>
+                    </div>
+                    <div
+                      className={`font-display text-xl font-bold ${
+                        outOfRange ? "text-destructive" : "text-success"
+                      }`}
+                    >
+                      {r.temperature}°C
+                    </div>
+                  </Card>
+                );
+              })}
+
               {notDone.map((a) => {
                 const assign = assignments.find((x) => x.asset_id === a.id);
                 return (
