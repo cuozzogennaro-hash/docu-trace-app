@@ -46,6 +46,21 @@ export default function Temperatures() {
     load();
   }, [eventDate]);
 
+  // Refresh quando la pagina torna in primo piano (es. dopo aver assegnato un task)
+  useEffect(() => {
+    const onFocus = () => {
+      load();
+      refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventDate]);
+
   function handleSave() {
     if (!assetId || !temperature) return toast.error("Asset e temperatura obbligatori");
     setPinOpen(true);
