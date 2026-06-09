@@ -191,6 +191,12 @@ export default function Temperatures() {
                         </div>
                       </div>
                     </div>
+                    <AssetServiceDialog
+                      assetId={a.id}
+                      assetName={a.name}
+                      area="temperatura"
+                      onDone={() => { load(); refresh(); }}
+                    />
                   </Card>
                 );
               })}
