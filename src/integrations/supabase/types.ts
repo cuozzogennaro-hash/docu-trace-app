@@ -1578,6 +1578,7 @@ export type Database = {
         }
         Returns: boolean
       }
+      link_consulente_by_code: { Args: { p_code: string }; Returns: Json }
       move_to_dlq: {
         Args: {
           dlq_name: string
