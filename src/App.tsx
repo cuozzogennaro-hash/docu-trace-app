@@ -40,14 +40,22 @@ import Landing from "./pages/Landing";
 import SubscriptionGate from "./components/SubscriptionGate";
 import { PaymentTestModeBanner } from "./components/PaymentTestModeBanner";
 import { useTranslation } from "react-i18next";
+import ConsulenteDashboard from "./pages/ConsulenteDashboard";
+import { useConsulente } from "./hooks/useConsulente";
 
 const queryClient = new QueryClient();
 
 function Protected() {
   const { session, loading } = useAuth();
   const { operator } = useOperatorSession();
+  const { isConsulente, loading: roleLoading } = useConsulente();
   if (loading) return <LoadingScreen />;
   if (!session && !operator) return <Navigate to="/auth" replace />;
+  // Il consulente non può accedere all'app operativa: forzalo nel suo pannello.
+  if (session && !operator) {
+    if (roleLoading) return <LoadingScreen />;
+    if (isConsulente) return <Navigate to="/supervisor" replace />;
+  }
   return (
     <SubscriptionGate>
       <PaymentTestModeBanner />
@@ -63,11 +71,25 @@ function AuthOnly({ children }: { children: React.ReactNode }) {
   return <>{children}</>;
 }
 
+function ConsulenteOnly() {
+  const { session, loading } = useAuth();
+  const { isConsulente, loading: roleLoading } = useConsulente();
+  if (loading || roleLoading) return <LoadingScreen />;
+  if (!session) return <Navigate to="/auth" replace />;
+  if (!isConsulente) return <Navigate to="/app" replace />;
+  return <ConsulenteDashboard />;
+}
+
 function RootRedirect() {
   const { session, loading } = useAuth();
   const { operator } = useOperatorSession();
+  const { isConsulente, loading: roleLoading } = useConsulente();
   if (loading) return <LoadingScreen />;
-  if (session || operator) return <Navigate to="/app" replace />;
+  if (operator) return <Navigate to="/app" replace />;
+  if (session) {
+    if (roleLoading) return <LoadingScreen />;
+    return <Navigate to={isConsulente ? "/supervisor" : "/app"} replace />;
+  }
   return <Navigate to="/auth" replace />;
 }
 
@@ -97,6 +119,7 @@ const App = () => (
             <Route path="/rimborsi" element={<RefundPage />} />
             <Route path="/privacy" element={<PrivacyPage />} />
             <Route path="/welcome" element={<Landing />} />
+            <Route path="/supervisor" element={<ConsulenteOnly />} />
             <Route path="/" element={<RootRedirect />} />
             <Route element={<Protected />}>
               <Route path="/app" element={<Index />} />

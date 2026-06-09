@@ -147,7 +147,7 @@ export default function AuthPage() {
           <Tabs defaultValue="operator" className="w-full">
             <TabsList className="grid grid-cols-2 w-full mb-6">
               <TabsTrigger value="operator" className="gap-2"><UserCircle2 size={16} /> {t("Operatore")}</TabsTrigger>
-              <TabsTrigger value="admin" className="gap-2"><Building2 size={16} /> {t("Titolare")}</TabsTrigger>
+              <TabsTrigger value="admin" className="gap-2"><Building2 size={16} /> {t("Titolare / Consulente")}</TabsTrigger>
             </TabsList>
 
             <TabsContent value="operator">
