@@ -75,10 +75,17 @@ const STATUS_META: Record<
   },
 };
 
+type PartnerData = {
+  codice_partner: string;
+  studio_name: string | null;
+};
+
 export default function ConsulenteDashboard() {
   const { user } = useAuth();
   const [clienti, setClienti] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
+  const [partner, setPartner] = useState<PartnerData | null>(null);
+  const [partnerLoading, setPartnerLoading] = useState(true);
 
   useEffect(() => {
     if (!user) return;
