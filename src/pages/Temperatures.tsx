@@ -37,10 +37,19 @@ export default function Temperatures() {
     setRows(data ?? []);
     const { data: tasks } = await supabase
       .from("task_assignments")
-      .select("asset_id, operator_id, operators(name)")
+      .select("asset_id, operator_id")
       .eq("user_id", user.id)
       .eq("task_type", "temperature");
-    setAssignments(tasks ?? []);
+    const opIds = Array.from(new Set((tasks ?? []).map((t: any) => t.operator_id).filter(Boolean)));
+    let opMap: Record<string, string> = {};
+    if (opIds.length) {
+      const { data: ops } = await supabase
+        .from("operators")
+        .select("id, name")
+        .in("id", opIds);
+      opMap = Object.fromEntries((ops ?? []).map((o: any) => [o.id, o.name]));
+    }
+    setAssignments((tasks ?? []).map((t: any) => ({ ...t, operators: { name: opMap[t.operator_id] } })));
   }
   useEffect(() => {
     load();
