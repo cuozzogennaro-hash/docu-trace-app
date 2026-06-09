@@ -12,7 +12,8 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { Building2, ShieldCheck, AlertTriangle, Eye } from "lucide-react";
+import { Building2, ShieldCheck, AlertTriangle, Eye, Copy } from "lucide-react";
+import { toast } from "sonner";
 
 type Cliente = {
   id: string;
