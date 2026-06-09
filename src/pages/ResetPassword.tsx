@@ -89,7 +89,7 @@ export default function ResetPasswordPage() {
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
-    if (!hasSession) {
+    if (!hasSession && !recoveryTokenHash) {
       toast.error(t("Link di recupero non valido o scaduto. Richiedine uno nuovo dalla pagina di accesso."));
       return;
     }
