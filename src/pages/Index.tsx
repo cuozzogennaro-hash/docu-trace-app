@@ -1,18 +1,8 @@
 import { useOperatorSession } from "@/hooks/useOperatorSession";
 import Dashboard from "./Dashboard";
 import OperatorDashboard from "./OperatorDashboard";
+import ConsulenteDashboard from "./ConsulenteDashboard";
 import { useConsulente } from "@/hooks/useConsulente";
-
-function ConsulenteDashboard() {
-  return (
-    <div className="p-6">
-      <h1 className="text-2xl font-semibold">Dashboard Consulente</h1>
-      <p className="text-muted-foreground mt-2">
-        Segnaposto temporaneo — l'interfaccia del consulente verrà implementata nelle fasi successive.
-      </p>
-    </div>
-  );
-}
 
 export default function Index() {
   const { operator } = useOperatorSession();
