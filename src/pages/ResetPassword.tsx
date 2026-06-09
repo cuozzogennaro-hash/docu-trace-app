@@ -21,6 +21,19 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     let active = true;
 
+    async function acceptExistingRecoverySession(cleanUrl: boolean) {
+      const { data } = await supabase.auth.getSession();
+      if (!active) return false;
+
+      if (data.session) {
+        setHasSession(true);
+        if (cleanUrl) window.history.replaceState(null, "", "/reset-password");
+        return true;
+      }
+
+      return false;
+    }
+
     async function prepareRecoverySession() {
       const url = new URL(window.location.href);
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
@@ -29,6 +42,7 @@ export default function ResetPasswordPage() {
       const type = url.searchParams.get("type") ?? hash.get("type");
       const accessToken = hash.get("access_token");
       const refreshToken = hash.get("refresh_token");
+      const hasRecoveryLink = Boolean(code || tokenHash || accessToken || type === "recovery");
 
       try {
         if (code) {
@@ -42,14 +56,10 @@ export default function ResetPasswordPage() {
           if (error) throw error;
         }
 
-        const { data } = await supabase.auth.getSession();
-        if (!active) return;
-        setHasSession(Boolean(data.session));
-        if (data.session && (code || tokenHash || accessToken)) {
-          window.history.replaceState(null, "", "/reset-password");
-        }
+        await acceptExistingRecoverySession(hasRecoveryLink);
       } catch (err: unknown) {
-        if (active) {
+        const sessionRecovered = await acceptExistingRecoverySession(hasRecoveryLink);
+        if (active && !sessionRecovered) {
           setHasSession(false);
           toast.error(err instanceof Error ? err.message : t("Link di recupero non valido o scaduto"));
         }
@@ -58,17 +68,22 @@ export default function ResetPasswordPage() {
       }
     }
 
+    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
+      if (!active) return;
+      if (sess || event === "PASSWORD_RECOVERY") {
+        setHasSession(Boolean(sess));
+        setChecking(false);
+        window.history.replaceState(null, "", "/reset-password");
+      }
+    });
+
     prepareRecoverySession();
 
-    const { data: sub } = supabase.auth.onAuthStateChange((event, sess) => {
-      if (sess) setHasSession(true);
-      if (event === "PASSWORD_RECOVERY") setHasSession(true);
-    });
     return () => {
       active = false;
       sub.subscription.unsubscribe();
     };
-  }, []);
+  }, [t]);
 
   async function submit(e: React.FormEvent) {
     e.preventDefault();
