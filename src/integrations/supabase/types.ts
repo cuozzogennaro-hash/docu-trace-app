@@ -239,6 +239,30 @@ export type Database = {
         }
         Relationships: []
       }
+      consulenti_partner: {
+        Row: {
+          codice_partner: string
+          created_at: string
+          studio_name: string | null
+          updated_at: string
+          user_id: string
+        }
+        Insert: {
+          codice_partner: string
+          created_at?: string
+          studio_name?: string | null
+          updated_at?: string
+          user_id: string
+        }
+        Update: {
+          codice_partner?: string
+          created_at?: string
+          studio_name?: string | null
+          updated_at?: string
+          user_id?: string
+        }
+        Relationships: []
+      }
       departments: {
         Row: {
           created_at: string
@@ -830,6 +854,7 @@ export type Database = {
       profiles: {
         Row: {
           business_name: string | null
+          consulente_id: string | null
           created_at: string
           email: string | null
           id: string
@@ -840,6 +865,7 @@ export type Database = {
         }
         Insert: {
           business_name?: string | null
+          consulente_id?: string | null
           created_at?: string
           email?: string | null
           id: string
@@ -850,6 +876,7 @@ export type Database = {
         }
         Update: {
           business_name?: string | null
+          consulente_id?: string | null
           created_at?: string
           email?: string | null
           id?: string
@@ -1664,7 +1691,7 @@ export type Database = {
       unaccent_safe: { Args: { input: string }; Returns: string }
     }
     Enums: {
-      app_role: "platform_admin" | "super_admin"
+      app_role: "platform_admin" | "super_admin" | "consulente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1792,7 +1819,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["platform_admin", "super_admin"],
+      app_role: ["platform_admin", "super_admin", "consulente"],
     },
   },
 } as const
