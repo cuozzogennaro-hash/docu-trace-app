@@ -9,7 +9,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Sparkles, ShieldCheck, CheckCircle2, AlertTriangle, XCircle } from "lucide-react";
+import { Sparkles, ShieldCheck, CheckCircle2, AlertTriangle, XCircle, PowerOff } from "lucide-react";
+import AssetServiceDialog, { reactivateAsset } from "@/components/AssetServiceDialog";
 
 export default function Sanitations() {
   const { assets, refresh } = useAssets();
@@ -129,10 +130,12 @@ export default function Sanitations() {
 
       <div className="space-y-2">
         {(() => {
+          const activeAssets = assets.filter((a: any) => !a.out_of_service);
+          const outOfServiceAssets = assets.filter((a: any) => a.out_of_service);
           const doneAssetIds = new Set(rows.map((r) => r.asset_id));
           const assignedAssetIds = new Set(assignments.map((a) => a.asset_id));
-          const notDone = assets.filter((a) => assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
-          const unassigned = assets.filter((a) => !assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
+          const notDone = activeAssets.filter((a) => assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
+          const unassigned = activeAssets.filter((a) => !assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
 
           return (
             <>
@@ -168,6 +171,12 @@ export default function Sanitations() {
                         </div>
                       </div>
                     </div>
+                    <AssetServiceDialog
+                      assetId={a.id}
+                      assetName={a.name}
+                      area="pulizia"
+                      onDone={() => { load(); refresh(); }}
+                    />
                   </Card>
                 );
               })}
@@ -184,6 +193,37 @@ export default function Sanitations() {
                       <div className="text-xs text-yellow-700 font-medium">Non assegnata</div>
                     </div>
                   </div>
+                  <AssetServiceDialog
+                    assetId={a.id}
+                    assetName={a.name}
+                    area="pulizia"
+                    onDone={() => { load(); refresh(); }}
+                  />
+                </Card>
+              ))}
+
+              {outOfServiceAssets.map((a) => (
+                <Card
+                  key={`oos-${a.id}`}
+                  className="p-4 flex items-center justify-between border-l-4 border-l-muted-foreground/50 bg-muted/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <PowerOff className="text-muted-foreground shrink-0" size={20} />
+                    <div>
+                      <div className="font-semibold text-muted-foreground line-through">{a.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Fuori servizio
+                        {(a as any).out_of_service_reason ? ` • ${(a as any).out_of_service_reason}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => { if (await reactivateAsset(a.id)) { refresh(); load(); } }}
+                  >
+                    Rimetti in servizio
+                  </Button>
                 </Card>
               ))}
 
