@@ -15,8 +15,18 @@ import {
   DialogFooter,
   DialogDescription,
 } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { toast } from "sonner";
-import { ShieldCheck, Users, CheckCircle2, Clock, CreditCard, Activity, Eye, Smartphone, Handshake, UserPlus } from "lucide-react";
+import { ShieldCheck, Users, CheckCircle2, Clock, CreditCard, Activity, Eye, Smartphone, Handshake, UserPlus, UserMinus } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -80,6 +90,8 @@ export default function AdminDashboard() {
   const [studioName, setStudioName] = useState("");
   const [partnerCode, setPartnerCode] = useState("");
   const [saving, setSaving] = useState(false);
+  const [revokePartner, setRevokePartner] = useState<Partner | null>(null);
+  const [revoking, setRevoking] = useState(false);
 
   async function reloadAll() {
     setFetching(true);
@@ -151,6 +163,22 @@ export default function AdminDashboard() {
     setPromoteUser(null);
     setStudioName("");
     setPartnerCode("");
+    await reloadAll();
+  }
+
+  async function confirmRevoke() {
+    if (!revokePartner) return;
+    setRevoking(true);
+    const { data, error } = await supabase.rpc("super_admin_revoke_partner" as any, {
+      p_user_id: revokePartner.user_id,
+    });
+    setRevoking(false);
+    if (error || !data || !(data as any).ok) {
+      toast.error("Errore durante la revoca");
+      return;
+    }
+    toast.success("Ruolo partner revocato. L'utente è tornato a essere un Titolare standard.");
+    setRevokePartner(null);
     await reloadAll();
   }
 
@@ -255,14 +283,15 @@ export default function AdminDashboard() {
                   <th className="text-left px-3 py-2">Nome Studio</th>
                   <th className="text-left px-3 py-2">Email Consulente</th>
                   <th className="text-left px-3 py-2">Attivato il</th>
+                  <th className="text-right px-3 py-2">Azioni</th>
                 </tr>
               </thead>
               <tbody>
                 {loadingPartners && (
-                  <tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Caricamento…</td></tr>
+                  <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Caricamento…</td></tr>
                 )}
                 {!loadingPartners && partners.length === 0 && (
-                  <tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Nessun partner attivo</td></tr>
+                  <tr><td colSpan={5} className="px-3 py-6 text-center text-muted-foreground">Nessun partner attivo</td></tr>
                 )}
                 {partners.map((p) => (
                   <tr key={p.user_id} className="border-t border-border">
@@ -270,6 +299,16 @@ export default function AdminDashboard() {
                     <td className="px-3 py-2">{p.studio_name}</td>
                     <td className="px-3 py-2 text-muted-foreground">{partnerEmailByUid.get(p.user_id) || "—"}</td>
                     <td className="px-3 py-2 text-muted-foreground">{fmtDate(p.created_at ?? null)}</td>
+                    <td className="px-3 py-2 text-right">
+                      <Button
+                        size="sm"
+                        variant="outline"
+                        onClick={() => setRevokePartner(p)}
+                        className="gap-1 text-destructive hover:text-destructive"
+                      >
+                        <UserMinus size={14} /> Revoca Partner
+                      </Button>
+                    </td>
                   </tr>
                 ))}
               </tbody>
@@ -310,6 +349,33 @@ export default function AdminDashboard() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      <AlertDialog open={!!revokePartner} onOpenChange={(o) => !o && !revoking && setRevokePartner(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Revoca ruolo Partner</AlertDialogTitle>
+            <AlertDialogDescription>
+              Sei sicuro di voler rimuovere questo partner?
+              {revokePartner && (
+                <span className="block mt-2 font-medium text-foreground">
+                  {revokePartner.studio_name} ({revokePartner.codice_partner})
+                </span>
+              )}
+              <span className="block mt-2">Il suo account tornerà a essere un Titolare standard.</span>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel disabled={revoking}>Annulla</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={(e) => { e.preventDefault(); confirmRevoke(); }}
+              disabled={revoking}
+              className="bg-destructive text-destructive-foreground hover:bg-destructive/90"
+            >
+              {revoking ? "Revoca in corso…" : "Revoca Partner"}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }
