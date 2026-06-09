@@ -191,6 +191,47 @@ export default function ConsulenteDashboard() {
         </p>
       </div>
 
+      {/* Partner Code Card */}
+      <Card className="mb-8 border border-primary/20 bg-primary/[0.03] shadow-soft">
+        <div className="px-6 py-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <p className="text-sm font-medium text-muted-foreground mb-1">
+              Il tuo Codice Partner Esclusivo
+            </p>
+            {partnerLoading ? (
+              <p className="text-sm text-muted-foreground italic">Caricamento…</p>
+            ) : partner ? (
+              <div className="flex items-center gap-3">
+                <span className="font-display text-3xl font-bold tracking-tight text-foreground">
+                  {partner.codice_partner}
+                </span>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={handleCopyCode}
+                >
+                  <Copy size={14} />
+                  Copia Codice
+                </Button>
+              </div>
+            ) : (
+              <p className="text-sm text-muted-foreground italic">
+                Codice Partner in fase di generazione dall'amministratore
+              </p>
+            )}
+          </div>
+          {partner?.studio_name && (
+            <div className="text-right">
+              <p className="text-xs uppercase tracking-wider text-muted-foreground">
+                Studio
+              </p>
+              <p className="font-medium">{partner.studio_name}</p>
+            </div>
+          )}
+        </div>
+      </Card>
+
       {/* KPI Cards */}
       <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
         {kpis.map((k) => (
