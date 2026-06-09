@@ -12,9 +12,10 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { Building2, ShieldCheck, AlertTriangle, Eye, Copy } from "lucide-react";
+import { Building2, ShieldCheck, AlertTriangle, Eye, Copy, FileDown, Loader2 } from "lucide-react";
 import { toast } from "sonner";
 import ConsulenteClientDetail from "./ConsulenteClientDetail";
+import { generateClientHaccpReport } from "@/lib/consulenteReport";
 
 type Cliente = {
   id: string;
@@ -88,6 +89,7 @@ export default function ConsulenteDashboard() {
   const [partner, setPartner] = useState<PartnerData | null>(null);
   const [partnerLoading, setPartnerLoading] = useState(true);
   const [selected, setSelected] = useState<Cliente | null>(null);
+  const [downloadingId, setDownloadingId] = useState<string | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -179,6 +181,20 @@ export default function ConsulenteDashboard() {
       toast.success("Codice copiato!");
     } catch {
       toast.error("Impossibile copiare il codice");
+    }
+  }
+
+  async function handleDownloadReport(c: Cliente) {
+    if (downloadingId) return;
+    setDownloadingId(c.id);
+    try {
+      const res = await generateClientHaccpReport(c.id, c.business_name);
+      toast.success(`Report scaricato (${res.totalRows} righe)`);
+    } catch (err: any) {
+      console.error("Report PDF error:", err);
+      toast.error(err?.message || "Impossibile generare il report PDF");
+    } finally {
+      setDownloadingId(null);
     }
   }
 
@@ -319,14 +335,34 @@ export default function ConsulenteDashboard() {
                       </Badge>
                     </TableCell>
                     <TableCell className="text-right">
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => setSelected(c)}
-                      >
-                        <Eye size={14} className="mr-1.5" />
-                        Visualizza Registri
-                      </Button>
+                      <div className="flex items-center justify-end gap-2">
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          onClick={() => setSelected(c)}
+                        >
+                          <Eye size={14} className="mr-1.5" />
+                          Visualizza
+                        </Button>
+                        <Button
+                          size="sm"
+                          variant="default"
+                          onClick={() => handleDownloadReport(c)}
+                          disabled={downloadingId === c.id}
+                        >
+                          {downloadingId === c.id ? (
+                            <>
+                              <Loader2 size={14} className="mr-1.5 animate-spin" />
+                              Generazione…
+                            </>
+                          ) : (
+                            <>
+                              <FileDown size={14} className="mr-1.5" />
+                              Scarica PDF
+                            </>
+                          )}
+                        </Button>
+                      </div>
                     </TableCell>
                   </TableRow>
                 );
