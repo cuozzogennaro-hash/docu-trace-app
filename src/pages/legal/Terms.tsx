@@ -73,9 +73,9 @@ export default function TermsPage() {
           Buyer terms are available here: <a href="https://www.paddle.com/legal/checkout-buyer-terms" target="_blank" rel="noopener noreferrer">Paddle Buyer Terms</a>.
         </p>
         <p>
-          The HACCP Trace subscription is €19.99 per month, with a 30-day free trial. At the end
-          of the trial, the first month is automatically charged unless cancelled. Renewal is
-          monthly until cancellation.
+          The HACCP Trace subscription is offered in two plans: €35 per month or €290 per year,
+          with a 14-day free trial. At the end of the trial, the chosen plan is automatically
+          charged unless cancelled. Renewal follows the selected billing cycle until cancellation.
         </p>
 
         <h2>9. Cancellation</h2>
@@ -204,9 +204,9 @@ export default function TermsPage() {
         I termini di acquisto sono disponibili qui: <a href="https://www.paddle.com/legal/checkout-buyer-terms" target="_blank" rel="noopener noreferrer">Paddle Buyer Terms</a>.
       </p>
       <p>
-        L'abbonamento HACCP Trace è di 19,99 € al mese, con 30 giorni di prova gratuita.
-        Al termine della prova viene addebitato automaticamente il primo mese, salvo annullamento.
-        Il rinnovo è mensile fino a disdetta.
+        L'abbonamento HACCP Trace è disponibile in due piani: 35 € al mese o 290 € all'anno,
+        con 14 giorni di prova gratuita. Al termine della prova viene addebitato automaticamente
+        il piano scelto, salvo annullamento. Il rinnovo segue la cadenza scelta fino a disdetta.
       </p>
 
       <h2>9. Annullamento</h2>
