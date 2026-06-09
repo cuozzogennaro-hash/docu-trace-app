@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from "react";
+import { useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Card } from "@/components/ui/card";
@@ -12,10 +13,11 @@ import {
   TableBody,
   TableCell,
 } from "@/components/ui/table";
-import { Building2, ShieldCheck, AlertTriangle, Eye, Copy, FileDown, Loader2 } from "lucide-react";
+import { Building2, ShieldCheck, AlertTriangle, Eye, Copy, FileDown, Loader2, LogOut } from "lucide-react";
 import { toast } from "sonner";
 import ConsulenteClientDetail from "./ConsulenteClientDetail";
 import { generateClientHaccpReport } from "@/lib/consulenteReport";
+import logoShield from "@/assets/logo-shield.png";
 
 type Cliente = {
   id: string;
