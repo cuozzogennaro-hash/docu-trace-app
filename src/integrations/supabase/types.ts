@@ -91,6 +91,9 @@ export type Database = {
           department_id: string | null
           id: string
           name: string
+          out_of_service: boolean
+          out_of_service_reason: string | null
+          out_of_service_since: string | null
           target_temp_max: number | null
           target_temp_min: number | null
           user_id: string
@@ -102,6 +105,9 @@ export type Database = {
           department_id?: string | null
           id?: string
           name: string
+          out_of_service?: boolean
+          out_of_service_reason?: string | null
+          out_of_service_since?: string | null
           target_temp_max?: number | null
           target_temp_min?: number | null
           user_id: string
@@ -113,6 +119,9 @@ export type Database = {
           department_id?: string | null
           id?: string
           name?: string
+          out_of_service?: boolean
+          out_of_service_reason?: string | null
+          out_of_service_since?: string | null
           target_temp_max?: number | null
           target_temp_min?: number | null
           user_id?: string

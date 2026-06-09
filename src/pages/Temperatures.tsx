@@ -9,15 +9,18 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { toast } from "sonner";
-import { Thermometer, ShieldCheck, AlertTriangle, XCircle } from "lucide-react";
+import { Thermometer, ShieldCheck, AlertTriangle, XCircle, Wrench, PowerOff } from "lucide-react";
+import AssetServiceDialog, { reactivateAsset } from "@/components/AssetServiceDialog";
 
 export default function Temperatures() {
   const { assets, refresh } = useAssets();
   // Solo attrezzature che richiedono rilevazione temperatura
   // (hanno almeno una soglia min/max impostata)
-  const tempAssets = assets.filter(
+  const tempAssetsAll = assets.filter(
     (a: any) => a.target_temp_min != null || a.target_temp_max != null,
   );
+  const tempAssets = tempAssetsAll.filter((a: any) => !a.out_of_service);
+  const outOfServiceAssets = tempAssetsAll.filter((a: any) => a.out_of_service);
   const [assetId, setAssetId] = useState("");
   const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
   const [temperature, setTemperature] = useState("");
@@ -188,6 +191,12 @@ export default function Temperatures() {
                         </div>
                       </div>
                     </div>
+                    <AssetServiceDialog
+                      assetId={a.id}
+                      assetName={a.name}
+                      area="temperatura"
+                      onDone={() => { load(); refresh(); }}
+                    />
                   </Card>
                 );
               })}
@@ -204,6 +213,37 @@ export default function Temperatures() {
                       <div className="text-xs text-yellow-700 font-medium">Non assegnata</div>
                     </div>
                   </div>
+                  <AssetServiceDialog
+                    assetId={a.id}
+                    assetName={a.name}
+                    area="temperatura"
+                    onDone={() => { load(); refresh(); }}
+                  />
+                </Card>
+              ))}
+
+              {outOfServiceAssets.map((a) => (
+                <Card
+                  key={`oos-${a.id}`}
+                  className="p-4 flex items-center justify-between border-l-4 border-l-muted-foreground/50 bg-muted/40"
+                >
+                  <div className="flex items-center gap-3">
+                    <PowerOff className="text-muted-foreground shrink-0" size={20} />
+                    <div>
+                      <div className="font-semibold text-muted-foreground line-through">{a.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        Fuori servizio
+                        {a.out_of_service_reason ? ` • ${a.out_of_service_reason}` : ""}
+                      </div>
+                    </div>
+                  </div>
+                  <Button
+                    size="sm"
+                    variant="outline"
+                    onClick={async () => { if (await reactivateAsset(a.id)) { refresh(); load(); } }}
+                  >
+                    Rimetti in servizio
+                  </Button>
                 </Card>
               ))}
 
