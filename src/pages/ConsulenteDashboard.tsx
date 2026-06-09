@@ -170,6 +170,16 @@ export default function ConsulenteDashboard() {
     [counts]
   );
 
+  async function handleCopyCode() {
+    if (!partner?.codice_partner) return;
+    try {
+      await navigator.clipboard.writeText(partner.codice_partner);
+      toast.success("Codice copiato!");
+    } catch {
+      toast.error("Impossibile copiare il codice");
+    }
+  }
+
   return (
     <div className="p-6 max-w-6xl mx-auto">
       <div className="mb-8">
