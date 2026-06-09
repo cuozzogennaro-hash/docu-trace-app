@@ -150,8 +150,8 @@ export default function AppShell() {
   if (isSuperAdmin && !operator) {
     groups.push({
       key: "supervisor",
-      label: "Supervisore",
-      items: [{ to: "/admin", icon: ShieldCheck, label: "Dashboard supervisore" }],
+      label: "Amministrazione SaaS",
+      items: [{ to: "/admin", icon: ShieldCheck, label: "Gestione Piattaforma" }],
     });
   }
 
