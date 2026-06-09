@@ -42,6 +42,20 @@ export default function Sanitations() {
     load();
   }, [eventDate]);
 
+  useEffect(() => {
+    const onFocus = () => {
+      load();
+      refresh();
+    };
+    window.addEventListener("focus", onFocus);
+    document.addEventListener("visibilitychange", onFocus);
+    return () => {
+      window.removeEventListener("focus", onFocus);
+      document.removeEventListener("visibilitychange", onFocus);
+    };
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [eventDate]);
+
   function handleSave() {
     if (!assetId) return toast.error("Seleziona un asset");
     setPinOpen(true);
