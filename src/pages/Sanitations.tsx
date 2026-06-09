@@ -12,12 +12,24 @@ import { toast } from "sonner";
 import { Sparkles, ShieldCheck, CheckCircle2, AlertTriangle, XCircle, PowerOff } from "lucide-react";
 import AssetServiceDialog, { reactivateAsset } from "@/components/AssetServiceDialog";
 
+function periodBounds(eventDate: string) {
+  const ed = new Date(eventDate + "T00:00:00");
+  const monthStart = new Date(ed.getFullYear(), ed.getMonth(), 1);
+  const day = ed.getDay(); // 0=Sun..6=Sat
+  const diff = day === 0 ? -6 : 1 - day;
+  const weekStart = new Date(ed);
+  weekStart.setDate(ed.getDate() + diff);
+  const fmt = (d: Date) => d.toISOString().slice(0, 10);
+  return { monthStart: fmt(monthStart), weekStart: fmt(weekStart), today: eventDate };
+}
+
 export default function Sanitations() {
   const { assets, refresh } = useAssets();
   const [assetId, setAssetId] = useState("");
   const [eventDate, setEventDate] = useState(new Date().toISOString().slice(0, 10));
   const [productUsed, setProductUsed] = useState("");
   const [rows, setRows] = useState<any[]>([]);
+  const [periodRows, setPeriodRows] = useState<any[]>([]);
   const [assignments, setAssignments] = useState<any[]>([]);
   const [busy, setBusy] = useState(false);
   const [pinOpen, setPinOpen] = useState(false);
@@ -25,6 +37,7 @@ export default function Sanitations() {
   async function load() {
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) return;
+    const { monthStart } = periodBounds(eventDate);
     const { data } = await supabase
       .from("sanitations")
       .select("*, assets(name)")
@@ -32,9 +45,16 @@ export default function Sanitations() {
       .order("event_date", { ascending: false })
       .limit(30);
     setRows(data ?? []);
+    const { data: period } = await supabase
+      .from("sanitations")
+      .select("id, asset_id, event_date, operator, product_used, assets(name)")
+      .gte("event_date", monthStart)
+      .lte("event_date", eventDate)
+      .order("event_date", { ascending: false });
+    setPeriodRows(period ?? []);
     const { data: tasks } = await supabase
       .from("task_assignments")
-      .select("asset_id, operator_id")
+      .select("asset_id, operator_id, frequency")
       .eq("user_id", user.id)
       .eq("task_type", "sanitation");
     const opIds = Array.from(new Set((tasks ?? []).map((t: any) => t.operator_id).filter(Boolean)));
@@ -132,10 +152,28 @@ export default function Sanitations() {
         {(() => {
           const activeAssets = assets.filter((a: any) => !a.out_of_service);
           const outOfServiceAssets = assets.filter((a: any) => a.out_of_service);
-          const doneAssetIds = new Set(rows.map((r) => r.asset_id));
+          const { monthStart, weekStart } = periodBounds(eventDate);
+          // Mappa per assegnazione → ultimo record nel periodo della sua frequenza
+          const assignmentDone = new Map<string, any>();
+          for (const a of assignments) {
+            const start = a.frequency === "monthly" ? monthStart : a.frequency === "weekly" ? weekStart : eventDate;
+            const rec = periodRows.find(
+              (r) => r.asset_id === a.asset_id && r.event_date >= start && r.event_date <= eventDate,
+            );
+            if (rec) assignmentDone.set(a.asset_id, rec);
+          }
+          const todayIds = new Set(rows.map((r) => r.asset_id));
+          // Cards verdi extra: assegnazioni completate nel periodo ma non oggi
+          const extraDone = Array.from(assignmentDone.entries())
+            .filter(([assetId, rec]) => !todayIds.has(assetId) && rec.event_date !== eventDate)
+            .map(([, rec]) => rec);
           const assignedAssetIds = new Set(assignments.map((a) => a.asset_id));
-          const notDone = activeAssets.filter((a) => assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
-          const unassigned = activeAssets.filter((a) => !assignedAssetIds.has(a.id) && !doneAssetIds.has(a.id));
+          const notDone = activeAssets.filter(
+            (a) => assignedAssetIds.has(a.id) && !todayIds.has(a.id) && !assignmentDone.has(a.id),
+          );
+          const unassigned = activeAssets.filter(
+            (a) => !assignedAssetIds.has(a.id) && !todayIds.has(a.id),
+          );
 
           return (
             <>
@@ -147,6 +185,22 @@ export default function Sanitations() {
                       <div className="font-semibold">{r.assets?.name}</div>
                       <div className="text-xs text-muted-foreground">
                         {r.event_date} • {r.operator || "—"} • <span className="text-green-700 font-medium">Effettuata</span>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="text-sm text-muted-foreground">{r.product_used}</div>
+                </Card>
+              ))}
+
+              {extraDone.map((r) => (
+                <Card key={`ex-${r.id}`} className="p-4 flex items-center justify-between border-l-4 border-l-green-500">
+                  <div className="flex items-center gap-3">
+                    <CheckCircle2 className="text-green-600 shrink-0" size={20} />
+                    <div>
+                      <div className="font-semibold">{r.assets?.name}</div>
+                      <div className="text-xs text-muted-foreground">
+                        {r.event_date} • {r.operator || "—"} •{" "}
+                        <span className="text-green-700 font-medium">Effettuata nel periodo</span>
                       </div>
                     </div>
                   </div>
