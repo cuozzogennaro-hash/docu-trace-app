@@ -322,9 +322,7 @@ export default function ConsulenteDashboard() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() =>
-                          console.log("Visualizza Registri", c.id, c.business_name)
-                        }
+                        onClick={() => setSelected(c)}
                       >
                         <Eye size={14} className="mr-1.5" />
                         Visualizza Registri
