@@ -48,6 +48,16 @@ const FROM_DOMAIN = "notify.app.haccptrace.com" // Domain shown in From address 
 // even if the project's domain has changed since the template was scaffolded.
 const SAMPLE_PROJECT_URL = "https://app.haccptrace.com"
 const SAMPLE_EMAIL = "user@example.test"
+const buildRecoveryUrl = (tokenHash?: string, redirectTo?: string) => {
+  const url = new URL(redirectTo || `https://${ROOT_DOMAIN}/reset-password`)
+  url.pathname = '/reset-password'
+  url.hash = ''
+  if (!tokenHash) return url.toString()
+
+  url.searchParams.set('token_hash', tokenHash)
+  url.searchParams.set('type', 'recovery')
+  return url.toString()
+}
 const SAMPLE_DATA: Record<string, object> = {
   signup: {
     siteName: SITE_NAME,
@@ -223,7 +233,7 @@ async function handleWebhook(req: Request): Promise<Response> {
     siteName: SITE_NAME,
     siteUrl: `https://${ROOT_DOMAIN}`,
     recipient: payload.data.email,
-    confirmationUrl: payload.data.url,
+    confirmationUrl: emailType === 'recovery' ? buildRecoveryUrl(payload.data.token_hash, payload.data.redirect_to) : payload.data.url,
     token: payload.data.token,
     email: payload.data.email,
     oldEmail: payload.data.old_email,
