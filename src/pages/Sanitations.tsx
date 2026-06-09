@@ -103,7 +103,7 @@ export default function Sanitations() {
             <Select value={assetId} onValueChange={setAssetId}>
               <SelectTrigger><SelectValue placeholder="Seleziona attrezzatura" /></SelectTrigger>
               <SelectContent>
-                {assets.map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
+                {assets.filter((a: any) => !a.out_of_service).map((a) => <SelectItem key={a.id} value={a.id}>{a.name}</SelectItem>)}
               </SelectContent>
             </Select>
           </div>
