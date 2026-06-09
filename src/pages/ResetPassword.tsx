@@ -17,6 +17,7 @@ export default function ResetPasswordPage() {
   const [busy, setBusy] = useState(false);
   const [checking, setChecking] = useState(true);
   const [hasSession, setHasSession] = useState(false);
+  const [recoveryTokenHash, setRecoveryTokenHash] = useState<string | null>(null);
 
   useEffect(() => {
     let active = true;
@@ -52,8 +53,9 @@ export default function ResetPasswordPage() {
           const { error } = await supabase.auth.setSession({ access_token: accessToken, refresh_token: refreshToken });
           if (error) throw error;
         } else if (tokenHash && type === "recovery") {
-          const { error } = await supabase.auth.verifyOtp({ token_hash: tokenHash, type: "recovery" });
-          if (error) throw error;
+          setRecoveryTokenHash(tokenHash);
+          window.history.replaceState(null, "", "/reset-password");
+          return;
         }
 
         await acceptExistingRecoverySession(hasRecoveryLink);
@@ -93,6 +95,10 @@ export default function ResetPasswordPage() {
     }
     setBusy(true);
     try {
+      if (!hasSession && recoveryTokenHash) {
+        const { error } = await supabase.auth.verifyOtp({ token_hash: recoveryTokenHash, type: "recovery" });
+        if (error) throw new Error(t("Link di recupero non valido o scaduto. Richiedine uno nuovo dalla pagina di accesso."));
+      }
       const { error } = await supabase.auth.updateUser({ password });
       if (error) throw error;
       toast.success(t("Password aggiornata. Sei dentro."));
@@ -120,7 +126,7 @@ export default function ResetPasswordPage() {
         <Card className="p-6 shadow-elevated">
           {checking ? (
             <p className="text-sm text-muted-foreground text-center">{t("Verifica del link in corso…")}</p>
-          ) : !hasSession ? (
+          ) : !hasSession && !recoveryTokenHash ? (
             <div className="space-y-4 text-center">
               <p className="text-sm text-destructive">{t("Link di recupero non valido o scaduto.")}</p>
               <Button type="button" onClick={() => navigate("/auth", { replace: true })} className="w-full bg-gradient-primary">
