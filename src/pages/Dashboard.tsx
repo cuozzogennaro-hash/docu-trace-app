@@ -113,7 +113,7 @@ export default function Dashboard() {
       const weekStartD = new Date(ed); weekStartD.setDate(ed.getDate() + (day === 0 ? -6 : 1 - day));
       const weekStartDate = weekStartD.toISOString().slice(0, 10);
 
-      const [rm, pr, oos, rmExp, prExp, prepExp, shelfRes, sanitAssign, tempAssign, sanitRecs, tempRecs, nc] = await Promise.all([
+      const [rm, pr, oos, rmExp, prExp, prepExp, shelfRes, sanitAssign, tempAssign, sanitRecs, tempRecs, nc, assetsRes] = await Promise.all([
         supabase.from("raw_materials").select("id", { count: "exact", head: true }),
         supabase.from("products").select("id", { count: "exact", head: true }),
         supabase.from("raw_materials").select("id", { count: "exact", head: true }).eq("is_out_of_stock", true),
@@ -121,12 +121,14 @@ export default function Dashboard() {
         supabase.from("products").select("production_date, preservation_type"),
         supabase.from("preparations").select("internal_expiry"),
         supabase.from("label_rules" as any).select("params").eq("department_key", "salumeria").eq("rule_key", "shelf_life").maybeSingle(),
-        supabase.from("task_assignments").select("asset_id, frequency, assets!inner(out_of_service)").eq("task_type", "sanitation"),
-        supabase.from("task_assignments").select("asset_id, frequency, assets!inner(out_of_service)").eq("task_type", "temperature"),
+        supabase.from("task_assignments").select("asset_id, frequency").eq("task_type", "sanitation"),
+        supabase.from("task_assignments").select("asset_id, frequency").eq("task_type", "temperature"),
         supabase.from("sanitations").select("asset_id, event_date").gte("event_date", monthStartDate).lte("event_date", today),
         supabase.from("temperatures").select("asset_id, event_date").gte("event_date", monthStartDate).lte("event_date", today),
         supabase.from("non_conformities").select("id", { count: "exact", head: true }).eq("status", "open"),
+        supabase.from("assets").select("id, out_of_service"),
       ]);
+      const oosSet = new Set(((assetsRes.data as any[]) ?? []).filter((a) => a.out_of_service).map((a) => a.id));
       const shelf = ((shelfRes as any).data?.params ?? {}) as { days_fresh?: number; days_vacuum?: number };
       let expired = 0, expiringSoon = 0;
       const tally = (iso: string | null | undefined) => {
@@ -142,7 +144,7 @@ export default function Dashboard() {
         assigns: any[],
         recs: { asset_id: string; event_date: string }[],
       ) => {
-        const active = (assigns ?? []).filter((a) => !a.assets?.out_of_service);
+        const active = (assigns ?? []).filter((a) => !oosSet.has(a.asset_id));
         let done = 0;
         for (const a of active) {
           const start = a.frequency === "monthly" ? monthStartDate : a.frequency === "weekly" ? weekStartDate : today;
