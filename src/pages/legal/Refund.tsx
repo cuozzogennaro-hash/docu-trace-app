@@ -12,16 +12,16 @@ export default function RefundPage() {
         <h1>Refund Policy</h1>
         <p><strong>Seller:</strong> Gennaro Cuozzo, sole proprietor</p>
 
-        <h2>30-day money-back guarantee</h2>
+        <h2>14-day money-back guarantee</h2>
         <p>
-          We offer a <strong>30-day</strong> money-back guarantee. If you are not satisfied with your
-          purchase, you can request a full refund within 30 days of the order date.
+          We offer a <strong>14-day</strong> money-back guarantee. If you are not satisfied with your
+          purchase, you can request a full refund within 14 days of the order date.
         </p>
 
         <h2>Free trial period</h2>
         <p>
-          The HACCP Trace subscription includes a 30-day free trial. No charge is made during the trial:
-          you can cancel at any time before the end of the trial at no cost.
+          New accounts include a 14-day free trial. No charge is made during the trial: you can stop
+          using the service at any time before the end of the trial at no cost.
         </p>
 
         <h2>How to request a refund</h2>
@@ -50,16 +50,17 @@ export default function RefundPage() {
       <h1>Politica di rimborso</h1>
       <p><strong>Venditore:</strong> Gennaro Cuozzo, ditta individuale</p>
 
-      <h2>Garanzia "soddisfatti o rimborsati" — 30 giorni</h2>
+      <h2>Garanzia "soddisfatti o rimborsati" — 14 giorni</h2>
       <p>
-        Offriamo una garanzia di rimborso di <strong>30 giorni</strong>. Se non sei soddisfatto
-        del tuo acquisto, puoi richiedere il rimborso integrale entro 30 giorni dalla data dell'ordine.
+        Offriamo una garanzia di rimborso di <strong>14 giorni</strong>. Se non sei soddisfatto
+        del tuo acquisto, puoi richiedere il rimborso integrale entro 14 giorni dalla data dell'ordine.
       </p>
 
       <h2>Periodo di prova gratuita</h2>
       <p>
-        L'abbonamento HACCP Trace include 30 giorni di prova gratuita. Nessun addebito viene effettuato
-        durante la prova: puoi annullare in qualsiasi momento prima del termine senza alcun costo.
+        I nuovi account includono 14 giorni di prova gratuita. Nessun addebito viene effettuato
+        durante la prova: puoi smettere di usare il servizio in qualsiasi momento prima del termine
+        senza alcun costo.
       </p>
 
       <h2>Come richiedere un rimborso</h2>
