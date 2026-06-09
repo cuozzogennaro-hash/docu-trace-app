@@ -1687,6 +1687,14 @@ export type Database = {
       slugify: { Args: { input: string }; Returns: string }
       start_local_trial: { Args: { p_env?: string }; Returns: Json }
       super_admin_overview: { Args: never; Returns: Json }
+      super_admin_promote_partner: {
+        Args: {
+          p_codice_partner: string
+          p_studio_name: string
+          p_user_id: string
+        }
+        Returns: Json
+      }
       super_admin_traffic_overview: { Args: { p_days?: number }; Returns: Json }
       touch_last_seen: { Args: never; Returns: undefined }
       unaccent_safe: { Args: { input: string }; Returns: string }
