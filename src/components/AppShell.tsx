@@ -151,7 +151,7 @@ export default function AppShell() {
     groups.push({
       key: "supervisor",
       label: "Supervisore",
-      items: [{ to: "/admin", icon: ShieldCheck, label: "Dashboard supervisore" }],
+      items: [{ to: "/admin", icon: ShieldCheck, label: "Gestione Piattaforma" }],
     });
   }
 
