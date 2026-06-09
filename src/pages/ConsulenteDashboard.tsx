@@ -14,6 +14,7 @@ import {
 } from "@/components/ui/table";
 import { Building2, ShieldCheck, AlertTriangle, Eye, Copy } from "lucide-react";
 import { toast } from "sonner";
+import ConsulenteClientDetail from "./ConsulenteClientDetail";
 
 type Cliente = {
   id: string;
@@ -86,6 +87,7 @@ export default function ConsulenteDashboard() {
   const [loading, setLoading] = useState(true);
   const [partner, setPartner] = useState<PartnerData | null>(null);
   const [partnerLoading, setPartnerLoading] = useState(true);
+  const [selected, setSelected] = useState<Cliente | null>(null);
 
   useEffect(() => {
     if (!user) return;
@@ -178,6 +180,16 @@ export default function ConsulenteDashboard() {
     } catch {
       toast.error("Impossibile copiare il codice");
     }
+  }
+
+  if (selected) {
+    return (
+      <ConsulenteClientDetail
+        clientId={selected.id}
+        clientName={selected.business_name}
+        onBack={() => setSelected(null)}
+      />
+    );
   }
 
   return (
@@ -310,9 +322,7 @@ export default function ConsulenteDashboard() {
                       <Button
                         size="sm"
                         variant="outline"
-                        onClick={() =>
-                          console.log("Visualizza Registri", c.id, c.business_name)
-                        }
+                        onClick={() => setSelected(c)}
                       >
                         <Eye size={14} className="mr-1.5" />
                         Visualizza Registri
