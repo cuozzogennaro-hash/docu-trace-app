@@ -39,7 +39,7 @@ export default function ResetPasswordPage() {
       const url = new URL(window.location.href);
       const hash = new URLSearchParams(window.location.hash.replace(/^#/, ""));
       const code = url.searchParams.get("code");
-      const tokenHash = url.searchParams.get("token_hash") ?? hash.get("token_hash");
+      const tokenHash = url.searchParams.get("token_hash") ?? url.searchParams.get("token") ?? hash.get("token_hash") ?? hash.get("token");
       const type = url.searchParams.get("type") ?? hash.get("type");
       const accessToken = hash.get("access_token");
       const refreshToken = hash.get("refresh_token");
