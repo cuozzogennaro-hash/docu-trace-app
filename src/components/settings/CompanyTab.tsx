@@ -10,6 +10,7 @@ import { toast } from "sonner";
 import { Building2, Upload, Loader2, Save, Trash2, AlertTriangle, Sparkles, UserX } from "lucide-react";
 import OnboardingWizard from "@/components/onboarding/OnboardingWizard";
 import { useTranslation } from "react-i18next";
+import ConsulenteLinkCard from "@/components/settings/ConsulenteLinkCard";
 import {
   AlertDialog,
   AlertDialogAction,
@@ -186,6 +187,8 @@ export default function CompanyTab() {
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
 
   return (
+    <div className="space-y-4">
+    <ConsulenteLinkCard />
     <Card className="p-6 shadow-soft">
       <div className="flex flex-col lg:flex-row gap-6 mb-6 pb-6 border-b border-border">
         <div className="flex flex-col items-center gap-3">
@@ -411,5 +414,6 @@ export default function CompanyTab() {
         </Dialog>
       </div>
     </Card>
+    </div>
   );
 }
