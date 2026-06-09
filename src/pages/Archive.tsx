@@ -442,7 +442,7 @@ function generateRawMaterialsMonthlyPdf(
   doc.save(`materie_prime_${monthKey}.pdf`);
 }
 
-function generateProductsMonthlyPdf(
+async function generateProductsMonthlyPdf(
   monthKey: string,
   monthLbl: string,
   weeks: { label: string; items: any[] }[],
@@ -452,6 +452,31 @@ function generateProductsMonthlyPdf(
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const headerTitle = title ? `Registro ${title}` : "Registro Prodotti";
   let startY = drawPdfHeader(doc, headerTitle, monthLbl, company);
+  // Fetch ingredients (raw material names) for all products in the PDF
+  const allIds = Array.from(new Set(weeks.flatMap((w) => w.items.map((r: any) => r.id)).filter(Boolean)));
+  const ingMap = new Map<string, string[]>();
+  if (allIds.length > 0) {
+    const { data: ings } = await supabase
+      .from("product_ingredients")
+      .select("product_id, raw_materials(product_name, internal_lot)")
+      .in("product_id", allIds);
+    (ings ?? []).forEach((row: any) => {
+      const rm = row.raw_materials;
+      if (!rm) return;
+      const label = rm.internal_lot ? `${rm.product_name} (lotto ${rm.internal_lot})` : rm.product_name;
+      const arr = ingMap.get(row.product_id) ?? [];
+      arr.push(label);
+      ingMap.set(row.product_id, arr);
+    });
+  }
+  const ingredientsFor = (r: any) => {
+    const parts: string[] = [];
+    const rms = ingMap.get(r.id);
+    if (rms && rms.length) parts.push(rms.join("; "));
+    const manual = (r.manual_ingredients ?? "").toString().trim();
+    if (manual) parts.push(manual);
+    return parts.join(" — ") || "—";
+  };
   weeks.forEach((w) => {
     if (startY > 250) { doc.addPage(); startY = 20; }
     doc.setFont("helvetica", "bold");
@@ -463,13 +488,15 @@ function generateProductsMonthlyPdf(
       ...TABLE_BASE,
       startY: startY + 2.5,
       styles: { ...TABLE_BASE.styles, fontSize: 8.5 },
-      head: [["Nome", "Lotto", "Produzione", "Note"]],
+      head: [["Nome", "Lotto", "Produzione", "Ingredienti", "Note"]],
       body: w.items.map((r) => [
         r.name ?? "—",
         r.internal_lot ?? "—",
         r.production_date ?? "—",
+        ingredientsFor(r),
         r.notes ?? "",
       ]),
+      columnStyles: { 3: { cellWidth: 60 }, 4: { cellWidth: 35 } },
     });
     startY = (doc as any).lastAutoTable.finalY + 8;
   });
