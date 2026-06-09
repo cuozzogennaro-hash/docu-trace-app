@@ -4,7 +4,19 @@ import { supabase } from "@/integrations/supabase/client";
 import { useSuperAdmin } from "@/hooks/useSuperAdmin";
 import { Card } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Users, CheckCircle2, Clock, CreditCard, Activity, Eye, Smartphone } from "lucide-react";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+  DialogDescription,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
+import { ShieldCheck, Users, CheckCircle2, Clock, CreditCard, Activity, Eye, Smartphone, Handshake, UserPlus } from "lucide-react";
 import {
   Area,
   AreaChart,
@@ -31,6 +43,13 @@ type AdminUser = {
   } | null;
 };
 
+type Partner = {
+  user_id: string;
+  studio_name: string;
+  codice_partner: string;
+  created_at?: string | null;
+};
+
 function fmtDate(d: string | null) {
   if (!d) return "—";
   return new Date(d).toLocaleString("it-IT", { dateStyle: "short", timeStyle: "short" });
@@ -55,17 +74,33 @@ export default function AdminDashboard() {
   const [trafficDays, setTrafficDays] = useState<7 | 30 | 90>(7);
   const [traffic, setTraffic] = useState<any>(null);
   const [loadingTraffic, setLoadingTraffic] = useState(true);
+  const [partners, setPartners] = useState<Partner[]>([]);
+  const [loadingPartners, setLoadingPartners] = useState(true);
+  const [promoteUser, setPromoteUser] = useState<AdminUser | null>(null);
+  const [studioName, setStudioName] = useState("");
+  const [partnerCode, setPartnerCode] = useState("");
+  const [saving, setSaving] = useState(false);
+
+  async function reloadAll() {
+    setFetching(true);
+    setLoadingPartners(true);
+    const [overview, partnersRes] = await Promise.all([
+      supabase.rpc("super_admin_overview" as any),
+      supabase.from("consulenti_partner" as any).select("user_id, studio_name, codice_partner, created_at"),
+    ]);
+    if (!overview.error && overview.data && (overview.data as any).ok) {
+      setUsers((overview.data as any).users || []);
+    }
+    if (!partnersRes.error) {
+      setPartners(((partnersRes.data as any) || []) as Partner[]);
+    }
+    setFetching(false);
+    setLoadingPartners(false);
+  }
 
   useEffect(() => {
     if (!isSuperAdmin) return;
-    (async () => {
-      setFetching(true);
-      const { data, error } = await supabase.rpc("super_admin_overview" as any);
-      if (!error && data && (data as any).ok) {
-        setUsers((data as any).users || []);
-      }
-      setFetching(false);
-    })();
+    reloadAll();
   }, [isSuperAdmin]);
 
   useEffect(() => {
@@ -80,6 +115,44 @@ export default function AdminDashboard() {
 
   if (loading) return <div className="p-8 text-muted-foreground">Caricamento…</div>;
   if (!isSuperAdmin) return <Navigate to="/" replace />;
+
+  const partnerIds = new Set(partners.map((p) => p.user_id));
+  const partnerEmailByUid = new Map(users.map((u) => [u.id, u.email] as const));
+
+  function openPromote(u: AdminUser) {
+    setPromoteUser(u);
+    const base = (u.business_name || u.email || "studio").replace(/[^a-zA-Z0-9]/g, "").toUpperCase().slice(0, 10) || "STUDIO";
+    setStudioName(u.business_name || "");
+    setPartnerCode(`${base}10`);
+  }
+
+  async function savePromotion() {
+    if (!promoteUser) return;
+    const code = partnerCode.trim().toUpperCase();
+    const studio = studioName.trim();
+    if (!studio || !code) {
+      toast.error("Compila Nome Studio e Codice Partner");
+      return;
+    }
+    setSaving(true);
+    const { data, error } = await supabase.rpc("super_admin_promote_partner" as any, {
+      p_user_id: promoteUser.id,
+      p_studio_name: studio,
+      p_codice_partner: code,
+    });
+    setSaving(false);
+    if (error || !data || !(data as any).ok) {
+      const err = (data as any)?.error;
+      if (err === "code_taken") toast.error("Codice Partner già in uso");
+      else toast.error("Errore durante l'attivazione");
+      return;
+    }
+    toast.success("Partner attivato con successo!");
+    setPromoteUser(null);
+    setStudioName("");
+    setPartnerCode("");
+    await reloadAll();
+  }
 
   const filtered = users.filter((u) => {
     if (!query) return true;
@@ -102,7 +175,7 @@ export default function AdminDashboard() {
           <ShieldCheck className="text-primary-foreground" size={20} />
         </div>
         <div>
-          <h1 className="text-2xl font-display font-bold">Dashboard supervisore</h1>
+          <h1 className="text-2xl font-display font-bold">Amministrazione Globale</h1>
           <p className="text-sm text-muted-foreground">Panoramica utenti, prove e abbonamenti</p>
         </div>
       </div>
@@ -132,14 +205,15 @@ export default function AdminDashboard() {
                 <th className="text-left px-3 py-2">Ultimo accesso</th>
                 <th className="text-left px-3 py-2">Stato</th>
                 <th className="text-left px-3 py-2">Scade</th>
+                <th className="text-right px-3 py-2">Azioni</th>
               </tr>
             </thead>
             <tbody>
               {fetching && (
-                <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">Caricamento…</td></tr>
+                <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Caricamento…</td></tr>
               )}
               {!fetching && filtered.length === 0 && (
-                <tr><td colSpan={6} className="px-3 py-6 text-center text-muted-foreground">Nessun utente</td></tr>
+                <tr><td colSpan={7} className="px-3 py-6 text-center text-muted-foreground">Nessun utente</td></tr>
               )}
               {filtered.map((u) => (
                 <tr key={u.id} className="border-t border-border">
@@ -149,6 +223,15 @@ export default function AdminDashboard() {
                   <td className="px-3 py-2 text-muted-foreground">{fmtDate(u.last_seen_at)}</td>
                   <td className="px-3 py-2"><StatusBadge sub={u.subscription} /></td>
                   <td className="px-3 py-2 text-muted-foreground">{fmtDate(u.subscription?.current_period_end ?? null)}</td>
+                  <td className="px-3 py-2 text-right">
+                    {partnerIds.has(u.id) ? (
+                      <Badge variant="outline" className="gap-1"><Handshake size={12} /> Partner</Badge>
+                    ) : (
+                      <Button size="sm" variant="outline" onClick={() => openPromote(u)} className="gap-1">
+                        <UserPlus size={14} /> Rendi Partner
+                      </Button>
+                    )}
+                  </td>
                 </tr>
               ))}
             </tbody>
@@ -156,12 +239,77 @@ export default function AdminDashboard() {
         </div>
       </Card>
 
+      <section className="space-y-3 pt-2">
+        <div className="flex items-center gap-3">
+          <div className="h-9 w-9 rounded-lg bg-primary/10 flex items-center justify-center">
+            <Handshake size={18} className="text-primary" />
+          </div>
+          <h2 className="text-xl font-display font-semibold">Rete Consulenti Partner</h2>
+        </div>
+        <Card className="overflow-hidden">
+          <div className="overflow-x-auto">
+            <table className="w-full text-sm">
+              <thead className="bg-muted/50 text-xs uppercase text-muted-foreground">
+                <tr>
+                  <th className="text-left px-3 py-2">Codice Partner</th>
+                  <th className="text-left px-3 py-2">Nome Studio</th>
+                  <th className="text-left px-3 py-2">Email Consulente</th>
+                  <th className="text-left px-3 py-2">Attivato il</th>
+                </tr>
+              </thead>
+              <tbody>
+                {loadingPartners && (
+                  <tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Caricamento…</td></tr>
+                )}
+                {!loadingPartners && partners.length === 0 && (
+                  <tr><td colSpan={4} className="px-3 py-6 text-center text-muted-foreground">Nessun partner attivo</td></tr>
+                )}
+                {partners.map((p) => (
+                  <tr key={p.user_id} className="border-t border-border">
+                    <td className="px-3 py-2 font-mono font-medium">{p.codice_partner}</td>
+                    <td className="px-3 py-2">{p.studio_name}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{partnerEmailByUid.get(p.user_id) || "—"}</td>
+                    <td className="px-3 py-2 text-muted-foreground">{fmtDate(p.created_at ?? null)}</td>
+                  </tr>
+                ))}
+              </tbody>
+            </table>
+          </div>
+        </Card>
+      </section>
+
       <TrafficSection
         traffic={traffic}
         loading={loadingTraffic}
         days={trafficDays}
         onChangeDays={setTrafficDays}
       />
+
+      <Dialog open={!!promoteUser} onOpenChange={(o) => !o && setPromoteUser(null)}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Rendi Partner</DialogTitle>
+            <DialogDescription>
+              {promoteUser?.email} — verrà aggiunto il ruolo "consulente" e creato il profilo partner.
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-3 py-2">
+            <div className="space-y-1.5">
+              <Label htmlFor="studio">Nome Studio</Label>
+              <Input id="studio" value={studioName} onChange={(e) => setStudioName(e.target.value)} maxLength={120} />
+            </div>
+            <div className="space-y-1.5">
+              <Label htmlFor="code">Codice Partner</Label>
+              <Input id="code" value={partnerCode} onChange={(e) => setPartnerCode(e.target.value.toUpperCase())} maxLength={40} className="font-mono" />
+              <p className="text-xs text-muted-foreground">Es. NOMESTUDIO10 — deve essere univoco.</p>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => setPromoteUser(null)} disabled={saving}>Annulla</Button>
+            <Button onClick={savePromotion} disabled={saving}>{saving ? "Salvataggio…" : "Salva"}</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }
