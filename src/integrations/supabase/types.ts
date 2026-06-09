@@ -1664,7 +1664,7 @@ export type Database = {
       unaccent_safe: { Args: { input: string }; Returns: string }
     }
     Enums: {
-      app_role: "platform_admin" | "super_admin"
+      app_role: "platform_admin" | "super_admin" | "consulente"
     }
     CompositeTypes: {
       [_ in never]: never
@@ -1792,7 +1792,7 @@ export type CompositeTypes<
 export const Constants = {
   public: {
     Enums: {
-      app_role: ["platform_admin", "super_admin"],
+      app_role: ["platform_admin", "super_admin", "consulente"],
     },
   },
 } as const
