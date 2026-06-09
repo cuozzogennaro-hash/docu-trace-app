@@ -107,9 +107,13 @@ export default function Dashboard() {
   useEffect(() => {
     (async () => {
       const today = new Date().toISOString().slice(0, 10);
-      const [s, tmp, rm, pr, oos, rmExp, prExp, prepExp, shelfRes, expectedTemp, expectedSanit, nc] = await Promise.all([
-        supabase.from("sanitations").select("id", { count: "exact", head: true }).eq("event_date", today),
-        supabase.from("temperatures").select("id", { count: "exact", head: true }).eq("event_date", today),
+      const ed = new Date(today + "T00:00:00");
+      const monthStartDate = new Date(ed.getFullYear(), ed.getMonth(), 1).toISOString().slice(0, 10);
+      const day = ed.getDay();
+      const weekStartD = new Date(ed); weekStartD.setDate(ed.getDate() + (day === 0 ? -6 : 1 - day));
+      const weekStartDate = weekStartD.toISOString().slice(0, 10);
+
+      const [rm, pr, oos, rmExp, prExp, prepExp, shelfRes, sanitAssign, tempAssign, sanitRecs, tempRecs, nc] = await Promise.all([
         supabase.from("raw_materials").select("id", { count: "exact", head: true }),
         supabase.from("products").select("id", { count: "exact", head: true }),
         supabase.from("raw_materials").select("id", { count: "exact", head: true }).eq("is_out_of_stock", true),
@@ -117,8 +121,10 @@ export default function Dashboard() {
         supabase.from("products").select("production_date, preservation_type"),
         supabase.from("preparations").select("internal_expiry"),
         supabase.from("label_rules" as any).select("params").eq("department_key", "salumeria").eq("rule_key", "shelf_life").maybeSingle(),
-        supabase.from("task_assignments").select("id", { count: "exact", head: true }).eq("task_type", "temperature"),
-        supabase.from("task_assignments").select("id", { count: "exact", head: true }).eq("task_type", "sanitation"),
+        supabase.from("task_assignments").select("asset_id, frequency, assets!inner(out_of_service)").eq("task_type", "sanitation"),
+        supabase.from("task_assignments").select("asset_id, frequency, assets!inner(out_of_service)").eq("task_type", "temperature"),
+        supabase.from("sanitations").select("asset_id, event_date").gte("event_date", monthStartDate).lte("event_date", today),
+        supabase.from("temperatures").select("asset_id, event_date").gte("event_date", monthStartDate).lte("event_date", today),
         supabase.from("non_conformities").select("id", { count: "exact", head: true }).eq("status", "open"),
       ]);
       const shelf = ((shelfRes as any).data?.params ?? {}) as { days_fresh?: number; days_vacuum?: number };
@@ -131,15 +137,33 @@ export default function Dashboard() {
       for (const r of ((rmExp.data as any[]) ?? [])) tally(r.expiry_date);
       for (const r of ((prExp.data as any[]) ?? [])) tally(computeProductExpiry(r.production_date, r.preservation_type, shelf));
       for (const r of ((prepExp.data as any[]) ?? [])) tally(r.internal_expiry ? String(r.internal_expiry).slice(0, 10) : null);
+
+      const countDone = (
+        assigns: any[],
+        recs: { asset_id: string; event_date: string }[],
+      ) => {
+        const active = (assigns ?? []).filter((a) => !a.assets?.out_of_service);
+        let done = 0;
+        for (const a of active) {
+          const start = a.frequency === "monthly" ? monthStartDate : a.frequency === "weekly" ? weekStartDate : today;
+          if ((recs ?? []).some((r) => r.asset_id === a.asset_id && r.event_date >= start && r.event_date <= today)) done++;
+        }
+        return { done, expected: active.length };
+      };
+      const sanitStats = countDone(sanitAssign.data as any[], sanitRecs.data as any[]);
+      const tempStats = countDone(tempAssign.data as any[], tempRecs.data as any[]);
+
       setStats({
-        sanitToday: s.count ?? 0,
-        tempToday: tmp.count ?? 0,
-        tempExpected: expectedTemp.count ?? 0,
-        sanitExpected: expectedSanit.count ?? 0,
+        sanitToday: sanitStats.done,
+        tempToday: tempStats.done,
+        tempExpected: tempStats.expected,
+        sanitExpected: sanitStats.expected,
         rawMaterials: rm.count ?? 0,
         products: pr.count ?? 0,
         outOfStock: oos.count ?? 0,
-        missingToday: (s.count ?? 0) === 0 || (tmp.count ?? 0) === 0,
+        missingToday:
+          (sanitStats.expected > 0 && sanitStats.done < sanitStats.expected) ||
+          (tempStats.expected > 0 && tempStats.done < tempStats.expected),
         expired,
         expiringSoon,
         ncOpen: nc.count ?? 0,
