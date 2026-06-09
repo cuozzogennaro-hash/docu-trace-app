@@ -86,6 +86,7 @@ type PartnerData = {
 
 export default function ConsulenteDashboard() {
   const { user } = useAuth();
+  const navigate = useNavigate();
   const [clienti, setClienti] = useState<Cliente[]>([]);
   const [loading, setLoading] = useState(true);
   const [partner, setPartner] = useState<PartnerData | null>(null);
