@@ -400,6 +400,7 @@ export default function ProductDetail() {
       companyAddress: [company?.address, (company as any)?.city]
         .map((s) => (s ?? "").toString().trim()).filter(Boolean).join(" — "),
       productionDate: formatDateDDMMYY((product as any)?.production_date),
+      expiry_date: (product as any)?.expiry_date ?? null,
       internalLot: macelleriaFreshLot || (product as any)?.internal_lot || "—",
       ingredientsText,
       extraLines,
