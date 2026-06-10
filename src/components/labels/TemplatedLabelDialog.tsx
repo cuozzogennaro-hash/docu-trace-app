@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import {
   buildTSPLBytes,
   canvasToMonoBitmap,
   computeLabelLayout,
+  formatDateDDMMYY,
   renderLabelCanvas,
   type LabelData,
 } from "@/lib/labelLayout";
@@ -69,14 +70,37 @@ export default function TemplatedLabelDialog({
   const [savedBt, setSavedBt] = useState<SavedPrinter | null>(() => getSavedPrinter());
   const native = isNativeApp();
 
+  const normalizedData = useMemo<LabelData>(() => {
+    const fallbackExpiry = (data as LabelData & { internal_expiry?: string | null; expiry_date?: string | null }).internal_expiry
+      || (data as LabelData & { internal_expiry?: string | null; expiry_date?: string | null }).expiry_date;
+    const expiryLine = data.expiryLine?.trim()
+      ? data.expiryLine.trim()
+      : fallbackExpiry
+        ? `Da consumarsi entro il: ${formatDateDDMMYY(fallbackExpiry)}`
+        : undefined;
+    return { ...data, expiryLine };
+  }, [data]);
+
+  useEffect(() => {
+    if (!open) return;
+    const raw = data as LabelData & { internal_expiry?: string | null; expiry_date?: string | null };
+    console.info("[Label debug] expiryLine prima di computeLabelLayout", {
+      productName: data.productName,
+      receivedExpiryLine: data.expiryLine,
+      internal_expiry: raw.internal_expiry,
+      expiry_date: raw.expiry_date,
+      normalizedExpiryLine: normalizedData.expiryLine,
+    });
+  }, [open, data, normalizedData.expiryLine]);
+
   const currentId = selectedId || defaultTemplate?.id || "";
   const current: LabelTemplate | null =
     templates.find((t) => t.id === currentId) || defaultTemplate || null;
 
   const layout = useMemo(() => {
     if (!current) return { items: [], overflow: false, diagnostics: { ingredientsFontPt: 0, contentHeightMm: 0, availableHeightMm: 0 } };
-    return computeLabelLayout(data, current.width_mm, current.height_mm);
-  }, [current, data]);
+    return computeLabelLayout(normalizedData, current.width_mm, current.height_mm);
+  }, [current, normalizedData]);
   const items = layout.items;
   const overflow = layout.overflow;
 

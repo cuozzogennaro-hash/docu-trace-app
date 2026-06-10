@@ -47,6 +47,8 @@ export type LabelItem = {
   align: "left" | "center" | "right";
   segments: LabelSeg[];
   lineHeight: number;
+  /** Cancella il testo sottostante prima di disegnare questo item: usato per dati legali prioritari. */
+  eraseBackground?: boolean;
 };
 
 export type LabelLayout = {
@@ -230,16 +232,18 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
     ingrPt: number;
   };
 
-  // ---- Scadenza ancorata in basso (sempre visibile sopra il footer) ----
-  // Calcolata PRIMA del flow ingredienti per definire il limite verticale
-  // entro cui il blocco ingredienti/extras/allergeni può espandersi.
+  // ---- Scadenza forzata in basso (priorità legale massima) ----
+  // Viene sempre aggiunta subito prima del footer, con sfondo bianco, così
+  // resta visibile anche se il collision detection segnala overflow del corpo.
   const expiryItem: LabelItem | null = data.expiryLine
     ? (() => {
-        const expiryPt = fitPt(data.expiryLine, innerW, footerPt, 6, true);
+        const forcedExpiryText = data.expiryLine.trim();
+        const expiryPt = fitPt(forcedExpiryText, innerW, footerPt, 4, true);
         return {
           x: p, y: 0, w: innerW,
           fontPt: expiryPt, align: "right" as const, lineHeight: lh,
-          segments: [{ text: data.expiryLine, bold: true }],
+          segments: [{ text: forcedExpiryText, bold: true }],
+          eraseBackground: true,
         };
       })()
     : null;

@@ -375,7 +375,7 @@ export default function ProductDetail() {
     const finalExpiry = (isSalumeria && preservationOverride && salumeriaExpiry)
       ? salumeriaExpiry
       : (dbExpiry || salumeriaExpiry);
-    const expiryLine = finalExpiry ? `Da consumarsi entro: ${finalExpiry}` : undefined;
+    const expiryLine = finalExpiry ? `Da consumarsi entro il: ${finalExpiry}` : undefined;
 
     // ---- Lotto (Macelleria fresh → supplier_lot) ----
     let macelleriaFreshLot = "";
