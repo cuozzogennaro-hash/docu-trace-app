@@ -408,6 +408,12 @@ export function renderLabelCanvas(
     const px = ptToDots(it.fontPt);
     const lineHeight = px * it.lineHeight;
     const maxWidth = mmToDots(it.w);
+    if (it.eraseBackground) {
+      const lineCount = Math.max(1, measureCanvasLines(ctx, it.segments, maxWidth, px));
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x, Math.max(0, y - 1), maxWidth, lineHeight * lineCount + 2);
+      ctx.fillStyle = "#000000";
+    }
     if (it.align === "left") {
       drawWrapped(it.segments, x, y, maxWidth, lineHeight, px);
     } else {

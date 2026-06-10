@@ -119,7 +119,7 @@ export default function TemplatedLabelDialog({
       const segs = it.segments
         .map((s) => `<span style="font-weight:${s.bold ? 700 : 400}">${escapeHtml(s.text)}</span>`)
         .join("");
-      return `<div style="position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;overflow:hidden;">${segs}</div>`;
+      return `<div style="position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;overflow:hidden;background:${it.eraseBackground ? "#fff" : "transparent"};">${segs}</div>`;
     }).join("");
     const labelsHtml = Array.from({ length: Math.max(1, qty) })
       .map(() => `<div class="label" style="position:relative;width:${wMm}mm;height:${hMm}mm;overflow:hidden;page-break-after:always;">${itemsHtml}</div>`)
@@ -280,6 +280,7 @@ ${labelsHtml}
                             textAlign: it.align,
                             wordBreak: "break-word",
                             overflow: "hidden",
+                            backgroundColor: it.eraseBackground ? "#fff" : "transparent",
                             fontFamily: "Helvetica, Arial, sans-serif",
                           }}
                         >
