@@ -3,7 +3,9 @@ import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import { useAssets } from "@/components/AssetManager";
 import OperatorPinDialog from "@/components/OperatorPinDialog";
-import PrintLabelDialog from "@/components/kitchen/PrintLabelDialog";
+import TemplatedLabelDialog from "@/components/labels/TemplatedLabelDialog";
+import { useCompany } from "@/hooks/useCompany";
+import { formatDateDDMMYY } from "@/lib/labelLayout";
 import { useBlastChillings, type BlastChilling } from "@/hooks/useBlastChillings";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -33,6 +35,7 @@ function nowLocal() {
 
 export default function BlastChillings() {
   const { assets } = useAssets();
+  const { company } = useCompany();
   const blastChillers = useMemo(
     () => assets.filter((a) => a.asset_type === "blast_chiller" || a.asset_type === "freezer" || a.asset_type === "equipment"),
     [assets]
@@ -286,20 +289,28 @@ export default function BlastChillings() {
       </div>
 
       {printItem && (
-        <PrintLabelDialog
-          open={!!printItem}
-          onOpenChange={(v) => !v && setPrintItem(null)}
-          title="Etichetta abbattimento"
-          productName={printItem.product_name}
-          fields={[
-            { label: "Ciclo", value: printItem.cycle_type === "positive" ? "Positivo (+3°C)" : "Negativo (-18°C)" },
-            { label: "Inizio", value: new Date(printItem.started_at).toLocaleString("it-IT") },
-            ...(printItem.ended_at ? [{ label: "Fine", value: new Date(printItem.ended_at).toLocaleString("it-IT") }] : []),
-            ...(printItem.temp_start != null ? [{ label: "Temp. inizio", value: `${printItem.temp_start}°C` }] : []),
-            ...(printItem.temp_end != null ? [{ label: "Temp. fine", value: `${printItem.temp_end}°C` }] : []),
-            { label: "Esito", value: printItem.outcome === "ok" ? "Conforme" : "Anomalia" },
-          ]}
-        />
+        (() => {
+          const cycleLabel = printItem.cycle_type === "positive" ? "Ciclo positivo (+3°C)" : "Ciclo negativo (-18°C)";
+          const extraLines: string[] = [cycleLabel];
+          if (printItem.temp_start != null) extraLines.push(`T inizio: ${printItem.temp_start}°C`);
+          if (printItem.temp_end != null) extraLines.push(`T fine: ${printItem.temp_end}°C`);
+          if (printItem.ended_at) extraLines.push(`Fine: ${new Date(printItem.ended_at).toLocaleString("it-IT")}`);
+          extraLines.push(`Esito: ${printItem.outcome === "ok" ? "Conforme" : "Anomalia"}`);
+          return (
+            <TemplatedLabelDialog
+              open={!!printItem}
+              onOpenChange={(v) => !v && setPrintItem(null)}
+              title="Etichetta abbattimento"
+              data={{
+                productName: printItem.product_name,
+                companyName: company.business_name || undefined,
+                companyAddress: [company.address, company.city].filter(Boolean).join(" — ") || undefined,
+                productionDate: formatDateDDMMYY(printItem.started_at),
+                extraLines,
+              }}
+            />
+          );
+        })()
       )}
 
       <AlertDialog open={!!deleteItem} onOpenChange={(v) => !v && setDeleteItem(null)}>
