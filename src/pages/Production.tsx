@@ -44,6 +44,8 @@ export default function Production() {
   const [storageMode, setStorageMode] = useState<"refrigerato" | "abbattuto" | "surgelato">("refrigerato");
   const [requiresBlastChilling, setRequiresBlastChilling] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
+  const [expiryDate, setExpiryDate] = useState<string>("");
+  const [expiryTouched, setExpiryTouched] = useState(false);
   // Bilance di reparto (visibile solo se scaleIntegrationActive)
   const [pluCode, setPluCode] = useState("");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
