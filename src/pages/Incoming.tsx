@@ -592,6 +592,8 @@ export default function Incoming() {
     setDocumentDate(new Date().toISOString().slice(0, 10));
     setDocumentNumber("");
     setDepartmentId("");
+    setHeaderTemperature("");
+    setHeaderStorageMode("refrigerated");
     setLines([newProductLine()]);
     setPreview(null);
     setImageFile(null);
