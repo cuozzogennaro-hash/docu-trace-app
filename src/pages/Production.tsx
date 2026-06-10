@@ -226,6 +226,13 @@ export default function Production() {
         seen.add(k);
         return true;
       };
+      // [Salumeria — porzionamento/affettato semplice]
+      // Una sola materia prima selezionata: stampiamo solo i suoi
+      // sotto-ingredienti, senza il nome del prodotto base.
+      const _salumeriaSingle =
+        _isSalumeriaProd &&
+        selectedMats.length === 1 &&
+        !!(selectedMats[0]?.ingredients && String(selectedMats[0].ingredients).trim());
       for (const m of selectedMats) {
         const cat = m.category || "materia_prima";
         if (cat === "aroma") {
@@ -239,6 +246,14 @@ export default function Production() {
               .forEach((c: string) => { if (take(c)) additives.push(c); });
           }
         } else {
+          if (_salumeriaSingle) {
+            String(m.ingredients || "")
+              .split(",")
+              .map((s: string) => s.trim())
+              .filter(Boolean)
+              .forEach((s: string) => { if (take(s)) others.push(s); });
+            continue;
+          }
           const meat = detectMeat(m.product_name || "");
           const traceCountries = [m.born_in, m.raised_in, m.slaughtered_in]
             .map((v) => (v ? String(v).trim() : "")).filter(Boolean);
