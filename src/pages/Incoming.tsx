@@ -553,13 +553,11 @@ export default function Incoming() {
       slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
       slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : null,
             ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
-      intake_temperature: isCucina(l.departmentId) && l.intakeTemperature.trim()
-        ? parseFloat(l.intakeTemperature.replace(",", "."))
-        : null,
-      intake_temp_compliant: isCucina(l.departmentId) && l.intakeTemperature.trim()
-        ? intakeIsCompliant(parseFloat(l.intakeTemperature.replace(",", ".")), l.intakeStorageMode)
-        : null,
-      intake_storage_mode: isCucina(l.departmentId) ? l.intakeStorageMode : null,
+      // Temperatura: valore di TESTATA propagato a TUTTE le righe (qualsiasi reparto).
+      // Non bloccante: se vuoto, viene salvato come null senza errori.
+      intake_temperature: headerTempValid ? (headerTempNum as number) : null,
+      intake_temp_compliant: headerTempValid ? headerTempCompliant : null,
+      intake_storage_mode: headerTempValid ? headerStorageMode : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
