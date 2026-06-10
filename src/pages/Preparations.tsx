@@ -457,18 +457,20 @@ export default function Preparations({ embedded = false, departmentId }: { embed
               placeholder="Sale, pepe, olio EVO, acqua, spezie…" />
           </div>
 
-          <div className="space-y-2 lg:col-span-2">
-            <Label className="flex items-center gap-1"><AlertTriangle size={12} /> Allergeni presenti</Label>
-            <div className="flex flex-wrap gap-2 p-3 rounded-lg border border-border bg-muted/30">
-              {allergens.map((a) => (
-                <label key={a.id} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-1 rounded hover:bg-background">
-                  <Checkbox checked={allergenIds.includes(a.id)} onCheckedChange={() => toggleAllergen(a.id)} />
-                  <span>{a.name}</span>
-                </label>
-              ))}
-              {allergens.length === 0 && <span className="text-xs text-muted-foreground">Nessun allergene configurato — vai in Impostazioni → Allergeni.</span>}
+          {!embedded && (
+            <div className="space-y-2 lg:col-span-2">
+              <Label className="flex items-center gap-1"><AlertTriangle size={12} /> Allergeni presenti</Label>
+              <div className="flex flex-wrap gap-2 p-3 rounded-lg border border-border bg-muted/30">
+                {allergens.map((a) => (
+                  <label key={a.id} className="flex items-center gap-1.5 text-sm cursor-pointer px-2 py-1 rounded hover:bg-background">
+                    <Checkbox checked={allergenIds.includes(a.id)} onCheckedChange={() => toggleAllergen(a.id)} />
+                    <span>{a.name}</span>
+                  </label>
+                ))}
+                {allergens.length === 0 && <span className="text-xs text-muted-foreground">Nessun allergene configurato — vai in Impostazioni → Allergeni.</span>}
+              </div>
             </div>
-          </div>
+          )}
 
           {embedded ? (
             <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
