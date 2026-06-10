@@ -416,7 +416,7 @@ export default function ProductDetail() {
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate) || labelTemplates[0];
     if (!tpl) { toast.error("Nessun template etichetta disponibile"); return; }
     const wMm = Number(tpl.width_mm), hMm = Number(tpl.height_mm);
-    const items = computeLabelLayout(labelData, wMm, hMm);
+    const { items } = computeLabelLayout(labelData, wMm, hMm);
     const pageW = 148, pageH = 210, margin = 12;
     const scale = Math.min((pageW - 2 * margin) / wMm, (pageH - 2 * margin) / hMm);
     const scaledW = wMm * scale, scaledH = hMm * scale;
