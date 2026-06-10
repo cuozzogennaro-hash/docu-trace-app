@@ -34,6 +34,10 @@ export type LabelData = {
   extraLines?: string[];
   /** "Da consumarsi entro: ..." opzionale (in grassetto, sopra footer). */
   expiryLine?: string;
+  /** Fallback DB usato dal dialog se `expiryLine` non è già formattata. */
+  internal_expiry?: string | null;
+  /** Fallback DB usato dal dialog se `expiryLine` non è già formattata. */
+  expiry_date?: string | null;
   /** "Contiene: latte, uova..." opzionale (in grassetto). */
   allergensLine?: string;
   /** Parole da evidenziare in grassetto nel testo ingredienti. */
