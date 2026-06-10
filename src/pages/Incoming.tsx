@@ -292,11 +292,15 @@ export default function Incoming() {
     setLines((prev) => {
       const last = prev[prev.length - 1];
       const fresh = newProductLine(documentDate);
-      // Eredita dalla riga precedente i valori "di flusso" (reparto + categoria),
-      // lasciando vuoti i dati variabili (nome, lotto, scadenza...).
+      // Eredita dalla riga precedente i valori "di flusso" (reparto, categoria,
+      // modalità conservazione, temperatura), lasciando vuoti i dati variabili
+      // (nome, lotto, scadenza...). L'operatore può poi modificare la temperatura
+      // sulla singola riga se cambia la tipologia di merce.
       if (last) {
         fresh.category = last.category || fresh.category;
         fresh.departmentId = last.departmentId || fresh.departmentId || departmentId;
+        fresh.intakeStorageMode = last.intakeStorageMode || fresh.intakeStorageMode;
+        fresh.intakeTemperature = last.intakeTemperature || fresh.intakeTemperature;
       }
       return [...prev, fresh];
     });
