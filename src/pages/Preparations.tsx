@@ -2,7 +2,9 @@ import { useEffect, useMemo, useState } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import OperatorPinDialog from "@/components/OperatorPinDialog";
-import PrintLabelDialog from "@/components/kitchen/PrintLabelDialog";
+import TemplatedLabelDialog from "@/components/labels/TemplatedLabelDialog";
+import { useCompany } from "@/hooks/useCompany";
+import { formatDateDDMMYY } from "@/lib/labelLayout";
 import { usePreparations, type Preparation } from "@/hooks/usePreparations";
 import { useAllergens } from "@/hooks/useAllergens";
 import { useRecurringPreparations, type RecurringPreparation } from "@/hooks/useRecurringPreparations";
@@ -59,6 +61,7 @@ function hoursBetween(from: string, to: string) {
 
 export default function Preparations({ embedded = false, departmentId }: { embedded?: boolean; departmentId?: string } = {}) {
   const { allergens } = useAllergens();
+  const { company } = useCompany();
   const { rows, reload, remove } = usePreparations();
   const { rows: recurring, save: saveRecurring, touch: touchRecurring, remove: removeRecurring } = useRecurringPreparations();
 
@@ -522,22 +525,28 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           storageType === "freezer"
             ? "Da consumarsi preferibilmente entro il"
             : "Da consumarsi entro il";
-        const scadenzaValue = new Date(printItem.internal_expiry).toLocaleString("it-IT");
+        const scadenzaValue = formatDateDDMMYY(printItem.internal_expiry);
+        // Estrae il lotto dalle notes (es. "...Lotto R-26-...")
+        const lotMatch = (printItem.notes || "").match(/Lotto\s+([A-Z0-9-]+)/i);
+        const internalLot = lotMatch ? lotMatch[1] : "";
+        const extraLines: string[] = [conservazioneText];
+        if (allergenNames.length) extraLines.push(`Allergeni: ${allergenNames.join(", ")}`);
         return (
-          <PrintLabelDialog
+          <TemplatedLabelDialog
             open={!!printItem}
             onOpenChange={(v) => !v && setPrintItem(null)}
             title="Etichetta mise en place"
-            productName={printItem.name}
-            highlight={allergenNames}
-            fields={[
-              { label: "Preparato", value: new Date(printItem.prepared_at).toLocaleString("it-IT") },
-              { label: scadenzaLabel, value: scadenzaValue },
-              { label: "Conservazione", value: conservazioneText },
-              ...(ingredientsCombined ? [{ label: "Ingredienti", value: ingredientsCombined }] : []),
-              ...(allergenNames.length ? [{ label: "Allergeni", value: allergenNames.join(", ") }] : []),
-              ...(printItem.notes ? [{ label: "Note", value: printItem.notes }] : []),
-            ]}
+            data={{
+              productName: printItem.name,
+              companyName: company.business_name || undefined,
+              companyAddress: [company.address, company.city].filter(Boolean).join(" — ") || undefined,
+              productionDate: formatDateDDMMYY(printItem.prepared_at),
+              internalLot,
+              ingredientsText: ingredientsCombined || undefined,
+              expiryLine: `${scadenzaLabel}: ${scadenzaValue}`,
+              extraLines,
+              highlightAllergens: allergenNames,
+            }}
           />
         );
       })()}

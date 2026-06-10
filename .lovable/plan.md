@@ -1,78 +1,88 @@
-# Modulo "Punti Vendita" (Stores) e Integrazione Bilance di Reparto
+# Unificazione stampa etichette: `TemplatedLabelDialog`
 
-Implementazione in 3 fasi (DB → backend logic → UI condizionale), con priorità assoluta alla **retrocompatibilità**: nessun utente esistente deve vedere differenze o perdere dati.
+## Obiettivo
+Una sola pipeline di rendering etichette (template grafico dell'editor + TSPL/Phomemo/Web/A5) usata da Archivio, Cucina (Preparati), Abbattimenti. Eliminare `PrintLabelDialog` "semplificato".
 
----
+## Scelta progettuale chiave: input normalizzato
 
-## Fase 1 — Database (1 migrazione unica)
+Il motore etichetta di `ProductDetail` lavora oggi su `product + ingredients[]` e ricava da lì tutti i campi (`product_name`, `internal_lot`, `production_date`, `expiry_date`, `ingredients`). I callsite Cucina/Abbattimenti **non hanno una riga `products`**: hanno `Preparation` o `BlastChilling`.
 
-### Nuova tabella `public.stores`
-- `id` uuid PK (default `gen_random_uuid()`)
-- `user_id` uuid NOT NULL → `auth.users(id)` ON DELETE CASCADE  *(necessario per isolare i punti vendita per account-admin e per RLS)*
-- `name` text NOT NULL
-- `address` text
-- `scale_integration_active` boolean NOT NULL DEFAULT `false`
-- `scale_api_key` uuid NOT NULL DEFAULT `gen_random_uuid()` UNIQUE
-- `created_at`, `updated_at` timestamptz + trigger `touch_updated_at`
-- GRANT a `authenticated` + `service_role`
-- RLS: ogni utente vede/gestisce solo i propri store (`auth.uid() = user_id`)
+Approccio: il nuovo componente accetta un **`LabelData` già pronto** (i campi semantici già mappati), non `product+ingredients`. La logica di composizione "ingredienti complessi" (regole Salumeria/Macelleria/Cucina, allergeni canonici, tracciabilità carne, deduplica) resta esclusiva del flusso prodotto e viene preparata dal chiamante. Per Cucina/Abbattimenti basta passare i campi testuali già pronti — è quello che fanno oggi.
 
-### Aggiunta `store_id` a `profiles`
-- Colonna `store_id` uuid → `stores(id)` ON DELETE SET NULL (nullable per non bloccare INSERT)
-- **Migrazione dati esistenti**: per ogni `profiles.id` senza `store_id`, crea uno store *"Punto Vendita Principale"* con `scale_integration_active=false` e popola `profiles.store_id` (in un'unica CTE, idempotente).
-- **Nuovi utenti**: aggiorno `handle_new_user()` per creare automaticamente lo store di default e collegarlo al profilo appena creato.
+## Nuovo componente
 
-### Nuova tabella `public.scales_queue`
-- `id` bigint generated always as identity PK
-- `user_id` uuid NOT NULL → `auth.users(id)` *(per RLS lato app)*
-- `store_id` uuid NOT NULL → `stores(id)` ON DELETE CASCADE
-- `plu_code` text NOT NULL
-- `product_name` text
-- `lot_number` text
-- `ingredients` text
-- `status` text NOT NULL DEFAULT `'pending'` + CHECK in (`'pending'`,`'processed'`)
-- `created_at`, `updated_at` + trigger
-- Indici: `(store_id, status)`, `(scale_api_key)` lato stores
-- GRANT + RLS: utente accede solo alle righe dei propri store (via subquery su `stores.user_id = auth.uid()`)
-- `service_role` ha pieno accesso (lo userà l'endpoint che l'applicativo PC del negozio chiamerà via `scale_api_key`)
+`src/components/labels/TemplatedLabelDialog.tsx`
 
----
+Props:
+```ts
+{
+  open, onOpenChange,
+  data: {
+    productName: string;
+    companyName?: string; companyAddress?: string;
+    productionDate?: string;   // GG/MM/AA
+    expiryDate?: string;       // testo libero "Da consumarsi entro..." o data
+    internalLot?: string;
+    ingredientsText?: string;  // già composto + allergeni evidenziabili
+    extraLines?: string[];     // tracciabilità, conservazione, note
+    allergensLine?: string;
+  },
+  highlightAllergens?: string[]; // keywords per il grassetto inline
+  templates: LabelTemplate[];    // caricati dal chiamante
+  defaultQty?: number;
+}
+```
 
-## Fase 2 — Hook & helper applicazione
+Internamente espone: select template + qty, preview live, stampa di sistema (web), stampa BT (TSPL/Phomemo via `buildTSPL`/`buildPhomemoLabel` come oggi), stampa A5.
 
-- Nuovo hook `useStores.tsx` per CRUD store del proprio account.
-- Nuovo hook `useCurrentStore.tsx` che legge `profiles.store_id` dell'utente loggato e restituisce `{ store, scaleIntegrationActive }` con cache react-query. Esposto globalmente.
-- Tutti i punti del codice che inseriscono dati di tracciabilità (produzione, materia prima, preparati) ricevono `store_id` dal current store; finché c'è un solo store per account, è trasparente.
+## Refactor `ProductDetail.tsx`
 
-## Fase 3 — UI
+1. Estrarre in `src/lib/labelLayout.ts` (puro, no React):
+   - `formatDateDDMMYY`
+   - `computeLabelLayout(data, wMm, hMm)` → ritorna `LabelItem[]`
+   - `renderLabelCanvas(items, tpl, dpmm)` → canvas mono
+   - `canvasToMonoBitmap`, `buildTSPLBytes`, `buildPhomemoBytes`
+2. `ProductDetail.tsx` mantiene solo: caricamento `labelTemplates`, composizione del `LabelData` (con tutta la logica Salumeria/Macelleria/Cucina/allergeni già esistente), poi monta `<TemplatedLabelDialog data={...} templates={...} />`.
+3. Mantenute: `preservationOverride` (Salumeria), `selectedTemplate`, `labelQty` (passati come stato interno del dialog), comportamento bottoni invariato.
 
-### A) Impostazioni → nuovo tab "Punti Vendita"
-- Elenco store dell'account
-- Form add/edit: nome, indirizzo, toggle `scale_integration_active`
-- Quando attivo, mostra la `scale_api_key` (copy-to-clipboard) con avviso "Inserisci questa chiave nell'applicativo del PC della bilancia".
-- Il tab è sempre visibile ma per i micro-utenti è solo un'opzione: lo store di default è già lì pre-popolato.
+## Sostituzioni Cucina
 
-### B) Sezione "Bilance di reparto" nei form di produzione/tracciabilità
-- Renderizzata **solo se** `currentStore.scale_integration_active === true`.
-- Campi: `plu_code`, `product_name` (precompilato), `lot_number` (precompilato dal lotto interno), `ingredients` (precompilato).
-- Al salvataggio del record principale, in transazione lato client viene inserita anche una riga in `scales_queue` con `status='pending'`.
-- Per tutti gli utenti esistenti il flag resta `false` → la sezione **non compare**, nessun cambio percepito.
+`src/pages/Preparations.tsx`:
+- Caricare `label_templates` (nuovo hook leggero `useLabelTemplates` o query in pagina).
+- Compone `LabelData` da `Preparation`:
+  - `productName = printItem.name`
+  - `productionDate = formatDateDDMMYY(printItem.prepared_at)`
+  - `expiryDate` = testo dinamico già esistente per `storage_type` (frigo/freezer/ambiente) + data
+  - `extraLines` = riga conservazione + eventuale note
+  - `ingredientsText` = combinazione raw materials + `ingredients_text` (come oggi)
+  - `highlightAllergens` = `allergenNames` (già calcolato)
+- Sostituire `<PrintLabelDialog ... />` con `<TemplatedLabelDialog ... />`.
 
-### C) Admin "Coda bilance" (opzionale, fase successiva)
-Pagina di sola lettura con stato code per debug; la metto dietro flag, non in questa iterazione se preferisci.
+`src/pages/BlastChillings.tsx`:
+- Stessa cosa: `productName` dal record, `productionDate` = inizio ciclo, `extraLines` con tipo ciclo/temperature/durata.
 
----
+## Rimozione
 
-## Dettagli tecnici riassunti
+- `src/components/kitchen/PrintLabelDialog.tsx` → eliminato.
+- `buildLabelBytes` in `src/lib/btPrinter.ts` → eliminato (sostituito da TSPL/Phomemo raster).
 
-- 1 migrazione SQL atomica che fa: CREATE tabelle + GRANT + RLS + POLICY + back-fill dati esistenti + update `handle_new_user`.
-- Nessun edge function in questa iterazione (l'endpoint per l'applicativo PC della bilancia lo aggiungiamo in fase 2 quando definiamo il contratto API).
-- Zero breaking change: tutte le query attuali ignorano `store_id` perché nullable e nessun codice esistente lo legge.
+## File toccati
 
----
+- nuovo `src/lib/labelLayout.ts` (~600 righe estratte)
+- nuovo `src/components/labels/TemplatedLabelDialog.tsx`
+- nuovo `src/hooks/useLabelTemplates.tsx`
+- modificato `src/pages/ProductDetail.tsx` (rimossi ~700 righe di rendering)
+- modificato `src/pages/Preparations.tsx`
+- modificato `src/pages/BlastChillings.tsx`
+- modificato `src/lib/btPrinter.ts` (rimosso `buildLabelBytes`)
+- eliminato `src/components/kitchen/PrintLabelDialog.tsx`
 
-## Domanda prima di procedere
+## Rischi e mitigazioni
 
-Il tuo messaggio finale era troncato sulla logica UI ("…come per tutti i vecchi utenti"). Confermo che la regola è: **se `scale_integration_active = false` la sezione bilance NON viene proprio renderizzata** (non disabilitata, non visibile). Procedo così?
+- **Regressione layout prodotto**: il refactor sposta codice senza modificarne il comportamento. Mitigato testando manualmente una stampa Archivio dopo il refactor (preview identica).
+- **Cucina senza regole speciali**: i Preparati non hanno `product.department_id` né ingredienti tracciati come `raw_materials`, quindi la loro stampa userà solo `productName + ingredientsText + extraLines` sul template grafico — niente tracciabilità carne / allergeni canonici DB. Gli allergeni configurati sul Preparato restano evidenziati via `highlightAllergens`.
+- **`buildLabelBytes` rimosso**: non più usato da nessuno dopo la sostituzione.
 
-Inoltre: vuoi che includa anche l'endpoint HTTP (edge function) `GET /scales-queue?api_key=...` per far scaricare al PC del negozio le righe `pending` e marcarle `processed`, o lo lasciamo a un secondo step?
+## Conferma richiesta
+
+Procedo con questa architettura? In particolare: confermi che per Cucina/Abbattimenti il template grafico viene "riempito" con i campi base (nome, data, scadenza, lotto se presente, ingredienti, note) **senza** applicare la logica composita Salumeria/Macelleria — che resta esclusiva di Archivio prodotti?
