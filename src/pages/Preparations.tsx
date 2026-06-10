@@ -139,6 +139,15 @@ export default function Preparations({ embedded = false, departmentId }: { embed
     toast.success(`Ricetta "${r.name}" caricata`);
   }
 
+  useEffect(() => {
+    const handler = (e: Event) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (id) applyRecipe(id);
+    };
+    window.addEventListener("preparations:apply-recipe", handler);
+    return () => window.removeEventListener("preparations:apply-recipe", handler);
+  });
+
   function reset() {
     setName(""); setNotes(""); setAllergenIds([]); setRawMaterialIds([]); setIngredientsText("");
     setSaveAsRecipe(false); setSelectedRecipe("");
