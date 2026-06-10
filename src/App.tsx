@@ -140,6 +140,7 @@ const App = () => (
               <Route path="/menu" element={<Menu />} />
               <Route path="/scadenze" element={<Expiries />} />
               <Route path="/report" element={<Reports />} />
+              <Route path="/fornitori" element={<Suppliers />} />
               <Route path="/archivio/materia-prima/:id" element={<RawMaterialDetail />} />
               <Route path="/archivio/prodotto/:id" element={<ProductDetail />} />
               <Route path="/impostazioni" element={<Settings />} />
