@@ -511,7 +511,14 @@ export default function Preparations({ embedded = false, departmentId }: { embed
         const allergenNames = (printItem.allergen_ids ?? []).map((id) => allergenMap.get(id)).filter(Boolean) as string[];
         const rmLines = (printItem.raw_material_ids ?? []).map((id) => {
           const r = rmMap.get(id);
-          return r ? `${r.product_name} (lotto ${r.internal_lot})` : null;
+          if (!r) return null;
+          // Esplosione composizione: se l'ingrediente è un prodotto composto,
+          // riportiamo in etichetta gli ingredienti reali (scheda tecnica),
+          // non il nome commerciale + lotto. Obbligo normativo etichettatura.
+          const composition = (r.ingredients || "").trim();
+          return composition
+            ? `${r.product_name} [${composition}]`
+            : r.product_name;
         }).filter(Boolean) as string[];
         const ingredientsCombined = [...rmLines, printItem.ingredients_text].filter(Boolean).join(", ");
         // Mappatura conservazione (SOLO Cucina): testo dinamico per l'etichetta.
