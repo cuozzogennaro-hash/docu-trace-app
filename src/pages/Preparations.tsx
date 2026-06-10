@@ -40,6 +40,7 @@ type RawMaterialLite = {
   supplier_name: string | null;
   expiry_date: string | null;
   is_out_of_stock: boolean;
+  ingredients: string | null;
 };
 
 function nowLocal() {
