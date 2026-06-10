@@ -127,10 +127,6 @@ export default function Incoming() {
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
   const [documentNumber, setDocumentNumber] = useState("");
-  // Temperatura di ingresso a livello di TESTATA (universale, non bloccante).
-  // Propagata su tutte le righe in save().
-  const [headerStorageMode, setHeaderStorageMode] = useState<"refrigerated" | "frozen" | "ambient">("refrigerated");
-  const [headerTemperature, setHeaderTemperature] = useState<string>("");
   const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
   const [departmentId, setDepartmentId] = useState<string>("");
