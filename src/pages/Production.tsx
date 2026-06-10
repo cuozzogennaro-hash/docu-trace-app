@@ -193,6 +193,7 @@ export default function Production() {
         department_id: productDeptId, meat_type, preservation_type,
         requires_blast_chilling: needsBlast,
         manual_ingredients: manualIngredients.trim() || null,
+        expiry_date: expiryDate || null,
       } as any)
       .select()
       .single();
