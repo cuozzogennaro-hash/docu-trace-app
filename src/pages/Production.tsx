@@ -409,6 +409,18 @@ export default function Production() {
             <Label>Lotto interno</Label>
             <Input value={lot} readOnly className="font-mono bg-muted" />
           </div>
+          <div className="space-y-2">
+            <Label>Data scadenza {expiryTouched ? "" : <span className="text-[10px] font-normal text-muted-foreground">(da reparto)</span>}</Label>
+            <Input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => { setExpiryDate(e.target.value); setExpiryTouched(true); }}
+              placeholder="—"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Pre-compilata dal default del reparto. Modificabile manualmente.
+            </p>
+          </div>
           <div className="space-y-2 lg:col-span-2">
             <Label>Note</Label>
             <Input value={notes} onChange={(e) => setNotes(e.target.value)} />
