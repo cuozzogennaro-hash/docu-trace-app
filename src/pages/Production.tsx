@@ -385,10 +385,48 @@ export default function Production() {
     <>
       <PageHeader title={pageLabel} subtitle={profile === "ristorazione" ? "Crea e archivia le ricette di cucina" : "Crea semilavorati e prodotti finiti con tracciabilità ingredienti"} />
 
-      <div className="mb-4">
+      <div className="mb-4 flex flex-wrap items-center gap-2">
         <Button asChild variant="outline" className="gap-2">
           <Link to="/archivio?tab=products"><ArchiveIcon size={16} /> Archivio Prodotti</Link>
         </Button>
+        {isCucina(productDeptId) && (
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="gap-2" disabled={recurringRecipes.length === 0}>
+                <Repeat size={16} /> Richiama ricetta
+                {recurringRecipes.length > 0 && (
+                  <span className="text-xs text-muted-foreground">({recurringRecipes.length})</span>
+                )}
+                <ChevronDown size={14} className="opacity-60" />
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent align="start" className="w-72 max-h-80 overflow-auto">
+              <DropdownMenuLabel>Ricette ricorrenti salvate</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              {recurringRecipes.length === 0 ? (
+                <div className="px-2 py-3 text-xs text-muted-foreground">
+                  Nessuna ricetta salvata. Crea una preparazione e spunta "Salva come ricorrente".
+                </div>
+              ) : (
+                recurringRecipes.map((r) => (
+                  <DropdownMenuItem
+                    key={r.id}
+                    onSelect={() => {
+                      window.dispatchEvent(new CustomEvent("preparations:apply-recipe", { detail: { id: r.id } }));
+                    }}
+                    className="flex flex-col items-start gap-0.5"
+                  >
+                    <span className="font-medium">{r.name}</span>
+                    <span className="text-[11px] text-muted-foreground">
+                      {r.storage_type}
+                      {r.use_count > 0 && <> · usata {r.use_count}×</>}
+                    </span>
+                  </DropdownMenuItem>
+                ))
+              )}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        )}
       </div>
 
       <Card className="p-5 mb-6 shadow-soft">
