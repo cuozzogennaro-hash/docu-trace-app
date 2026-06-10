@@ -335,8 +335,11 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           </div>
           <div className="space-y-2 lg:col-span-2">
             <Label>Scadenza interna</Label>
-            <Input type="datetime-local" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
-            <p className="text-xs text-muted-foreground">Default: frigo 72h, freezer 30gg, ambiente 24h — modificabile.</p>
+            <Input type="datetime-local" value={expiry} onChange={(e) => { setExpiry(e.target.value); setExpiryTouched(true); }} />
+            <p className="text-xs text-muted-foreground">
+              Default: frigo 72h, freezer 30gg, ambiente 24h — modificabile.
+              {expiryTouched && <span className="ml-1 text-primary">Data manuale: avrà la precedenza.</span>}
+            </p>
           </div>
 
           {/* Materie prime tracciate */}
