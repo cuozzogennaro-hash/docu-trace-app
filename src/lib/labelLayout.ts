@@ -402,6 +402,35 @@ export function renderLabelCanvas(
     }
   };
 
+  const measureCanvasLines = (segments: LabelSeg[], maxWidth: number, px: number): number => {
+    type Tok = { word: string; bold: boolean; trailingSpace: boolean };
+    const tokens: Tok[] = [];
+    segments.forEach((seg, segIdx) => {
+      const words = seg.text.split(/\s+/).filter((w) => w.length > 0);
+      words.forEach((w, i) => tokens.push({
+        word: w,
+        bold: seg.bold,
+        trailingSpace: i < words.length - 1 || segIdx < segments.length - 1,
+      }));
+    });
+    if (tokens.length === 0) return 1;
+    setFont(px, false);
+    const spaceW = ctx.measureText(" ").width;
+    let lines = 1;
+    let x = 0;
+    for (const tok of tokens) {
+      setFont(px, tok.bold);
+      const w = ctx.measureText(tok.word).width;
+      if (x + w > maxWidth && x > 0) {
+        lines += 1;
+        x = 0;
+      }
+      x += w;
+      if (tok.trailingSpace) x += spaceW;
+    }
+    return lines;
+  };
+
   for (const it of items) {
     const x = mmToDots(it.x);
     const y = mmToDots(it.y);
