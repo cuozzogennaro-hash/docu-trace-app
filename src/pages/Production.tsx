@@ -163,6 +163,10 @@ export default function Production() {
       ? preservationType
       : storageMode;
     const needsBlast = requiresBlastChilling || storageMode === "abbattuto" || storageMode === "surgelato";
+    const blastCycle = storageMode === "surgelato" ? "negative" : "positive";
+    const blastNotes = needsBlast
+      ? `Da completare (${storageMode}) — generato da ${pageLabel} • Lotto ${lot}`
+      : null;
     if (isOperatorAdmin && operator) {
       const { data, error } = await supabase.rpc("operator_admin_insert_product", {
         p_operator_id: operator.id,
@@ -175,10 +179,15 @@ export default function Production() {
         p_meat_type: meat_type,
         p_raw_material_ids: Array.from(selected),
         p_preservation_type: preservation_type,
+        p_expiry_date: expiryDate || null,
+        p_requires_blast_chilling: needsBlast,
+        p_blast_cycle_type: blastCycle,
+        p_blast_notes: blastNotes,
+        p_manual_ingredients: manualIngredients.trim() || null,
       } as any);
       const res: any = data;
       if (error || !res?.ok) return toast.error(error?.message || res?.error || "Errore");
-      toast.success(`Prodotto creato • ${lot}`);
+      toast.success(needsBlast ? `Creato • Abbattimento da completare in Archivio` : `Prodotto creato • ${lot}`);
       setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh"); setPreservationType("vacuum"); setMacelleriaPreservation("vaschetta");
       setRequiresBlastChilling(false); setManualIngredients("");
       setExpiryTouched(false);
@@ -187,26 +196,28 @@ export default function Production() {
       return;
     }
     const { data: { user } } = await supabase.auth.getUser();
-    const { data: prod, error } = await supabase
-      .from("products")
-      .insert({
-        user_id: user!.id, name, production_date: prodDate, internal_lot: lot, notes,
-        department_id: productDeptId, meat_type, preservation_type,
-        requires_blast_chilling: needsBlast,
-        manual_ingredients: manualIngredients.trim() || null,
-        expiry_date: expiryDate || null,
-      } as any)
-      .select()
-      .single();
-    if (error) return toast.error(error.message);
-    if (selected.size > 0) {
-      const ingredients = Array.from(selected).map((rm) => ({
-        product_id: prod.id,
-        raw_material_id: rm,
-        user_id: user!.id,
-      }));
-      await supabase.from("product_ingredients").insert(ingredients);
+    // Salvataggio atomico: prodotto + ingredienti + (eventuale) record di abbattimento
+    // in un'unica transazione. Se fallisce un passaggio, viene annullato tutto.
+    const { data: rpcData, error: rpcError } = await supabase.rpc("create_product_with_blast" as any, {
+      p_name: name,
+      p_production_date: prodDate,
+      p_internal_lot: lot,
+      p_notes: notes,
+      p_department_id: productDeptId,
+      p_meat_type: meat_type,
+      p_preservation_type: preservation_type,
+      p_requires_blast_chilling: needsBlast,
+      p_manual_ingredients: manualIngredients.trim() || null,
+      p_expiry_date: expiryDate || null,
+      p_raw_material_ids: Array.from(selected),
+      p_blast_cycle_type: blastCycle,
+      p_blast_notes: blastNotes,
+    });
+    const rpcRes: any = rpcData;
+    if (rpcError || !rpcRes?.ok) {
+      return toast.error(rpcError?.message || rpcRes?.error || "Errore di salvataggio");
     }
+    const prod = { id: rpcRes.id as string };
     // Coda bilance: inserisce solo se l'integrazione è attiva e PLU è compilato
     if (scaleIntegrationActive && store && pluCode.trim()) {
       // === Costruzione lista ingredienti per la bilancia ===
@@ -329,14 +340,6 @@ export default function Production() {
       else toast.success("Inviato alla coda bilance");
     }
     if (needsBlast) {
-      await (supabase as any).from("blast_chillings").insert({
-        user_id: user!.id,
-        product_name: name,
-        cycle_type: storageMode === "surgelato" ? "negative" : "positive",
-        outcome: "ok",
-        notes: `Da completare (${storageMode}) — generato da ${pageLabel} • Lotto ${lot}`,
-        product_id: prod.id,
-      });
       toast.success(`Creato • Abbattimento da completare in Archivio`);
     } else {
       toast.success(`Creato • ${lot}`);
