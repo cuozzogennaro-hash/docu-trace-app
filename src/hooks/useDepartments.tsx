@@ -6,6 +6,7 @@ export type Department = {
   name: string;
   sort_order: number;
   scale_department_code?: number | null;
+  default_shelf_life_days?: number | null;
 };
 
 const HIDDEN_KEY = "hiddenDepartmentIds";
@@ -32,7 +33,7 @@ export function useDepartments() {
     if (session) {
       const { data } = await supabase
         .from("departments")
-        .select("id, name, sort_order, scale_department_code")
+        .select("id, name, sort_order, scale_department_code, default_shelf_life_days")
         .order("sort_order", { ascending: true })
         .order("name", { ascending: true });
       rows = (data as Department[]) ?? [];
