@@ -127,10 +127,6 @@ export default function Incoming() {
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
   const [documentNumber, setDocumentNumber] = useState("");
-  // Temperatura di ingresso a livello di TESTATA (universale, non bloccante).
-  // Propagata su tutte le righe in save().
-  const [headerStorageMode, setHeaderStorageMode] = useState<"refrigerated" | "frozen" | "ambient">("refrigerated");
-  const [headerTemperature, setHeaderTemperature] = useState<string>("");
   const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
   const [departmentId, setDepartmentId] = useState<string>("");
@@ -296,11 +292,15 @@ export default function Incoming() {
     setLines((prev) => {
       const last = prev[prev.length - 1];
       const fresh = newProductLine(documentDate);
-      // Eredita dalla riga precedente i valori "di flusso" (reparto + categoria),
-      // lasciando vuoti i dati variabili (nome, lotto, scadenza...).
+      // Eredita dalla riga precedente i valori "di flusso" (reparto, categoria,
+      // modalità conservazione, temperatura), lasciando vuoti i dati variabili
+      // (nome, lotto, scadenza...). L'operatore può poi modificare la temperatura
+      // sulla singola riga se cambia la tipologia di merce.
       if (last) {
         fresh.category = last.category || fresh.category;
         fresh.departmentId = last.departmentId || fresh.departmentId || departmentId;
+        fresh.intakeStorageMode = last.intakeStorageMode || fresh.intakeStorageMode;
+        fresh.intakeTemperature = last.intakeTemperature || fresh.intakeTemperature;
       }
       return [...prev, fresh];
     });
@@ -408,45 +408,17 @@ export default function Incoming() {
     try {
       const base64 = await toBase64(file);
       const { data, error } = await supabase.functions.invoke("ocr-document", {
-        body: { imageBase64: base64, mimeType: file.type },
+        body: { imageBase64: base64, mimeType: file.type, headerOnly: true },
       });
       if (error) throw error;
       const d = data?.data ?? {};
       if (d.supplier_name) setSupplierName(d.supplier_name);
-      // La data documento viene impostata SOLO se l'OCR la trova esplicitamente
-      // (vera fattura/DDT). Per le etichette di prodotto resta la data odierna
-      // di default e l'eventuale data produzione finisce sulla singola riga.
+      // L'OCR di testata estrae ESCLUSIVAMENTE i dati generali del documento
+      // (fornitore, data, numero). I prodotti NON vengono compilati qui: si
+      // inseriscono manualmente, da "Da ricorrente" o dalla foto Etichetta.
       if (d.document_date) setDocumentDate(d.document_date);
       if (d.document_number) setDocumentNumber(d.document_number);
-      if (Array.isArray(d.products) && d.products.length > 0) {
-        const dateForLot = d.document_date || documentDate;
-        setLines(
-          d.products.map((p: any) => ({
-            selected: true,
-            productName: p.product_name || "",
-            quantity: p.quantity || "",
-            supplierLot: p.supplier_lot || "",
-            category: "materia_prima",
-            expiry: "",
-            productionDate: p.production_date || "",
-            origin: p.origin || "",
-            internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
-            departmentId: departmentId || "",
-            bornIn: "",
-            raisedIn: "",
-            slaughteredIn: "",
-            slaughterMark: "",
-            ingredients: p.ingredients || "",
-            intakeTemperature: "",
-            intakeStorageMode: "refrigerated",
-            pluCode: "",
-            scaleIngredients: "",
-          }))
-        );
-        toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
-      } else {
-        toast.success("Documento analizzato! Controlla e completa i dati.");
-      }
+      toast.success("Testata documento compilata. Aggiungi i prodotti manualmente o con 'Etichetta'/'Da ricorrente'.");
     } catch (err: any) {
       toast.error(err.message ?? "Errore OCR");
     } finally {
@@ -476,14 +448,14 @@ export default function Incoming() {
     }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
 
-    // Temperatura di testata (universale, non bloccante).
-    const headerTempNum = headerTemperature.trim()
-      ? parseFloat(headerTemperature.replace(",", "."))
-      : null;
-    const headerTempValid = headerTempNum != null && !Number.isNaN(headerTempNum);
-    const headerTempCompliant = headerTempValid
-      ? intakeIsCompliant(headerTempNum as number, headerStorageMode)
-      : null;
+    // Temperatura per singola riga (opzionale, non bloccante).
+    function lineTempInfo(l: ProductLine) {
+      const raw = (l.intakeTemperature || "").trim();
+      if (!raw) return { value: null as number | null, compliant: null as boolean | null, mode: l.intakeStorageMode };
+      const n = parseFloat(raw.replace(",", "."));
+      if (Number.isNaN(n)) return { value: null, compliant: null, mode: l.intakeStorageMode };
+      return { value: n, compliant: intakeIsCompliant(n, l.intakeStorageMode), mode: l.intakeStorageMode };
+    }
 
     if (isOperatorAdmin) {
       const rowsToInsert = validLines.map((l) => ({
@@ -517,8 +489,6 @@ export default function Incoming() {
       setDocumentDate(new Date().toISOString().slice(0, 10));
       setDocumentNumber("");
       setDepartmentId("");
-      setHeaderTemperature("");
-      setHeaderStorageMode("refrigerated");
       setLines([newProductLine()]);
       setPreview(null);
       setImageFile(null);
@@ -555,11 +525,10 @@ export default function Incoming() {
       slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
       slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : null,
             ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
-      // Temperatura: valore di TESTATA propagato a TUTTE le righe (qualsiasi reparto).
-      // Non bloccante: se vuoto, viene salvato come null senza errori.
-      intake_temperature: headerTempValid ? (headerTempNum as number) : null,
-      intake_temp_compliant: headerTempValid ? headerTempCompliant : null,
-      intake_storage_mode: headerTempValid ? headerStorageMode : null,
+      // Temperatura: valore della SINGOLA riga (qualsiasi reparto). Non bloccante.
+      intake_temperature: lineTempInfo(l).value,
+      intake_temp_compliant: lineTempInfo(l).compliant,
+      intake_storage_mode: lineTempInfo(l).value != null ? l.intakeStorageMode : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
@@ -594,8 +563,6 @@ export default function Incoming() {
     setDocumentDate(new Date().toISOString().slice(0, 10));
     setDocumentNumber("");
     setDepartmentId("");
-    setHeaderTemperature("");
-    setHeaderStorageMode("refrigerated");
     setLines([newProductLine()]);
     setPreview(null);
     setImageFile(null);
@@ -709,40 +676,35 @@ export default function Incoming() {
             Seleziona prima il reparto: condiziona la lettura della foto e le logiche di caricamento (es. tracciabilità carne per Macelleria).
           </p>
         </Card>
-        <div className="grid lg:grid-cols-[180px_1fr] gap-5">
-          <button
-            type="button"
-            onClick={() => {
-              if (!departmentId) { toast.error("Seleziona prima il reparto"); return; }
-              fileRef.current?.click();
-            }}
-            disabled={!departmentId && !preview}
-            className="aspect-square rounded-2xl bg-gradient-accent text-accent-foreground flex flex-col items-center justify-center gap-2 shadow-elevated hover:opacity-95 transition overflow-hidden relative disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {preview ? (
-              <>
-                <img src={preview} alt="Anteprima documento" className="absolute inset-0 w-full h-full object-cover" />
-                <div className="absolute bottom-1 left-1 right-1 flex gap-1 z-10">
-                  <span
-                    onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
-                    className="flex-1 text-[10px] font-semibold bg-background/80 backdrop-blur rounded-md py-1 text-center cursor-pointer hover:bg-background/95 transition"
-                  >
-                    📷 Riscatta
-                  </span>
-                </div>
-              </>
-            ) : ocrLoading ? (
-              <>
-                <Loader2 className="animate-spin" size={32} />
-                <span className="text-xs font-medium">Analisi AI…</span>
-              </>
-            ) : (
-              <>
-                <Camera size={32} />
-                <span className="text-xs font-medium text-center px-2">Scatta foto<br />fattura/DDT</span>
-              </>
+        <div className="space-y-3">
+          {/* Pulsante OCR compatto: solo dati testata (fornitore, data, numero) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 border-accent/40 text-accent-foreground bg-accent/10 hover:bg-accent/20"
+              onClick={() => {
+                if (!departmentId) { toast.error("Seleziona prima il reparto"); return; }
+                fileRef.current?.click();
+              }}
+              disabled={ocrLoading}
+            >
+              {ocrLoading ? <Loader2 className="animate-spin" size={14} /> : <Camera size={14} />}
+              {ocrLoading ? "Analisi AI…" : "Scatta foto fattura/DDT"}
+            </Button>
+            {preview && (
+              <div className="flex items-center gap-2">
+                <img src={preview} alt="Anteprima documento" className="h-10 w-10 rounded-md object-cover border" />
+                <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={() => fileRef.current?.click()}>
+                  Riscatta
+                </Button>
+              </div>
             )}
-          </button>
+            <span className="text-[11px] text-muted-foreground">
+              Estrae solo fornitore, data e numero documento. I prodotti si inseriscono manualmente o con "Da ricorrente" / "Etichetta".
+            </span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Fornitore</Label>
@@ -761,41 +723,6 @@ export default function Incoming() {
             <div className="space-y-1.5 md:col-span-2">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Numero documento</Label>
               <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
-            </div>
-            {/* Temperatura di ingresso — TESTATA (universale, opzionale) */}
-            <div className="md:col-span-2 mt-1 p-3 rounded-lg border border-dashed bg-blue-50/40 space-y-2">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Thermometer size={14} className="text-blue-700" />
-                Temperatura di ingresso <span className="text-muted-foreground font-normal">(opzionale, vale per tutte le righe)</span>
-              </Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Modalità conservazione</Label>
-                  <Select value={headerStorageMode} onValueChange={(v: any) => setHeaderStorageMode(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
-                      <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
-                      <SelectItem value="ambient">Ambiente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Temperatura rilevata (°C)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={headerTemperature}
-                    onChange={(e) => setHeaderTemperature(e.target.value)}
-                    placeholder={headerStorageMode === "frozen" ? "-20" : headerStorageMode === "refrigerated" ? "3.5" : "20"}
-                    className="font-mono"
-                    inputMode="decimal"
-                  />
-                </div>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Lascia vuoto per merci a temperatura ambiente o non deperibili: il salvataggio funziona comunque.
-              </p>
             </div>
           </div>
         </div>
@@ -969,11 +896,42 @@ export default function Incoming() {
                   </div>
                 );
               })()}
-              {/* Avviso conformità temperatura di TESTATA (mostrato una sola volta sulla prima riga) */}
-              {idx === 0 && headerTemperature.trim() && (() => {
-                const tn = parseFloat(headerTemperature.replace(",", "."));
+              {/* Temperatura di ingresso — per singola riga (opzionale, non bloccante) */}
+              <div className="mt-3 p-3 rounded-lg border border-dashed bg-blue-50/40 space-y-2">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Thermometer size={14} className="text-blue-700" />
+                  Temperatura di ingresso <span className="text-muted-foreground font-normal">(opzionale)</span>
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Modalità conservazione</Label>
+                    <Select value={line.intakeStorageMode} onValueChange={(v: any) => updateLine(idx, { intakeStorageMode: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
+                        <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
+                        <SelectItem value="ambient">Ambiente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Temperatura rilevata (°C)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={line.intakeTemperature}
+                      onChange={(e) => updateLine(idx, { intakeTemperature: e.target.value })}
+                      placeholder={line.intakeStorageMode === "frozen" ? "-20" : line.intakeStorageMode === "refrigerated" ? "3.5" : "20"}
+                      className="font-mono"
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+              </div>
+              {line.intakeTemperature.trim() && (() => {
+                const tn = parseFloat(line.intakeTemperature.replace(",", "."));
                 if (Number.isNaN(tn)) return null;
-                const ok = intakeIsCompliant(tn, headerStorageMode);
+                const ok = intakeIsCompliant(tn, line.intakeStorageMode);
                 return ok ? (
                   <div className="mt-3 text-xs text-emerald-700 font-medium">✓ Temperatura di ingresso conforme</div>
                 ) : (
@@ -989,7 +947,7 @@ export default function Incoming() {
                       onClick={() => {
                         setDisputeLineIdx(idx);
                         setDisputeText(
-                          `Consegna fornitore "${supplierName || "—"}" — documento ${documentNumber || "—"} del ${documentDate || "—"}.\nTemperatura rilevata all'ingresso: ${tn.toFixed(1)}°C, fuori dai limiti di conservazione ${headerStorageMode === "refrigerated" ? "refrigerata (≤ +4°C)" : headerStorageMode === "frozen" ? "surgelata (≤ −18°C)" : "ambiente"}.`,
+                          `Consegna fornitore "${supplierName || "—"}" — documento ${documentNumber || "—"} del ${documentDate || "—"}.\nProdotto: ${line.productName || "—"}.\nTemperatura rilevata all'ingresso: ${tn.toFixed(1)}°C, fuori dai limiti di conservazione ${line.intakeStorageMode === "refrigerated" ? "refrigerata (≤ +4°C)" : line.intakeStorageMode === "frozen" ? "surgelata (≤ −18°C)" : "ambiente"}.`,
                         );
                         setDisputeOpen(true);
                       }}
