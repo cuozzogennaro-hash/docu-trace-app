@@ -1477,6 +1477,24 @@ export default function Reports() {
     <div>
       <PageHeader title="Report HACCP" subtitle="Esporta i registri mensili pronti per il controllo ASL" />
 
+      {/* Quick link: Elenco Fornitori (parte del pacchetto ispezioni) */}
+      <Link to="/fornitori" className="block mb-4">
+        <Card className="p-4 shadow-soft hover:shadow-elevated transition cursor-pointer border-primary/20">
+          <div className="flex items-center gap-3">
+            <div className="h-11 w-11 rounded-xl bg-primary/10 flex items-center justify-center shrink-0">
+              <Building2 className="text-primary" size={20} />
+            </div>
+            <div className="flex-1 min-w-0">
+              <div className="font-display font-semibold">Elenco Fornitori</div>
+              <div className="text-xs text-muted-foreground">
+                Anagrafica HACCP auto-generata dallo storico ingresso merci: nome, ultimo ingresso e numero totale di transazioni per ogni fornitore.
+              </div>
+            </div>
+            <ChevronRight className="text-muted-foreground shrink-0" size={18} />
+          </div>
+        </Card>
+      </Link>
+
       {/* ASL inspection package */}
       <Card className="p-5 mb-6 shadow-elevated border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
         <div className="flex items-start gap-4 mb-4">
