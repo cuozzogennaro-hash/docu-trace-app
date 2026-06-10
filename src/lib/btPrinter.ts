@@ -283,38 +283,6 @@ export async function sendToPrinter(data: Uint8Array, printer?: SavedPrinter) {
   }
 }
 
-// ───────────────────────── Label helper ─────────────────────────
-
-export type PrintLabelInput = {
-  title: string;
-  businessName?: string;
-  productName: string;
-  fields: { label: string; value: string }[];
-  highlight?: string[];
-  footer?: string;
-};
-
-export function buildLabelBytes(input: PrintLabelInput): Uint8Array {
-  const b = new EscPosBuilder().init();
-  b.align("center").size(1, 1).bold(true).line(input.title.toUpperCase()).bold(false);
-  if (input.businessName) b.line(input.businessName);
-  b.feed(1);
-  b.align("left").size(2, 2).bold(true).line(input.productName.toUpperCase()).bold(false).size(1, 1);
-  b.feed(1);
-
-  const hl = (input.highlight || []).map((h) => h.toLowerCase());
-  for (const f of input.fields) {
-    b.bold(true).text(`${f.label}: `).bold(false);
-    const isAllergen = hl.length && hl.some((h) => f.value.toLowerCase().includes(h));
-    if (isAllergen) b.bold(true).line(f.value).bold(false);
-    else b.line(f.value);
-  }
-
-  if (input.footer) b.feed(1).align("center").text(input.footer).feed(1);
-  b.feed(3).cut();
-  return b.build();
-}
-
 // ───────────────────────── Phomemo M-series raster ─────────────────────────
 
 /**
