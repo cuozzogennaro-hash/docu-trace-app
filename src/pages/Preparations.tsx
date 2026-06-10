@@ -66,6 +66,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
   const [preparedAt, setPreparedAt] = useState(nowLocal());
   const [storage, setStorage] = useState<"frigo" | "freezer" | "ambiente">("frigo");
   const [expiry, setExpiry] = useState(() => addHoursLocal(nowLocal(), SHELF_DEFAULTS.frigo));
+  const [expiryTouched, setExpiryTouched] = useState(false);
   const [allergenIds, setAllergenIds] = useState<string[]>([]);
   const [rawMaterialIds, setRawMaterialIds] = useState<string[]>([]);
   const [ingredientsText, setIngredientsText] = useState("");
@@ -103,11 +104,11 @@ export default function Preparations({ embedded = false, departmentId }: { embed
 
   function setStorageAndRecalc(s: "frigo" | "freezer" | "ambiente") {
     setStorage(s);
-    setExpiry(addHoursLocal(preparedAt, SHELF_DEFAULTS[s]));
+    if (!expiryTouched) setExpiry(addHoursLocal(preparedAt, SHELF_DEFAULTS[s]));
   }
   function setPreparedAndRecalc(d: string) {
     setPreparedAt(d);
-    setExpiry(addHoursLocal(d, SHELF_DEFAULTS[storage]));
+    if (!expiryTouched) setExpiry(addHoursLocal(d, SHELF_DEFAULTS[storage]));
   }
   function toggleAllergen(id: string) {
     setAllergenIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -130,6 +131,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
     const n = nowLocal();
     setPreparedAt(n);
     setExpiry(addHoursLocal(n, r.shelf_hours || SHELF_DEFAULTS[r.storage_type]));
+    setExpiryTouched(false);
     toast.success(`Ricetta "${r.name}" caricata`);
   }
 
@@ -140,6 +142,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
     const n = nowLocal();
     setPreparedAt(n);
     setExpiry(addHoursLocal(n, SHELF_DEFAULTS[storage]));
+    setExpiryTouched(false);
   }
 
   function handleSave() {
@@ -332,8 +335,11 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           </div>
           <div className="space-y-2 lg:col-span-2">
             <Label>Scadenza interna</Label>
-            <Input type="datetime-local" value={expiry} onChange={(e) => setExpiry(e.target.value)} />
-            <p className="text-xs text-muted-foreground">Default: frigo 72h, freezer 30gg, ambiente 24h — modificabile.</p>
+            <Input type="datetime-local" value={expiry} onChange={(e) => { setExpiry(e.target.value); setExpiryTouched(true); }} />
+            <p className="text-xs text-muted-foreground">
+              Default: frigo 72h, freezer 30gg, ambiente 24h — modificabile.
+              {expiryTouched && <span className="ml-1 text-primary">Data manuale: avrà la precedenza.</span>}
+            </p>
           </div>
 
           {/* Materie prime tracciate */}
@@ -504,6 +510,19 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           return r ? `${r.product_name} (lotto ${r.internal_lot})` : null;
         }).filter(Boolean) as string[];
         const ingredientsCombined = [...rmLines, printItem.ingredients_text].filter(Boolean).join(", ");
+        // Mappatura conservazione (SOLO Cucina): testo dinamico per l'etichetta.
+        const storageType = printItem.storage_type as "frigo" | "freezer" | "ambiente";
+        const conservazioneText =
+          storageType === "freezer"
+            ? "Conservare a -18°C. Prodotto congelato all'origine. Una volta scongelato non ricongelare."
+            : storageType === "ambiente"
+              ? "Conservare in luogo fresco e asciutto."
+              : "Conservare in frigorifero a 0/+4°C.";
+        const scadenzaLabel =
+          storageType === "freezer"
+            ? "Da consumarsi preferibilmente entro il"
+            : "Da consumarsi entro il";
+        const scadenzaValue = new Date(printItem.internal_expiry).toLocaleString("it-IT");
         return (
           <PrintLabelDialog
             open={!!printItem}
@@ -513,8 +532,8 @@ export default function Preparations({ embedded = false, departmentId }: { embed
             highlight={allergenNames}
             fields={[
               { label: "Preparato", value: new Date(printItem.prepared_at).toLocaleString("it-IT") },
-              { label: "Scadenza", value: new Date(printItem.internal_expiry).toLocaleString("it-IT") },
-              { label: "Conserv.", value: printItem.storage_type },
+              { label: scadenzaLabel, value: scadenzaValue },
+              { label: "Conservazione", value: conservazioneText },
               ...(ingredientsCombined ? [{ label: "Ingredienti", value: ingredientsCombined }] : []),
               ...(allergenNames.length ? [{ label: "Allergeni", value: allergenNames.join(", ") }] : []),
               ...(printItem.notes ? [{ label: "Note", value: printItem.notes }] : []),
