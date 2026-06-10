@@ -316,35 +316,40 @@ export default function Preparations({ embedded = false, departmentId }: { embed
         )}
 
         <div className="grid lg:grid-cols-2 gap-4">
-          <div className="space-y-2 lg:col-span-2">
-            <Label>Nome preparazione</Label>
-            <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Ragù alla bolognese, maionese, brodo vegetale" />
-          </div>
-          <div className="space-y-2">
-            <Label>Conservazione</Label>
-            <Select value={storage} onValueChange={(v: any) => setStorageAndRecalc(v)}>
-              <SelectTrigger><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="frigo">Frigorifero (0-4°C)</SelectItem>
-                <SelectItem value="freezer">Freezer (-18°C)</SelectItem>
-                <SelectItem value="ambiente">Temperatura ambiente</SelectItem>
-              </SelectContent>
-            </Select>
-            <p className="text-[11px] text-muted-foreground">
-              Obbligatorio. Al salvataggio viene aperta una scheda in <strong>Mantenimento</strong>.
-            </p>
-          </div>
-          <div className="space-y-2">
-            <Label>Preparato il</Label>
-            <Input type="datetime-local" value={preparedAt} onChange={(e) => setPreparedAndRecalc(e.target.value)} />
-          </div>
-          <div className="space-y-2 lg:col-span-2">
-            <Label>Scadenza interna</Label>
-            <Input type="datetime-local" value={expiry} onChange={(e) => { setExpiry(e.target.value); setExpiryTouched(true); }} />
-            <p className="text-xs text-muted-foreground">
-              Default: frigo 72h, freezer 30gg, ambiente 24h — modificabile.
-              {expiryTouched && <span className="ml-1 text-primary">Data manuale: avrà la precedenza.</span>}
-            </p>
+          {/* Blocco Core (Cucina): contenitore rossastro tenue */}
+          <div className={`lg:col-span-2 ${embedded ? "rounded-lg border border-red-200 bg-red-50/40 p-4 space-y-4" : "contents"}`}>
+            <div className="space-y-2">
+              <Label>Nome preparazione</Label>
+              <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="Es. Ragù alla bolognese, maionese, brodo vegetale" />
+            </div>
+            <div className="space-y-2">
+              <Label>Conservazione</Label>
+              <Select value={storage} onValueChange={(v: any) => setStorageAndRecalc(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="frigo">Frigorifero (0-4°C)</SelectItem>
+                  <SelectItem value="freezer">Freezer (-18°C)</SelectItem>
+                  <SelectItem value="ambiente">Temperatura ambiente</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-[11px] text-muted-foreground">
+                Obbligatorio. Al salvataggio viene aperta una scheda in <strong>Mantenimento</strong>.
+              </p>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label>Preparato il</Label>
+                <Input type="datetime-local" value={preparedAt} onChange={(e) => setPreparedAndRecalc(e.target.value)} />
+              </div>
+              <div className="space-y-2">
+                <Label>Scadenza interna</Label>
+                <Input type="datetime-local" value={expiry} onChange={(e) => { setExpiry(e.target.value); setExpiryTouched(true); }} />
+                <p className="text-[11px] text-muted-foreground">
+                  Default: frigo 72h, freezer 30gg, ambiente 24h.
+                  {expiryTouched && <span className="ml-1 text-primary">Manuale: precedenza.</span>}
+                </p>
+              </div>
+            </div>
           </div>
 
           {/* Materie prime tracciate */}
@@ -352,6 +357,54 @@ export default function Preparations({ embedded = false, departmentId }: { embed
             <Label className="flex items-center gap-1.5">
               <BookMarked size={12} /> Ingredienti tracciati (materie prime in ingresso)
             </Label>
+            {embedded ? (
+              <div className="rounded-lg border border-border bg-muted/20 p-3 space-y-2">
+                {rawMaterialIds.length === 0 ? (
+                  <p className="text-xs text-muted-foreground">Nessuna materia prima collegata. Apri la gestione stock per selezionare gli ingredienti tracciati.</p>
+                ) : (
+                  <div className="flex flex-wrap gap-1.5">
+                    {rawMaterialIds.map((id) => {
+                      const r = rmMap.get(id);
+                      if (!r) return null;
+                      return (
+                        <Badge key={id} variant="secondary" className="gap-1 pr-1">
+                          <span>{r.product_name} <span className="opacity-60">· {r.internal_lot}</span></span>
+                          <button onClick={() => toggleRawMaterial(id)} className="hover:bg-background rounded p-0.5"><X size={10} /></button>
+                        </Badge>
+                      );
+                    })}
+                  </div>
+                )}
+                <Popover open={rmOpen} onOpenChange={setRmOpen}>
+                  <PopoverTrigger asChild>
+                    <Button type="button" variant="outline" size="sm" className="gap-2">
+                      <Search size={14} /> Gestisci Stock
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-[min(520px,90vw)] p-0" align="start">
+                    <div className="p-2 border-b">
+                      <Input autoFocus placeholder="Cerca per nome prodotto…" value={rmSearch} onChange={(e) => setRmSearch(e.target.value)} />
+                    </div>
+                    <div className="max-h-64 overflow-auto">
+                      {filteredRm.length === 0 && <p className="p-4 text-sm text-muted-foreground text-center">Nessuna materia prima.</p>}
+                      {filteredRm.map((r) => (
+                        <label key={r.id} className="flex items-start gap-2 px-3 py-2 hover:bg-muted/50 cursor-pointer border-b last:border-0">
+                          <Checkbox checked={rawMaterialIds.includes(r.id)} onCheckedChange={() => toggleRawMaterial(r.id)} className="mt-0.5" />
+                          <div className="min-w-0 flex-1 text-sm">
+                            <div className="font-medium truncate">{r.product_name}</div>
+                            <div className="text-xs text-muted-foreground truncate">
+                              Lotto {r.internal_lot}
+                              {r.supplier_name && <> · {r.supplier_name}</>}
+                              {r.expiry_date && <> · scade {new Date(r.expiry_date).toLocaleDateString("it-IT")}</>}
+                            </div>
+                          </div>
+                        </label>
+                      ))}
+                    </div>
+                  </PopoverContent>
+                </Popover>
+              </div>
+            ) : (
             <Popover open={rmOpen} onOpenChange={setRmOpen}>
               <PopoverTrigger asChild>
                 <Button variant="outline" className="w-full justify-start gap-2 font-normal">
@@ -381,7 +434,8 @@ export default function Preparations({ embedded = false, departmentId }: { embed
                 </div>
               </PopoverContent>
             </Popover>
-            {rawMaterialIds.length > 0 && (
+            )}
+            {!embedded && rawMaterialIds.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-2">
                 {rawMaterialIds.map((id) => {
                   const r = rmMap.get(id);
@@ -416,10 +470,33 @@ export default function Preparations({ embedded = false, departmentId }: { embed
             </div>
           </div>
 
-          <div className="space-y-2 lg:col-span-2">
-            <Label>Note</Label>
-            <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Es. uso entro 24h una volta scongelato" />
-          </div>
+          {embedded ? (
+            <div className="lg:col-span-2 grid grid-cols-1 md:grid-cols-2 gap-4 items-stretch">
+              <div className="space-y-2">
+                <Label>Note</Label>
+                <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={3} placeholder="Es. uso entro 24h una volta scongelato" />
+              </div>
+              <label
+                htmlFor="needs-blast"
+                className={`flex items-start gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${
+                  requiresBlast ? "bg-sky-100 border-sky-400" : "bg-sky-50 border-sky-200 hover:bg-sky-100/60"
+                }`}
+              >
+                <Checkbox id="needs-blast" checked={requiresBlast} onCheckedChange={(v) => setRequiresBlast(!!v)} className="mt-0.5" />
+                <div className="flex-1">
+                  <div className="text-sm font-medium text-sky-900">Prevede abbattimento</div>
+                  <p className="text-[11px] text-sky-900/80 mt-0.5">
+                    Se attivo, al salvataggio viene aperta una scheda in <strong>Abbattimenti</strong>. La scheda <strong>Mantenimento</strong> verrà creata automaticamente al termine del ciclo.
+                  </p>
+                </div>
+              </label>
+            </div>
+          ) : (
+            <div className="space-y-2 lg:col-span-2">
+              <Label>Note</Label>
+              <Textarea value={notes} onChange={(e) => setNotes(e.target.value)} rows={2} placeholder="Es. uso entro 24h una volta scongelato" />
+            </div>
+          )}
 
           {!selectedRecipe && (
             <div className="lg:col-span-2 flex items-center gap-2 p-3 rounded-lg bg-muted/40">
@@ -430,6 +507,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
             </div>
           )}
 
+          {!embedded && (
           <div className="lg:col-span-2 flex items-start gap-2 p-3 rounded-lg bg-sky-50 border border-sky-200">
             <Checkbox id="needs-blast" checked={requiresBlast} onCheckedChange={(v) => setRequiresBlast(!!v)} className="mt-0.5" />
             <div className="flex-1">
@@ -441,6 +519,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
               </p>
             </div>
           </div>
+          )}
         </div>
         <Button onClick={handleSave} className="mt-5 w-full lg:w-auto bg-gradient-primary gap-2">
           <ShieldCheck size={16} /> Identifica e registra
