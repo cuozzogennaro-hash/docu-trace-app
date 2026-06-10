@@ -1,4 +1,4 @@
-import { useMemo, useState } from "react";
+import { useMemo, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -33,6 +33,13 @@ type Props = {
   data: LabelData;
   /** Titolo del dialog (es. "Stampa etichetta mise en place"). */
   title?: string;
+  /**
+   * Template forniti dal chiamante (override del hook). Utile per percorsi
+   * admin-operator senza sessione, dove i template arrivano via RPC.
+   */
+  templatesOverride?: LabelTemplate[];
+  /** Controlli extra renderizzati sopra il selettore template (es. override conservazione). */
+  extraControls?: ReactNode;
 };
 
 /**
@@ -40,8 +47,20 @@ type Props = {
  * dall'editor (Impostazioni → Etichette) e mantiene il supporto Bluetooth
  * (TSPL + Phomemo raster). Sostituisce il vecchio `PrintLabelDialog`.
  */
-export default function TemplatedLabelDialog({ open, onOpenChange, data, title = "Stampa etichetta" }: Props) {
-  const { templates, defaultTemplate, loading } = useLabelTemplates();
+export default function TemplatedLabelDialog({
+  open,
+  onOpenChange,
+  data,
+  title = "Stampa etichetta",
+  templatesOverride,
+  extraControls,
+}: Props) {
+  const hook = useLabelTemplates();
+  const templates = templatesOverride && templatesOverride.length > 0 ? templatesOverride : hook.templates;
+  const defaultTemplate = templatesOverride && templatesOverride.length > 0
+    ? (templatesOverride.find((t) => t.is_default) ?? templatesOverride[0] ?? null)
+    : hook.defaultTemplate;
+  const loading = templatesOverride ? false : hook.loading;
   const [selectedId, setSelectedId] = useState<string>("");
   const [qty, setQty] = useState(1);
   const [printing, setPrinting] = useState(false);
@@ -172,6 +191,7 @@ ${labelsHtml}
             </div>
           ) : (
             <div className="space-y-4">
+              {extraControls}
               {templates.length > 1 && (
                 <div>
                   <Label className="text-sm font-medium">Template etichetta</Label>
