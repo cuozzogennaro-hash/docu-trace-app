@@ -78,6 +78,13 @@ export default function TemplatedLabelDialog({
       : fallbackExpiry
         ? `Da consumarsi entro il: ${formatDateDDMMYY(fallbackExpiry)}`
         : undefined;
+    console.info("[TemplatedLabelDialog label debug] Normalizzazione prop scadenza", {
+      productName: data.productName,
+      rawExpiryLine: data.expiryLine,
+      fallbackExpiry,
+      normalizedExpiryLine: expiryLine,
+      isUndefinedOrNull: expiryLine == null,
+    });
     return { ...data, expiryLine };
   }, [data]);
 
