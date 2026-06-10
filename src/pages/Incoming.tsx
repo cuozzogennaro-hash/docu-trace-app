@@ -476,6 +476,15 @@ export default function Incoming() {
     }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
 
+    // Temperatura di testata (universale, non bloccante).
+    const headerTempNum = headerTemperature.trim()
+      ? parseFloat(headerTemperature.replace(",", "."))
+      : null;
+    const headerTempValid = headerTempNum != null && !Number.isNaN(headerTempNum);
+    const headerTempCompliant = headerTempValid
+      ? intakeIsCompliant(headerTempNum as number, headerStorageMode)
+      : null;
+
     if (isOperatorAdmin) {
       const rowsToInsert = validLines.map((l) => ({
         supplier_name: supplierName,
