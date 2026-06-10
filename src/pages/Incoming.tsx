@@ -819,6 +819,28 @@ export default function Incoming() {
                 <Label htmlFor={`sel-${idx}`} className="text-xs font-semibold cursor-pointer flex-1">
                   Importa in archivio
                 </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={() => openHistoryFor(idx)}
+                  title="Carica da storico prodotti già inseriti"
+                >
+                  <History size={14} /> Da ricorrente
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                  onClick={() => openLineCamera(idx)}
+                  disabled={lineOcrIdx === idx}
+                  title="Fotografa l'etichetta: l'AI compila nome e ingredienti"
+                >
+                  {lineOcrIdx === idx ? <Loader2 className="animate-spin" size={14} /> : <Camera size={14} />}
+                  Etichetta
+                </Button>
                 {!isOperatorAdmin && (
                   <Button
                     type="button"
