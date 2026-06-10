@@ -40,6 +40,7 @@ export default function Production() {
   const { operator } = useOperatorSession();
   const { profile } = useActivityProfile();
   const { store, scaleIntegrationActive } = useCurrentStore();
+  const { rows: recurringRecipes } = useRecurringPreparations();
   const pageLabel = productionLabel(profile);
   const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
   const [name, setName] = useState("");
