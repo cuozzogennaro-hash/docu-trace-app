@@ -924,11 +924,42 @@ export default function Incoming() {
                   </div>
                 );
               })()}
-              {/* Avviso conformità temperatura di TESTATA (mostrato una sola volta sulla prima riga) */}
-              {idx === 0 && headerTemperature.trim() && (() => {
-                const tn = parseFloat(headerTemperature.replace(",", "."));
+              {/* Temperatura di ingresso — per singola riga (opzionale, non bloccante) */}
+              <div className="mt-3 p-3 rounded-lg border border-dashed bg-blue-50/40 space-y-2">
+                <Label className="text-xs font-semibold flex items-center gap-1.5">
+                  <Thermometer size={14} className="text-blue-700" />
+                  Temperatura di ingresso <span className="text-muted-foreground font-normal">(opzionale)</span>
+                </Label>
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  <div className="space-y-1">
+                    <Label className="text-xs">Modalità conservazione</Label>
+                    <Select value={line.intakeStorageMode} onValueChange={(v: any) => updateLine(idx, { intakeStorageMode: v })}>
+                      <SelectTrigger><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
+                        <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
+                        <SelectItem value="ambient">Ambiente</SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                  <div className="space-y-1">
+                    <Label className="text-xs">Temperatura rilevata (°C)</Label>
+                    <Input
+                      type="number"
+                      step="0.1"
+                      value={line.intakeTemperature}
+                      onChange={(e) => updateLine(idx, { intakeTemperature: e.target.value })}
+                      placeholder={line.intakeStorageMode === "frozen" ? "-20" : line.intakeStorageMode === "refrigerated" ? "3.5" : "20"}
+                      className="font-mono"
+                      inputMode="decimal"
+                    />
+                  </div>
+                </div>
+              </div>
+              {line.intakeTemperature.trim() && (() => {
+                const tn = parseFloat(line.intakeTemperature.replace(",", "."));
                 if (Number.isNaN(tn)) return null;
-                const ok = intakeIsCompliant(tn, headerStorageMode);
+                const ok = intakeIsCompliant(tn, line.intakeStorageMode);
                 return ok ? (
                   <div className="mt-3 text-xs text-emerald-700 font-medium">✓ Temperatura di ingresso conforme</div>
                 ) : (
@@ -944,7 +975,7 @@ export default function Incoming() {
                       onClick={() => {
                         setDisputeLineIdx(idx);
                         setDisputeText(
-                          `Consegna fornitore "${supplierName || "—"}" — documento ${documentNumber || "—"} del ${documentDate || "—"}.\nTemperatura rilevata all'ingresso: ${tn.toFixed(1)}°C, fuori dai limiti di conservazione ${headerStorageMode === "refrigerated" ? "refrigerata (≤ +4°C)" : headerStorageMode === "frozen" ? "surgelata (≤ −18°C)" : "ambiente"}.`,
+                          `Consegna fornitore "${supplierName || "—"}" — documento ${documentNumber || "—"} del ${documentDate || "—"}.\nProdotto: ${line.productName || "—"}.\nTemperatura rilevata all'ingresso: ${tn.toFixed(1)}°C, fuori dai limiti di conservazione ${line.intakeStorageMode === "refrigerated" ? "refrigerata (≤ +4°C)" : line.intakeStorageMode === "frozen" ? "surgelata (≤ −18°C)" : "ambiente"}.`,
                         );
                         setDisputeOpen(true);
                       }}
