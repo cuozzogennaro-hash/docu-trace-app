@@ -1105,6 +1105,77 @@ export default function Incoming() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Hidden file input shared by per-row "Etichetta" cameras */}
+      <input
+        ref={lineFileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={onLineFile}
+      />
+
+      {/* Dialog "Carica da ricorrente" per singola riga (storico distinto) */}
+      <Dialog open={historyLineIdx != null} onOpenChange={(o) => { if (!o) setHistoryLineIdx(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Carica prodotto da storico</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder="Cerca per nome prodotto…"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="max-h-[50vh] overflow-auto space-y-1">
+              {historyLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+                  <Loader2 className="animate-spin" size={14} /> Caricamento storico…
+                </div>
+              ) : (historyOptions ?? []).length === 0 ? (
+                <div className="text-sm text-muted-foreground italic py-6 text-center">
+                  Nessun prodotto nello storico ancora.
+                </div>
+              ) : (
+                (historyOptions ?? [])
+                  .filter((o) => {
+                    const q = historySearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return o.product_name.toLowerCase().includes(q)
+                      || (o.last_supplier ?? "").toLowerCase().includes(q);
+                  })
+                  .slice(0, 200)
+                  .map((o) => (
+                    <button
+                      key={o.product_name}
+                      type="button"
+                      onClick={() => applyHistoryToLine(o)}
+                      className="w-full text-left px-2 py-2 rounded-md hover:bg-muted transition"
+                    >
+                      <div className="text-sm font-medium truncate">{o.product_name}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {o.last_supplier || "—"}
+                        {o.ingredients ? <> · ingredienti memorizzati</> : null}
+                      </div>
+                    </button>
+                  ))
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Verranno compilati nome, categoria, ingredienti e origine. Lotto fornitore e scadenza restano vuoti per l'inserimento manuale.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setHistoryLineIdx(null)}>Chiudi</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </>
   );
 }
