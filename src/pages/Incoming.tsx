@@ -746,16 +746,18 @@ export default function Incoming() {
                   <Input type="date" value={line.expiry} onChange={(e) => updateLine(idx, { expiry: e.target.value })} />
                 </div>
               </div>
-              <div className="mt-3 space-y-1">
-                <Label className="text-xs font-semibold">Ingredienti (Allergeni / Conservanti)</Label>
-                <Textarea
-                  value={line.ingredients}
-                  onChange={(e) => updateLine(idx, { ingredients: e.target.value })}
-                  placeholder="Es. carne di suino, sale, spezie, aromi naturali, destrosio, antiossidante: E301…"
-                  className="min-h-[80px]"
-                />
-                <p className="text-[11px] text-muted-foreground">Inserisci la lista ingredienti come riportata in etichetta. L'OCR estrae solo gli ingredienti in italiano.</p>
-              </div>
+              {!isMacelleria(line.departmentId) && (
+                <div className="mt-3 space-y-1">
+                  <Label className="text-xs font-semibold">Ingredienti (Allergeni / Conservanti)</Label>
+                  <Textarea
+                    value={line.ingredients}
+                    onChange={(e) => updateLine(idx, { ingredients: e.target.value })}
+                    placeholder="Es. carne di suino, sale, spezie, aromi naturali, destrosio, antiossidante: E301…"
+                    className="min-h-[80px]"
+                  />
+                  <p className="text-[11px] text-muted-foreground">Inserisci la lista ingredienti come riportata in etichetta. L'OCR estrae solo gli ingredienti in italiano.</p>
+                </div>
+              )}
               {isMacelleria(line.departmentId) && (
                 <div className="mt-3 p-3 rounded-md bg-orange-50 border border-orange-200 space-y-2">
                   <Label className="text-xs font-semibold text-orange-900">Tracciabilità carne (obbligatoria)</Label>
