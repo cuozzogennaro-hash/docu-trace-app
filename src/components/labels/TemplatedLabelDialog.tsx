@@ -274,13 +274,13 @@ ${labelsHtml}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {!native && (
-                  <Button onClick={printWeb} className="w-full gap-2">
+                  <Button onClick={printWeb} disabled={overflow} className="w-full gap-2">
                     <Printer size={16} /> Stampa di sistema
                   </Button>
                 )}
                 <Button
                   onClick={handleBluetooth}
-                  disabled={printing}
+                  disabled={printing || overflow}
                   variant="secondary"
                   className={`w-full gap-2 ${native ? "sm:col-span-2" : ""}`}
                 >
@@ -288,6 +288,20 @@ ${labelsHtml}
                   Stampa Bluetooth
                 </Button>
               </div>
+
+              {overflow && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm flex items-start gap-2">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-semibold">Etichetta troppo corta</div>
+                    <div className="text-xs opacity-90">
+                      Il contenuto non entra nell'etichetta {current?.width_mm}×{current?.height_mm} mm
+                      nemmeno al font minimo (4pt). Passare a un formato di etichetta più grande
+                      o ridurre gli ingredienti. La stampa è stata bloccata per garantire la conformità.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {native && (
                 <div className="rounded-md border bg-muted/40 p-2 text-xs flex items-center gap-2 flex-wrap">
