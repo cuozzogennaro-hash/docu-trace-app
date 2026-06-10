@@ -127,6 +127,10 @@ export default function Incoming() {
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
   const [documentNumber, setDocumentNumber] = useState("");
+  // Temperatura di ingresso a livello di TESTATA (universale, non bloccante).
+  // Propagata su tutte le righe in save().
+  const [headerStorageMode, setHeaderStorageMode] = useState<"refrigerated" | "frozen" | "ambient">("refrigerated");
+  const [headerTemperature, setHeaderTemperature] = useState<string>("");
   const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
   const [departmentId, setDepartmentId] = useState<string>("");
@@ -134,6 +138,27 @@ export default function Incoming() {
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [recurringPicked, setRecurringPicked] = useState<Set<string>>(new Set());
   const [recurringSearch, setRecurringSearch] = useState("");
+
+  // Storico prodotti già inseriti (DISTINCT su raw_materials) per il pulsante
+  // "Carica da storico" della singola riga prodotto.
+  type HistoryOption = {
+    product_name: string;
+    category: string | null;
+    ingredients: string | null;
+    origin: string | null;
+    department_id: string | null;
+    last_supplier: string | null;
+  };
+  const [historyOptions, setHistoryOptions] = useState<HistoryOption[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLineIdx, setHistoryLineIdx] = useState<number | null>(null);
+  const [historySearch, setHistorySearch] = useState("");
+
+  // Singolo file input nascosto, condiviso fra tutte le righe per la fotocamera
+  // di etichetta prodotto. cameraLineIdx indica la riga di destinazione.
+  const lineFileRef = useRef<HTMLInputElement>(null);
+  const [cameraLineIdx, setCameraLineIdx] = useState<number | null>(null);
+  const [lineOcrIdx, setLineOcrIdx] = useState<number | null>(null);
 
   // Keep all product lines in sync with the top-level department
   useEffect(() => {
