@@ -165,6 +165,282 @@ export default function ProductDetail() {
     })();
   }, [session?.user?.id]);
 
+  // ============================================================
+  // Composizione semantica dei dati etichetta (LabelData)
+  // ============================================================
+  // Sostituisce la vecchia logica a placeholder/valueMap: tutta la
+  // grafica passa ora attraverso `computeLabelLayout` (shared lib),
+  // mentre qui restano solo le business rules di Archivio (Salumeria,
+  // Macelleria, Cucina) per popolare i campi semantici.
+
+  const MEAT_KEYWORDS: Record<string, string> = {
+    tacchino: "tacchino", pollo: "pollo", gallina: "gallina", cappone: "cappone",
+    manzo: "manzo", bovino: "bovino", bovina: "bovino", vitello: "vitello", vitellone: "vitellone",
+    suino: "suino", maiale: "suino", agnello: "agnello", pecora: "pecora", capra: "capra", capretto: "capretto",
+    coniglio: "coniglio", cavallo: "cavallo", anatra: "anatra", oca: "oca", faraona: "faraona",
+    cinghiale: "cinghiale", struzzo: "struzzo", quaglia: "quaglia",
+  };
+  function detectMeat(name: string): string | null {
+    const n = (name || "").toLowerCase();
+    for (const k of Object.keys(MEAT_KEYWORDS)) if (n.includes(k)) return MEAT_KEYWORDS[k];
+    return null;
+  }
+
+  // Allergeni di legge (Reg. UE 1169/2011, All. II): fallback se la tabella
+  // `allergens` dell'utente è vuota.
+  const ALLERGEN_KEYWORDS_DEFAULT: string[] = [
+    "glutine","grano","frumento","segale","orzo","avena","farro","kamut","khorasan","spelta","seitan","malto",
+    "crostacei","gambero","gamberi","gamberetti","scampi","scampo","granchio","granchi","aragosta","aragoste",
+    "uova","uovo","albume","tuorlo","ovoprodotti",
+    "pesce","salmone","tonno","merluzzo","baccalà","sgombro","acciuga","acciughe","alici","sardina","sardine","spigola","branzino","orata","trota","nasello",
+    "arachide","arachidi","soia","tofu","edamame",
+    "latte","lattosio","burro","panna","formaggio","mozzarella","yogurt","ricotta","caseina","caseinato","siero","stracchino","parmigiano","grana","scamorza","provolone",
+    "mandorla","mandorle","nocciola","nocciole","noce","noci","pistacchio","pistacchi","anacardo","anacardi","pecan","macadamia",
+    "sedano","senape","sesamo",
+    "solfiti","solfito","so2","anidride solforosa","e220","e221","e222","e223","e224","e225","e226","e227","e228",
+    "lupino","lupini",
+    "mollusco","molluschi","vongola","vongole","cozza","cozze","calamaro","calamari","polpo","polpi","seppia","seppie","ostrica","ostriche","lumaca","lumache",
+  ];
+
+  const labelData: LabelData = useMemo(() => {
+    const allergensEnabled = ruleParam<boolean>("common", "allergens", "enabled", true);
+    const baseAllergens = allergensEnabled
+      ? ((allergenKeywordsDb && allergenKeywordsDb.length > 0) ? allergenKeywordsDb : ALLERGEN_KEYWORDS_DEFAULT)
+      : [];
+    const allergenRegex: RegExp | null = (() => {
+      if (baseAllergens.length === 0) return null;
+      const sorted = [...new Set(baseAllergens)].sort((a, b) => b.length - a.length);
+      return new RegExp(`\\b(${sorted.map((w) => w.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")).join("|")})\\b`, "gi");
+    })();
+
+    const deptName = (
+      departments.find((d) => d.id === (product as any)?.department_id)?.name ||
+      adminDeptName || ""
+    ).toLowerCase().trim();
+    const isSalumeria = deptName.startsWith("salum");
+    const isMacelleria = deptName.startsWith("macel");
+    const isCucina = deptName.startsWith("cucin");
+    const productMeatType: string | null = (product as any)?.meat_type ?? null;
+    const effectiveMeatType: string | null = isCucina ? "preparato" : productMeatType;
+
+    // ---- Composizione testo ingredienti ----
+    type IngPart = { text: string; bold: boolean };
+    const meats: IngPart[] = [], aromas: IngPart[] = [], additives: IngPart[] = [], others: IngPart[] = [];
+    const extraHighlights = new Set<string>();
+    const seen = new Set<string>();
+    const normTok = (s: string) => s.toLowerCase().replace(/\s+/g, " ").trim();
+    const take = (s: string) => { const k = normTok(s); if (!k || seen.has(k)) return false; seen.add(k); return true; };
+
+    const salumeriaSingle = isSalumeria && Array.isArray(ingredients) && ingredients.length === 1
+      && !!((ingredients[0] as any)?.ingredients && String((ingredients[0] as any).ingredients).trim());
+
+    for (const m of ingredients as any[]) {
+      const cat = m.category || "materia_prima";
+      if (cat === "aroma") {
+        if (m.product_name && take(m.product_name)) aromas.push({ text: m.product_name, bold: false });
+      } else if (cat === "additivo_allergene") {
+        const nameLc = (m.product_name || "").toLowerCase().trim();
+        const isAllergen = allergenNamesDb.includes(nameLc);
+        const codes = (m.ingredients && String(m.ingredients).trim()) || "";
+        if (isAllergen || !codes) {
+          if (m.product_name && take(m.product_name)) {
+            additives.push({ text: m.product_name, bold: true });
+            extraHighlights.add(m.product_name);
+          }
+        } else {
+          codes.split(",").map((c) => c.trim()).filter(Boolean).forEach((c) => {
+            if (take(c)) { additives.push({ text: c, bold: true }); extraHighlights.add(c); }
+          });
+        }
+      } else {
+        if (salumeriaSingle) {
+          String((m as any).ingredients || "").split(",").map((s) => s.trim()).filter(Boolean)
+            .forEach((s) => { if (take(s)) others.push({ text: s, bold: false }); });
+          continue;
+        }
+        const meat = detectMeat(m.product_name);
+        const traceCountries = [m.born_in, m.raised_in, m.slaughtered_in]
+          .map((v) => (v ? String(v).trim() : "")).filter(Boolean);
+        const rawOrigin = (m.origin && String(m.origin).trim()) || traceCountries[0] || "";
+        let origin = rawOrigin || "UE";
+        if (traceCountries.length > 0) {
+          const norm = traceCountries.map((c) => c.toLowerCase());
+          const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
+          origin = allItaly ? "Italia" : "UE";
+        }
+        const subIngredients = (m.ingredients && String(m.ingredients).trim()) || "";
+        if (meat && !subIngredients) {
+          const txt = `carne di ${meat} (${origin})`;
+          if (take(txt)) meats.push({ text: txt, bold: false });
+        } else if (subIngredients) {
+          const subs = subIngredients.split(",").map((s) => s.trim()).filter(Boolean);
+          const uniqueSubs = subs.filter((s) => take(s));
+          const nameOk = m.product_name && take(m.product_name);
+          if (nameOk && uniqueSubs.length) others.push({ text: `${m.product_name} (${uniqueSubs.join(", ")})`, bold: false });
+          else if (nameOk) others.push({ text: m.product_name, bold: false });
+          else uniqueSubs.forEach((s) => others.push({ text: s, bold: false }));
+        } else if (m.product_name && take(m.product_name)) {
+          others.push({ text: `${m.product_name} (${origin})`, bold: false });
+        }
+      }
+    }
+
+    const parts: IngPart[] = [...meats, ...others, ...aromas, ...additives];
+    const manualRaw = ((product as any)?.manual_ingredients || "").toString().trim();
+    if (manualRaw) {
+      manualRaw.split(/[,;\n]+/).map((s) => s.trim()).filter(Boolean)
+        .forEach((t) => { if (take(t)) parts.push({ text: t, bold: false }); });
+    }
+    // Carne fresca monocomponente (Macelleria): NO ingredienti stampati,
+    // solo tracciabilità (Nato/Allevato/Macellato).
+    const skipIngredients = productMeatType === "fresh" && !isCucina;
+    const ingredientsText = skipIngredients ? "" : parts.map((p) => p.text).join(", ");
+
+    // ---- Tracciabilità carne ----
+    const freshLines: string[] = [];
+    const prepCountries = new Set<string>();
+    const freshMap = new Map<string, { born: Set<string>; raised: Set<string>; slaughter: Set<string>; marks: Set<string> }>();
+    for (const m of ingredients as any[]) {
+      const name = m.product_name || "carne";
+      if (effectiveMeatType === "preparato") {
+        [m.born_in, m.raised_in, m.slaughtered_in].forEach((v: string | null) => {
+          const t = (v || "").trim(); if (t) prepCountries.add(t);
+        });
+        continue;
+      }
+      if (!m.born_in && !m.raised_in && !m.slaughtered_in && !m.slaughter_mark) continue;
+      if (!freshMap.has(name)) freshMap.set(name, { born: new Set(), raised: new Set(), slaughter: new Set(), marks: new Set() });
+      const t = freshMap.get(name)!;
+      if (m.born_in) t.born.add(m.born_in);
+      if (m.raised_in) t.raised.add(m.raised_in);
+      if (m.slaughtered_in) t.slaughter.add(m.slaughtered_in);
+      if (m.slaughter_mark) t.marks.add(m.slaughter_mark);
+    }
+    freshMap.forEach((t) => {
+      if (t.born.size) freshLines.push(`Nato in: ${[...t.born].join("/")}`);
+      if (t.raised.size) freshLines.push(`Allevato in: ${[...t.raised].join("/")}`);
+      if (t.slaughter.size) {
+        const mark = t.marks.size ? ` ${[...t.marks].join("/")}` : "";
+        freshLines.push(`Macellato in: ${[...t.slaughter].join("/")}` + mark);
+      }
+    });
+    const traceLines: string[] = [];
+    if (effectiveMeatType === "preparato" && prepCountries.size > 0) {
+      const norm = [...prepCountries].map((c) => c.toLowerCase().trim());
+      const allItaly = norm.every((c) => c === "italia" || c === "italy" || c === "it");
+      traceLines.push(`Carne origine: ${allItaly ? "IT" : "UE"}`);
+    }
+
+    // ---- Allergeni (Reg. UE 1169/2011) — riga "Contiene:" ----
+    let allergensLine: string | undefined;
+    if (effectiveMeatType === "preparato" && allergenRegex) {
+      const haystack: string[] = [];
+      for (const m of ingredients as any[]) {
+        if (m?.product_name) haystack.push(String(m.product_name));
+        if (m?.ingredients) haystack.push(String(m.ingredients));
+      }
+      if (manualRaw) haystack.push(manualRaw);
+      const found = new Set<string>();
+      const re = new RegExp(allergenRegex.source, allergenRegex.flags);
+      for (const text of haystack) {
+        let mm: RegExpExecArray | null;
+        re.lastIndex = 0;
+        while ((mm = re.exec(text)) !== null) {
+          const kw = mm[0].toLowerCase();
+          const canonical = allergenKeyToName[kw] || mm[0];
+          found.add(canonical);
+          if (mm[0].length === 0) re.lastIndex++;
+        }
+      }
+      if (found.size > 0) allergensLine = `Contiene: ${[...found].join(", ")}`;
+    }
+
+    // ---- Scadenza: priorità DB (products.expiry_date), poi calcolo Salumeria ----
+    const dbExpiry = (product as any)?.expiry_date
+      ? formatDateDDMMYY((product as any).expiry_date)
+      : null;
+    let salumeriaExpiry: string | null = null;
+    if (isSalumeria && (product as any)?.production_date) {
+      const pd = new Date(String((product as any).production_date) + "T00:00:00");
+      if (!isNaN(pd.getTime())) {
+        const type = (preservationOverride || ((product as any)?.preservation_type as string) || "vacuum");
+        const key = type === "fresh" ? "days_fresh" : "days_vacuum";
+        const fallback = type === "fresh" ? 5 : 30;
+        const shelf = Math.max(1, Number(ruleParam<number>("salumeria", "shelf_life", key, fallback)) || fallback);
+        pd.setDate(pd.getDate() + shelf);
+        salumeriaExpiry = formatDateDDMMYY(pd.toISOString().slice(0, 10));
+      }
+    }
+    // Override Salumeria attivo (preservationOverride) → ricalcolo > DB.
+    const finalExpiry = (isSalumeria && preservationOverride && salumeriaExpiry)
+      ? salumeriaExpiry
+      : (dbExpiry || salumeriaExpiry);
+    const expiryLine = finalExpiry ? `Da consumarsi entro: ${finalExpiry}` : undefined;
+
+    // ---- Lotto (Macelleria fresh → supplier_lot) ----
+    let macelleriaFreshLot = "";
+    if (isMacelleria && productMeatType === "fresh") {
+      const lots = (ingredients as any[])
+        .map((m) => (m?.supplier_lot ? String(m.supplier_lot).trim() : "")).filter(Boolean);
+      macelleriaFreshLot = [...new Set(lots)].join(" / ");
+    }
+
+    // ---- Avviso conservazione (Macelleria/Cucina) ----
+    const extraLines: string[] = [...freshLines, ...traceLines];
+    if (productMeatType || isCucina) {
+      const noticeKey = isCucina ? "cucina"
+        : (productMeatType === "preparato" ? "macelleria_preparato" : "macelleria_fresh");
+      const noticeText = ruleParam<string>(noticeKey, "notice", "text", "Conservare da 0° e +4° — Consumare previa cottura");
+      if (noticeText) extraLines.push(noticeText);
+    }
+
+    return {
+      productName: product?.name ?? "",
+      companyName: company?.business_name ?? "",
+      companyAddress: [company?.address, (company as any)?.city]
+        .map((s) => (s ?? "").toString().trim()).filter(Boolean).join(" — "),
+      productionDate: formatDateDDMMYY((product as any)?.production_date),
+      internalLot: macelleriaFreshLot || (product as any)?.internal_lot || "—",
+      ingredientsText,
+      extraLines,
+      expiryLine,
+      allergensLine,
+      highlightAllergens: [...baseAllergens, ...Array.from(extraHighlights)],
+    };
+  }, [product, ingredients, company, departments, adminDeptName, ruleParam,
+      preservationOverride, allergenKeywordsDb, allergenNamesDb, allergenKeyToName]);
+
+  // Report A5 (etichetta ingrandita su foglio A5) — usa lo stesso layout grafico.
+  function printLabelA5() {
+    if (!product) return;
+    const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate) || labelTemplates[0];
+    if (!tpl) { toast.error("Nessun template etichetta disponibile"); return; }
+    const wMm = Number(tpl.width_mm), hMm = Number(tpl.height_mm);
+    const items = computeLabelLayout(labelData, wMm, hMm);
+    const pageW = 148, pageH = 210, margin = 12;
+    const scale = Math.min((pageW - 2 * margin) / wMm, (pageH - 2 * margin) / hMm);
+    const scaledW = wMm * scale, scaledH = hMm * scale;
+    const escapeHtml = (s: string) => String(s).replace(/[&<>"']/g, (c) => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]!));
+    const itemsHtml = items.map((it) => {
+      const segs = it.segments.map((s) => `<span style="font-weight:${s.bold ? 700 : 400}">${escapeHtml(s.text)}</span>`).join("");
+      return `<div style="position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;overflow:hidden;">${segs}</div>`;
+    }).join("");
+    const headerHtml = `
+      <div style="position:absolute;left:${margin}mm;top:${margin}mm;right:${margin}mm;font-size:9pt;color:#444;border-bottom:1px solid #ccc;padding-bottom:3mm;">
+        <div style="font-weight:700;font-size:11pt;color:#000;">${escapeHtml(company?.business_name ?? "")}</div>
+        <div>${escapeHtml(product?.name ?? "")} — Lotto ${escapeHtml((product as any)?.internal_lot ?? "")}</div>
+      </div>`;
+    const labelTopMm = margin + 14;
+    const html = `<!doctype html><html><head><meta charset="utf-8"><title>Etichetta A5 — ${escapeHtml(product?.name ?? "")}</title>
+<style>@page{size:A5 portrait;margin:0}html,body{margin:0;padding:0;background:#fff;font-family:Helvetica,Arial,sans-serif;color:#000}.page{position:relative;width:${pageW}mm;height:${pageH}mm}.label-wrap{position:absolute;left:${(pageW - scaledW) / 2}mm;top:${labelTopMm}mm;width:${scaledW}mm;height:${scaledH}mm;border:1px dashed #888;box-sizing:border-box;overflow:hidden}.label{position:relative;width:${wMm}mm;height:${hMm}mm;transform:scale(${scale});transform-origin:top left}@media screen{body{padding:12px;background:#f5f5f5}.page{background:#fff;box-shadow:0 2px 8px rgba(0,0,0,.15);margin:0 auto}.actions{position:fixed;top:8px;right:8px;z-index:10}.actions button{padding:10px 16px;font-size:14px;border:0;border-radius:8px;background:#0a7;color:#fff}}@media print{.actions{display:none!important}body{padding:0;background:#fff}}</style></head>
+<body><div class="actions"><button onclick="window.print()">Stampa</button></div>
+<div class="page">${headerHtml}<div class="label-wrap"><div class="label">${itemsHtml}</div></div></div>
+<script>window.addEventListener('load',function(){setTimeout(function(){window.print();},300);});</script></body></html>`;
+    const win = window.open("", "_blank");
+    if (win) { win.document.open(); win.document.write(html); win.document.close(); }
+    else { const url = URL.createObjectURL(new Blob([html], { type: "text/html" })); window.location.href = url; }
+  }
+
 
   async function removeIngredient(rawId: string) {
     if (!session?.user) {
