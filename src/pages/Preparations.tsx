@@ -549,6 +549,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
               companyName: company.business_name || undefined,
               companyAddress: [company.address, company.city].filter(Boolean).join(" — ") || undefined,
               productionDate: formatDateDDMMYY(printItem.prepared_at),
+              internal_expiry: printItem.internal_expiry,
               internalLot,
               ingredientsText: ingredientsCombined || undefined,
               expiryLine: `${scadenzaLabel}: ${scadenzaValue}`,

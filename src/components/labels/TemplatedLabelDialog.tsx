@@ -1,4 +1,4 @@
-import { useMemo, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useState, type ReactNode } from "react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -11,6 +11,7 @@ import {
   buildTSPLBytes,
   canvasToMonoBitmap,
   computeLabelLayout,
+  formatDateDDMMYY,
   renderLabelCanvas,
   type LabelData,
 } from "@/lib/labelLayout";
@@ -69,14 +70,37 @@ export default function TemplatedLabelDialog({
   const [savedBt, setSavedBt] = useState<SavedPrinter | null>(() => getSavedPrinter());
   const native = isNativeApp();
 
+  const normalizedData = useMemo<LabelData>(() => {
+    const fallbackExpiry = (data as LabelData & { internal_expiry?: string | null; expiry_date?: string | null }).internal_expiry
+      || (data as LabelData & { internal_expiry?: string | null; expiry_date?: string | null }).expiry_date;
+    const expiryLine = data.expiryLine?.trim()
+      ? data.expiryLine.trim()
+      : fallbackExpiry
+        ? `Da consumarsi entro il: ${formatDateDDMMYY(fallbackExpiry)}`
+        : undefined;
+    return { ...data, expiryLine };
+  }, [data]);
+
+  useEffect(() => {
+    if (!open) return;
+    const raw = data as LabelData & { internal_expiry?: string | null; expiry_date?: string | null };
+    console.info("[Label debug] expiryLine prima di computeLabelLayout", {
+      productName: data.productName,
+      receivedExpiryLine: data.expiryLine,
+      internal_expiry: raw.internal_expiry,
+      expiry_date: raw.expiry_date,
+      normalizedExpiryLine: normalizedData.expiryLine,
+    });
+  }, [open, data, normalizedData.expiryLine]);
+
   const currentId = selectedId || defaultTemplate?.id || "";
   const current: LabelTemplate | null =
     templates.find((t) => t.id === currentId) || defaultTemplate || null;
 
   const layout = useMemo(() => {
     if (!current) return { items: [], overflow: false, diagnostics: { ingredientsFontPt: 0, contentHeightMm: 0, availableHeightMm: 0 } };
-    return computeLabelLayout(data, current.width_mm, current.height_mm);
-  }, [current, data]);
+    return computeLabelLayout(normalizedData, current.width_mm, current.height_mm);
+  }, [current, normalizedData]);
   const items = layout.items;
   const overflow = layout.overflow;
 
@@ -95,7 +119,7 @@ export default function TemplatedLabelDialog({
       const segs = it.segments
         .map((s) => `<span style="font-weight:${s.bold ? 700 : 400}">${escapeHtml(s.text)}</span>`)
         .join("");
-      return `<div style="position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;overflow:hidden;">${segs}</div>`;
+      return `<div style="position:absolute;left:${it.x}mm;top:${it.y}mm;width:${it.w}mm;font-size:${it.fontPt}pt;line-height:${it.lineHeight};text-align:${it.align};word-break:break-word;overflow:hidden;background:${it.eraseBackground ? "#fff" : "transparent"};">${segs}</div>`;
     }).join("");
     const labelsHtml = Array.from({ length: Math.max(1, qty) })
       .map(() => `<div class="label" style="position:relative;width:${wMm}mm;height:${hMm}mm;overflow:hidden;page-break-after:always;">${itemsHtml}</div>`)
@@ -256,6 +280,7 @@ ${labelsHtml}
                             textAlign: it.align,
                             wordBreak: "break-word",
                             overflow: "hidden",
+                            backgroundColor: it.eraseBackground ? "#fff" : "transparent",
                             fontFamily: "Helvetica, Arial, sans-serif",
                           }}
                         >

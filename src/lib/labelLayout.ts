@@ -34,6 +34,10 @@ export type LabelData = {
   extraLines?: string[];
   /** "Da consumarsi entro: ..." opzionale (in grassetto, sopra footer). */
   expiryLine?: string;
+  /** Fallback DB usato dal dialog se `expiryLine` non è già formattata. */
+  internal_expiry?: string | null;
+  /** Fallback DB usato dal dialog se `expiryLine` non è già formattata. */
+  expiry_date?: string | null;
   /** "Contiene: latte, uova..." opzionale (in grassetto). */
   allergensLine?: string;
   /** Parole da evidenziare in grassetto nel testo ingredienti. */
@@ -47,6 +51,8 @@ export type LabelItem = {
   align: "left" | "center" | "right";
   segments: LabelSeg[];
   lineHeight: number;
+  /** Cancella il testo sottostante prima di disegnare questo item: usato per dati legali prioritari. */
+  eraseBackground?: boolean;
 };
 
 export type LabelLayout = {
@@ -230,16 +236,18 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
     ingrPt: number;
   };
 
-  // ---- Scadenza ancorata in basso (sempre visibile sopra il footer) ----
-  // Calcolata PRIMA del flow ingredienti per definire il limite verticale
-  // entro cui il blocco ingredienti/extras/allergeni può espandersi.
+  // ---- Scadenza forzata in basso (priorità legale massima) ----
+  // Viene sempre aggiunta subito prima del footer, con sfondo bianco, così
+  // resta visibile anche se il collision detection segnala overflow del corpo.
   const expiryItem: LabelItem | null = data.expiryLine
     ? (() => {
-        const expiryPt = fitPt(data.expiryLine, innerW, footerPt, 6, true);
+        const forcedExpiryText = data.expiryLine.trim();
+        const expiryPt = fitPt(forcedExpiryText, innerW, footerPt, 4, true);
         return {
           x: p, y: 0, w: innerW,
           fontPt: expiryPt, align: "right" as const, lineHeight: lh,
-          segments: [{ text: data.expiryLine, bold: true }],
+          segments: [{ text: forcedExpiryText, bold: true }],
+          eraseBackground: true,
         };
       })()
     : null;
@@ -398,12 +406,47 @@ export function renderLabelCanvas(
     }
   };
 
+  const measureCanvasLines = (segments: LabelSeg[], maxWidth: number, px: number): number => {
+    type Tok = { word: string; bold: boolean; trailingSpace: boolean };
+    const tokens: Tok[] = [];
+    segments.forEach((seg, segIdx) => {
+      const words = seg.text.split(/\s+/).filter((w) => w.length > 0);
+      words.forEach((w, i) => tokens.push({
+        word: w,
+        bold: seg.bold,
+        trailingSpace: i < words.length - 1 || segIdx < segments.length - 1,
+      }));
+    });
+    if (tokens.length === 0) return 1;
+    setFont(px, false);
+    const spaceW = ctx.measureText(" ").width;
+    let lines = 1;
+    let x = 0;
+    for (const tok of tokens) {
+      setFont(px, tok.bold);
+      const w = ctx.measureText(tok.word).width;
+      if (x + w > maxWidth && x > 0) {
+        lines += 1;
+        x = 0;
+      }
+      x += w;
+      if (tok.trailingSpace) x += spaceW;
+    }
+    return lines;
+  };
+
   for (const it of items) {
     const x = mmToDots(it.x);
     const y = mmToDots(it.y);
     const px = ptToDots(it.fontPt);
     const lineHeight = px * it.lineHeight;
     const maxWidth = mmToDots(it.w);
+    if (it.eraseBackground) {
+      const lineCount = Math.max(1, measureCanvasLines(it.segments, maxWidth, px));
+      ctx.fillStyle = "#ffffff";
+      ctx.fillRect(x, Math.max(0, y - 1), maxWidth, lineHeight * lineCount + 2);
+      ctx.fillStyle = "#000000";
+    }
     if (it.align === "left") {
       drawWrapped(it.segments, x, y, maxWidth, lineHeight, px);
     } else {

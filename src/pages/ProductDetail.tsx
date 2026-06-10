@@ -375,7 +375,7 @@ export default function ProductDetail() {
     const finalExpiry = (isSalumeria && preservationOverride && salumeriaExpiry)
       ? salumeriaExpiry
       : (dbExpiry || salumeriaExpiry);
-    const expiryLine = finalExpiry ? `Da consumarsi entro: ${finalExpiry}` : undefined;
+    const expiryLine = finalExpiry ? `Da consumarsi entro il: ${finalExpiry}` : undefined;
 
     // ---- Lotto (Macelleria fresh → supplier_lot) ----
     let macelleriaFreshLot = "";
@@ -400,6 +400,7 @@ export default function ProductDetail() {
       companyAddress: [company?.address, (company as any)?.city]
         .map((s) => (s ?? "").toString().trim()).filter(Boolean).join(" — "),
       productionDate: formatDateDDMMYY((product as any)?.production_date),
+      expiry_date: (product as any)?.expiry_date ?? null,
       internalLot: macelleriaFreshLot || (product as any)?.internal_lot || "—",
       ingredientsText,
       extraLines,
