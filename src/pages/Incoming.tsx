@@ -293,7 +293,110 @@ export default function Incoming() {
   }
 
   function addLine() {
-    setLines((prev) => [...prev, newProductLine(documentDate)]);
+    setLines((prev) => {
+      const last = prev[prev.length - 1];
+      const fresh = newProductLine(documentDate);
+      // Eredita dalla riga precedente i valori "di flusso" (reparto + categoria),
+      // lasciando vuoti i dati variabili (nome, lotto, scadenza...).
+      if (last) {
+        fresh.category = last.category || fresh.category;
+        fresh.departmentId = last.departmentId || fresh.departmentId || departmentId;
+      }
+      return [...prev, fresh];
+    });
+  }
+
+  async function loadHistoryOptions() {
+    if (historyOptions || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("raw_materials")
+        .select("product_name, category, ingredients, origin, department_id, supplier_name, created_at")
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      const map = new Map<string, HistoryOption>();
+      for (const r of data ?? []) {
+        const name = (r as any).product_name?.toString().trim();
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (map.has(key)) continue;
+        map.set(key, {
+          product_name: name,
+          category: (r as any).category ?? null,
+          ingredients: (r as any).ingredients ?? null,
+          origin: (r as any).origin ?? null,
+          department_id: (r as any).department_id ?? null,
+          last_supplier: (r as any).supplier_name ?? null,
+        });
+      }
+      setHistoryOptions(Array.from(map.values()));
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore caricamento storico");
+      setHistoryOptions([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  function openHistoryFor(idx: number) {
+    setHistoryLineIdx(idx);
+    setHistorySearch("");
+    loadHistoryOptions();
+  }
+
+  function applyHistoryToLine(opt: HistoryOption) {
+    if (historyLineIdx == null) return;
+    updateLine(historyLineIdx, {
+      productName: opt.product_name,
+      category: opt.category || "materia_prima",
+      ingredients: opt.ingredients ?? "",
+      origin: opt.origin ?? "",
+      // departmentId resta quello già scelto; lotto fornitore e scadenza
+      // restano vuoti per inserimento manuale.
+    });
+    setHistoryLineIdx(null);
+  }
+
+  function openLineCamera(idx: number) {
+    setCameraLineIdx(idx);
+    // reset value to allow re-uploading the same file
+    if (lineFileRef.current) lineFileRef.current.value = "";
+    lineFileRef.current?.click();
+  }
+
+  async function onLineFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const idx = cameraLineIdx;
+    setCameraLineIdx(null);
+    if (!file || idx == null) return;
+    setLineOcrIdx(idx);
+    try {
+      const base64 = await toBase64(file);
+      const { data, error } = await supabase.functions.invoke("ocr-document", {
+        body: { imageBase64: base64, mimeType: file.type },
+      });
+      if (error) throw error;
+      const d = data?.data ?? {};
+      const first = Array.isArray(d.products) && d.products.length > 0 ? d.products[0] : null;
+      if (!first) {
+        toast.error("Nessun prodotto riconosciuto sull'etichetta");
+        return;
+      }
+      updateLine(idx, {
+        productName: first.product_name || "",
+        ingredients: first.ingredients || "",
+        origin: first.origin || "",
+        supplierLot: first.supplier_lot || "",
+        productionDate: first.production_date || "",
+      });
+      toast.success("Etichetta letta: nome e ingredienti compilati");
+    } catch (err: any) {
+      toast.error(err.message ?? "Errore OCR etichetta");
+    } finally {
+      setLineOcrIdx(null);
+    }
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
