@@ -1574,6 +1574,24 @@ export type Database = {
     }
     Functions: {
       admin_overdue_tasks: { Args: { p_user_id: string }; Returns: Json }
+      create_product_with_blast: {
+        Args: {
+          p_blast_cycle_type: string
+          p_blast_notes: string
+          p_department_id: string
+          p_expiry_date: string
+          p_internal_lot: string
+          p_manual_ingredients: string
+          p_meat_type: string
+          p_name: string
+          p_notes: string
+          p_preservation_type: string
+          p_production_date: string
+          p_raw_material_ids: string[]
+          p_requires_blast_chilling: boolean
+        }
+        Returns: Json
+      }
       delete_email: {
         Args: { message_id: number; queue_name: string }
         Returns: boolean
@@ -1638,6 +1656,26 @@ export type Database = {
               p_preservation_type?: string
               p_production_date: string
               p_raw_material_ids: string[]
+            }
+            Returns: Json
+          }
+        | {
+            Args: {
+              p_blast_cycle_type?: string
+              p_blast_notes?: string
+              p_department_id: string
+              p_expiry_date?: string
+              p_internal_lot: string
+              p_manual_ingredients?: string
+              p_meat_type: string
+              p_name: string
+              p_notes: string
+              p_operator_id: string
+              p_pin: string
+              p_preservation_type?: string
+              p_production_date: string
+              p_raw_material_ids: string[]
+              p_requires_blast_chilling?: boolean
             }
             Returns: Json
           }
