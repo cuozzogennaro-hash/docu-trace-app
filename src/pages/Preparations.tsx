@@ -494,7 +494,21 @@ export default function Preparations({ embedded = false, departmentId }: { embed
                 </div>
               </div>
               <div className="flex flex-col gap-2 shrink-0">
-                <Button size="sm" variant="outline" className="gap-1.5" onClick={() => setPrintItem(r)}>
+                <Button
+                  size="sm"
+                  variant="outline"
+                  className="gap-1.5"
+                  onClick={() => {
+                    console.info("[Preparations label debug] Click Etichetta", {
+                      id: r.id,
+                      name: r.name,
+                      internal_expiry: r.internal_expiry,
+                      formattedInternalExpiry: formatDateDDMMYY(r.internal_expiry),
+                      storage_type: r.storage_type,
+                    });
+                    setPrintItem(r);
+                  }}
+                >
                   <Printer size={14} /> Etichetta
                 </Button>
                 <Button size="sm" variant="ghost" className="gap-1.5 text-destructive hover:text-destructive" onClick={() => setDeleteItem(r)}>
@@ -534,6 +548,14 @@ export default function Preparations({ embedded = false, departmentId }: { embed
             ? "Da consumarsi preferibilmente entro il"
             : "Da consumarsi entro il";
         const scadenzaValue = formatDateDDMMYY(printItem.internal_expiry);
+        console.info("[Preparations label debug] Prima di TemplatedLabelDialog", {
+          id: printItem.id,
+          name: printItem.name,
+          internal_expiry: printItem.internal_expiry,
+          scadenzaLabel,
+          scadenzaValue,
+          expiryLine: `${scadenzaLabel}: ${scadenzaValue}`,
+        });
         // Estrae il lotto dalle notes (es. "...Lotto R-26-...")
         const lotMatch = (printItem.notes || "").match(/Lotto\s+([A-Z0-9-]+)/i);
         const internalLot = lotMatch ? lotMatch[1] : "";

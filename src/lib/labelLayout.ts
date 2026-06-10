@@ -326,6 +326,25 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
     segments: [{ text: lotText, bold: true }],
   });
 
+  console.info("[labelLayout debug] computeLabelLayout items", {
+    productName: data.productName,
+    expiryLineInput: data.expiryLine,
+    expiryItemCreated: !!expiryItem,
+    expiryItemAddedAtLine: expiryItem ? "src/lib/labelLayout.ts:315 -> chosen.items.push(expiryItem)" : null,
+    overflow,
+    contentLimitY,
+    bottomY: chosen.bottomY,
+    items: chosen.items.map((it, idx) => ({
+      idx,
+      y: it.y,
+      w: it.w,
+      fontPt: it.fontPt,
+      align: it.align,
+      eraseBackground: !!it.eraseBackground,
+      text: it.segments.map((s) => s.text).join(""),
+    })),
+  });
+
   return {
     items: chosen.items,
     overflow,
