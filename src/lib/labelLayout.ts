@@ -49,6 +49,19 @@ export type LabelItem = {
   lineHeight: number;
 };
 
+export type LabelLayout = {
+  items: LabelItem[];
+  /** True quando, anche al font minimo, il contenuto eccede l'altezza
+   *  utile. In tal caso la stampa va bloccata. */
+  overflow: boolean;
+  /** Diagnostica per messaggi a UI. */
+  diagnostics: {
+    ingredientsFontPt: number;
+    contentHeightMm: number;
+    availableHeightMm: number;
+  };
+};
+
 export function formatDateDDMMYY(s?: string | null): string {
   if (!s) return "—";
   const m = String(s).match(/^(\d{4})-(\d{2})-(\d{2})/);
@@ -93,13 +106,13 @@ export function splitHighlighted(text: string, highlight: string[]): LabelSeg[] 
  * dai dati semantici. L'algoritmo è identico a quello di ProductDetail per
  * i campi comuni, in modo che il risultato visivo sia uniforme.
  */
-export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): LabelItem[] {
+export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): LabelLayout {
   const p = Math.max(1.2, Math.min(wMm, hMm) * 0.04);
   const safetyR = Math.max(3, wMm * 0.04);
 
   const titlePtBase = Math.max(10, Math.round(hMm * 0.34));
   const companyPtBase = Math.max(9, Math.round(hMm * 0.28));
-  const ingrPt = Math.max(6, Math.round(hMm * 0.15));
+  const ingrPtBase = Math.max(6, Math.round(hMm * 0.15));
   const addressPt = Math.max(5, Math.round(hMm * 0.11));
   const footerPtBase = Math.max(7, Math.round(hMm * 0.22));
   const lh = 1.2;
@@ -123,6 +136,37 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
     return Math.max(minPt, pt);
   };
 
+  /** Conta quante righe occuperà un blocco di segmenti renderizzato con
+   *  `drawWrapped` (token-by-token, wrap su parola). */
+  const measureWrappedLines = (segments: LabelSeg[], maxMm: number, pt: number): number => {
+    type Tok = { word: string; bold: boolean; trailingSpace: boolean };
+    const tokens: Tok[] = [];
+    segments.forEach((seg, segIdx) => {
+      const words = seg.text.split(/\s+/).filter((w) => w.length > 0);
+      words.forEach((w, i) => {
+        tokens.push({
+          word: w,
+          bold: seg.bold,
+          trailingSpace: i < words.length - 1 || segIdx < segments.length - 1,
+        });
+      });
+    });
+    if (tokens.length === 0) return 0;
+    const spaceW = measureWidthMm(" ", pt, false);
+    let lines = 1;
+    let x = 0;
+    for (const tok of tokens) {
+      const w = measureWidthMm(tok.word, pt, tok.bold);
+      if (x + w > maxMm && x > 0) {
+        lines += 1;
+        x = 0;
+      }
+      x += w;
+      if (tok.trailingSpace) x += spaceW;
+    }
+    return lines;
+  };
+
   const titleMaxMm = wMm - 2 * p - safetyR;
   const titleCompanyPt = fitPt(data.companyName || " ", titleMaxMm, companyPtBase, 8, true);
   const titleProductPt = fitPt(data.productName || " ", titleMaxMm, titlePtBase, 8, true);
@@ -137,105 +181,143 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
     fitPt(dataText, footerLeftW, footerPtBase, 6, false),
     fitPt(lotText, footerRightW, footerPtBase, 6, true),
   );
+  const footerH = ptMm(footerPt) * lh;
+  const footerY = hMm - p - footerH;
+  const innerW = wMm - 2 * p - safetyR;
+  const GAP = 0.5; // mm di padding di sicurezza tra blocchi
+  const MIN_INGR_PT = 4;
 
-  const items: LabelItem[] = [];
-  let y = p;
+  // ---- Header items (società/indirizzo/titolo) calcolati una volta sola ----
+  const headerItems: LabelItem[] = [];
+  let yHeader = p;
 
-  // Nome società
   if (data.companyName) {
-    items.push({
-      x: p, y, w: wMm - 2 * p - safetyR,
+    headerItems.push({
+      x: p, y: yHeader, w: innerW,
       fontPt: companyPt, align: "center", lineHeight: lh,
       segments: [{ text: data.companyName, bold: true }],
     });
-    y += ptMm(companyPt) * lh + 0.5;
+    yHeader += ptMm(companyPt) * lh + GAP;
   }
-
-  // Indirizzo
   if (data.companyAddress) {
-    const addrPt = addressPt;
-    items.push({
-      x: p, y, w: wMm - 2 * p - safetyR,
-      fontPt: addrPt, align: "center", lineHeight: lh,
+    const addrLines = Math.max(1, Math.min(2, Math.ceil(measureWidthMm(data.companyAddress, addressPt, false) / innerW)));
+    headerItems.push({
+      x: p, y: yHeader, w: innerW,
+      fontPt: addressPt, align: "center", lineHeight: lh,
       segments: [{ text: data.companyAddress, bold: false }],
     });
-    const addrLines = Math.max(1, Math.ceil(measureWidthMm(data.companyAddress, addrPt, false) / titleMaxMm));
-    y += ptMm(addrPt) * lh * Math.min(addrLines, 2) + 0.4;
+    yHeader += ptMm(addressPt) * lh * addrLines + 0.4;
   }
-
-  // Nome prodotto
-  items.push({
-    x: p, y, w: wMm - 2 * p - safetyR,
+  headerItems.push({
+    x: p, y: yHeader, w: innerW,
     fontPt: productPt, align: "center", lineHeight: lh,
     segments: [{ text: data.productName || "—", bold: true }],
   });
-  y += ptMm(productPt) * lh + 0.6;
+  yHeader += ptMm(productPt) * lh + 0.6;
 
-  // Footer Y
-  const footerH = ptMm(footerPt) * lh;
-  const footerY = hMm - p - footerH;
+  // ---- Shrink-to-fit verticale sul blocco ingredienti ----
+  const ingredientsSegments: LabelSeg[] | null = data.ingredientsText
+    ? (() => {
+        const segs: LabelSeg[] = [{ text: "Ingr.: ", bold: true }];
+        splitHighlighted(data.ingredientsText, data.highlightAllergens || []).forEach((s) => segs.push(s));
+        return segs;
+      })()
+    : null;
 
-  // Ingredienti
-  if (data.ingredientsText) {
-    const segs: LabelSeg[] = [{ text: "Ingr.: ", bold: true }];
-    splitHighlighted(data.ingredientsText, data.highlightAllergens || []).forEach((s) => segs.push(s));
-    items.push({
-      x: p, y, w: wMm - 2 * p - safetyR,
-      fontPt: ingrPt, align: "left", lineHeight: lh,
-      segments: segs,
+  type Attempt = {
+    items: LabelItem[];
+    bottomY: number;
+    ingrPt: number;
+  };
+
+  const buildAttempt = (ingrPt: number): Attempt => {
+    const items: LabelItem[] = headerItems.map((it) => ({ ...it }));
+    let y = yHeader;
+
+    if (ingredientsSegments) {
+      const lines = measureWrappedLines(ingredientsSegments, innerW, ingrPt);
+      const h = ptMm(ingrPt) * lh * lines;
+      items.push({
+        x: p, y, w: innerW,
+        fontPt: ingrPt, align: "left", lineHeight: lh,
+        segments: ingredientsSegments,
+      });
+      y += h + GAP;
+    }
+
+    // Righe extra (push-down sequenziale)
+    const extraBasePt = Math.max(5, footerPt * 0.85);
+    (data.extraLines || []).forEach((line) => {
+      const linePt = fitPt(line, innerW, extraBasePt, 4, false);
+      const lines = measureWrappedLines([{ text: line, bold: false }], innerW, linePt);
+      items.push({
+        x: p, y, w: innerW,
+        fontPt: linePt, align: "left", lineHeight: lh,
+        segments: [{ text: line, bold: false }],
+      });
+      y += ptMm(linePt) * lh * lines + GAP;
     });
+
+    if (data.allergensLine) {
+      const allergPt = fitPt(data.allergensLine, innerW, Math.max(5, footerPt * 0.85), 4, true);
+      const lines = measureWrappedLines([{ text: data.allergensLine, bold: true }], innerW, allergPt);
+      items.push({
+        x: p, y, w: innerW,
+        fontPt: allergPt, align: "left", lineHeight: lh,
+        segments: [{ text: data.allergensLine, bold: true }],
+      });
+      y += ptMm(allergPt) * lh * lines + GAP;
+    }
+
+    if (data.expiryLine) {
+      const expiryPt = fitPt(data.expiryLine, innerW, footerPt, 6, true);
+      const lines = measureWrappedLines([{ text: data.expiryLine, bold: true }], innerW, expiryPt);
+      items.push({
+        x: p, y, w: innerW,
+        fontPt: expiryPt, align: "right", lineHeight: lh,
+        segments: [{ text: data.expiryLine, bold: true }],
+      });
+      y += ptMm(expiryPt) * lh * lines + GAP;
+    }
+
+    return { items, bottomY: y, ingrPt };
+  };
+
+  // Itera riducendo ingrPt di 0.5 finché entra o si raggiunge il minimo
+  let chosen: Attempt = buildAttempt(ingrPtBase);
+  if (ingredientsSegments) {
+    let pt = ingrPtBase;
+    while (chosen.bottomY > footerY - GAP && pt > MIN_INGR_PT) {
+      pt = Math.max(MIN_INGR_PT, pt - 0.5);
+      chosen = buildAttempt(pt);
+    }
   }
 
-  // Righe extra (note/conservazione testo libero)
-  let extraY = y + (data.ingredientsText ? ptMm(ingrPt) * lh * 2 + 0.4 : 0);
-  (data.extraLines || []).forEach((line) => {
-    const linePt = fitPt(line, wMm - 2 * p - safetyR, Math.max(5, footerPt * 0.85), 4, false);
-    items.push({
-      x: p, y: extraY, w: wMm - 2 * p - safetyR,
-      fontPt: linePt, align: "left", lineHeight: lh,
-      segments: [{ text: line, bold: false }],
-    });
-    extraY += ptMm(linePt) * lh + 0.3;
-  });
+  const overflow = chosen.bottomY > footerY - GAP;
 
-  // Allergeni (sopra avviso/footer)
-  if (data.allergensLine) {
-    const allergPt = fitPt(data.allergensLine, wMm - 2 * p - safetyR, Math.max(5, footerPt * 0.85), 4, true);
-    const allergH = ptMm(allergPt) * lh;
-    const allergY = footerY - allergH - 0.4;
-    items.push({
-      x: p, y: allergY, w: wMm - 2 * p - safetyR,
-      fontPt: allergPt, align: "left", lineHeight: lh,
-      segments: [{ text: data.allergensLine, bold: true }],
-    });
-  }
-
-  // Scadenza (sopra footer)
-  if (data.expiryLine) {
-    const expiryPt = fitPt(data.expiryLine, wMm - 2 * p - safetyR, footerPt, 6, true);
-    const expiryH = ptMm(expiryPt) * lh;
-    const expiryY = footerY - expiryH - 0.4 - (data.allergensLine ? ptMm(footerPt) * lh + 0.6 : 0);
-    items.push({
-      x: p, y: expiryY, w: wMm - 2 * p - safetyR,
-      fontPt: expiryPt, align: "right", lineHeight: lh,
-      segments: [{ text: data.expiryLine, bold: true }],
-    });
-  }
-
-  // Footer
-  items.push({
+  // Footer (sempre presente, ancorato in basso)
+  chosen.items.push({
     x: p, y: footerY, w: footerLeftW,
     fontPt: footerPt, align: "left", lineHeight: lh,
     segments: [{ text: dataText, bold: false }],
   });
-  items.push({
+  chosen.items.push({
     x: wMm - p - safetyR - footerRightW, y: footerY, w: footerRightW,
     fontPt: footerPt, align: "right", lineHeight: lh,
     segments: [{ text: lotText, bold: true }],
   });
 
-  return items;
+  return {
+    items: chosen.items,
+    overflow,
+    diagnostics: {
+      ingredientsFontPt: chosen.ingrPt,
+      contentHeightMm: chosen.bottomY - p,
+      availableHeightMm: footerY - p - GAP,
+    },
+  };
 }
+
 
 /**
  * Renderizza gli `items` su un canvas monocromatico alla risoluzione passata

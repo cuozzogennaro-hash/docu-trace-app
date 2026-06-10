@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bluetooth, Loader2, Printer } from "lucide-react";
+import { AlertTriangle, Bluetooth, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useLabelTemplates, type LabelTemplate } from "@/hooks/useLabelTemplates";
 import {
@@ -73,13 +73,19 @@ export default function TemplatedLabelDialog({
   const current: LabelTemplate | null =
     templates.find((t) => t.id === currentId) || defaultTemplate || null;
 
-  const items = useMemo(() => {
-    if (!current) return [];
+  const layout = useMemo(() => {
+    if (!current) return { items: [], overflow: false, diagnostics: { ingredientsFontPt: 0, contentHeightMm: 0, availableHeightMm: 0 } };
     return computeLabelLayout(data, current.width_mm, current.height_mm);
   }, [current, data]);
+  const items = layout.items;
+  const overflow = layout.overflow;
 
   async function printWeb() {
     if (!current) { toast.error("Nessun template etichetta configurato"); return; }
+    if (overflow) {
+      toast.error("Attenzione: Etichetta troppo corta per la quantità di testo. Passare a un formato di etichetta più grande o ridurre gli ingredienti.");
+      return;
+    }
     const wMm = current.width_mm;
     const hMm = current.height_mm;
     const ptToPx = PX_PER_MM / 2.835;
@@ -124,6 +130,10 @@ ${labelsHtml}
 
   async function doBtPrint(printer: SavedPrinter) {
     if (!current) { toast.error("Nessun template etichetta configurato"); return; }
+    if (overflow) {
+      toast.error("Attenzione: Etichetta troppo corta per la quantità di testo. Passare a un formato di etichetta più grande o ridurre gli ingredienti.");
+      return;
+    }
     try {
       setPrinting(true);
       const rotate = !!current.layout_config?.rotate_print;
@@ -264,13 +274,13 @@ ${labelsHtml}
 
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
                 {!native && (
-                  <Button onClick={printWeb} className="w-full gap-2">
+                  <Button onClick={printWeb} disabled={overflow} className="w-full gap-2">
                     <Printer size={16} /> Stampa di sistema
                   </Button>
                 )}
                 <Button
                   onClick={handleBluetooth}
-                  disabled={printing}
+                  disabled={printing || overflow}
                   variant="secondary"
                   className={`w-full gap-2 ${native ? "sm:col-span-2" : ""}`}
                 >
@@ -278,6 +288,20 @@ ${labelsHtml}
                   Stampa Bluetooth
                 </Button>
               </div>
+
+              {overflow && (
+                <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm flex items-start gap-2">
+                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                  <div>
+                    <div className="font-semibold">Etichetta troppo corta</div>
+                    <div className="text-xs opacity-90">
+                      Il contenuto non entra nell'etichetta {current?.width_mm}×{current?.height_mm} mm
+                      nemmeno al font minimo (4pt). Passare a un formato di etichetta più grande
+                      o ridurre gli ingredienti. La stampa è stata bloccata per garantire la conformità.
+                    </div>
+                  </div>
+                </div>
+              )}
 
               {native && (
                 <div className="rounded-md border bg-muted/40 p-2 text-xs flex items-center gap-2 flex-wrap">
