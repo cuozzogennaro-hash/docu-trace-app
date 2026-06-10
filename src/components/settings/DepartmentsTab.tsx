@@ -124,7 +124,17 @@ export default function DepartmentsTab() {
             <div className="space-y-3">
               <div className="space-y-2">
                 <Label>Nome</Label>
-                <Input value={name} onChange={(e) => setName(e.target.value)} placeholder="es. Pescheria" />
+                <Input
+                  value={name}
+                  onChange={(e) => setName(e.target.value)}
+                  placeholder="es. Pescheria"
+                  disabled={!!editing && isProtected(editing.name)}
+                />
+                {!!editing && isProtected(editing.name) && (
+                  <p className="text-[11px] text-muted-foreground">
+                    Reparto predefinito: il nome non è modificabile, ma puoi cambiare immagine e altre opzioni.
+                  </p>
+                )}
               </div>
               <div className="space-y-2">
                 <Label>Codice Reparto Bilancia</Label>
@@ -224,15 +234,13 @@ export default function DepartmentsTab() {
                 </div>
                 <div className="flex items-center gap-1 shrink-0">
                   <Switch checked={visible} onCheckedChange={(v) => setHidden(d.id, !v)} />
+                  <Button size="icon" variant="ghost" onClick={() => openEdit(d)} title={locked ? "Modifica immagine e opzioni" : "Modifica reparto"}>
+                    <Pencil size={15} />
+                  </Button>
                   {!locked && (
-                    <>
-                      <Button size="icon" variant="ghost" onClick={() => openEdit(d)}>
-                        <Pencil size={15} />
-                      </Button>
-                      <Button size="icon" variant="ghost" onClick={() => remove(d)}>
-                        <Trash2 size={15} className="text-destructive" />
-                      </Button>
-                    </>
+                    <Button size="icon" variant="ghost" onClick={() => remove(d)}>
+                      <Trash2 size={15} className="text-destructive" />
+                    </Button>
                   )}
                 </div>
               </Card>
