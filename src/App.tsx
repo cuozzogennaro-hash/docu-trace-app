@@ -17,6 +17,7 @@ import Settings from "./pages/Settings";
 import Archive from "./pages/Archive";
 import RecurringPage from "./pages/Recurring";
 import Reports from "./pages/Reports";
+import Suppliers from "./pages/Suppliers";
 import RawMaterialDetail from "./pages/RawMaterialDetail";
 import ProductDetail from "./pages/ProductDetail";
 import BlastChillings from "./pages/BlastChillings";
