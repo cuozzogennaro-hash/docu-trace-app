@@ -277,6 +277,7 @@ export type Database = {
           created_at: string
           default_shelf_life_days: number | null
           id: string
+          image_url: string | null
           name: string
           scale_department_code: number | null
           sort_order: number
@@ -287,6 +288,7 @@ export type Database = {
           created_at?: string
           default_shelf_life_days?: number | null
           id?: string
+          image_url?: string | null
           name: string
           scale_department_code?: number | null
           sort_order?: number
@@ -297,6 +299,7 @@ export type Database = {
           created_at?: string
           default_shelf_life_days?: number | null
           id?: string
+          image_url?: string | null
           name?: string
           scale_department_code?: number | null
           sort_order?: number

@@ -6,9 +6,9 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Factory, Check, PackageMinus, Archive as ArchiveIcon, ChevronDown, Repeat } from "lucide-react";
+import { Factory, Check, PackageMinus, Archive as ArchiveIcon, ChevronDown, Repeat, ArrowLeft, Building } from "lucide-react";
 import { generateInternalLot } from "@/lib/lot";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
@@ -43,6 +43,8 @@ export default function Production() {
   const { rows: recurringRecipes } = useRecurringPreparations();
   const pageLabel = productionLabel(profile);
   const isOperatorAdmin = !session && !!operator?.is_admin && !!operator?.pin;
+  const [searchParams, setSearchParams] = useSearchParams();
+  const deptParam = searchParams.get("dept") || "";
   const [name, setName] = useState("");
   const [prodDate, setProdDate] = useState(new Date().toISOString().slice(0, 10));
   const [lot, setLot] = useState(generateInternalLot("P", new Date()));
@@ -81,11 +83,17 @@ export default function Production() {
 
   // Per Ristorazione: auto-seleziona Cucina appena disponibile
   useEffect(() => {
-    if (profile === "ristorazione" && !productDeptId && departments.length > 0) {
+    if (profile === "ristorazione" && departments.length > 0 && !deptParam) {
       const cucina = departments.find((d) => d.name?.toLowerCase().trim() === "cucina");
-      if (cucina) setProductDeptId(cucina.id);
+      if (cucina) setSearchParams({ dept: cucina.id }, { replace: true });
     }
-  }, [profile, departments, productDeptId]);
+  }, [profile, departments, deptParam, setSearchParams]);
+
+  // Sync productDeptId con il parametro URL (?dept=...).
+  useEffect(() => {
+    if (deptParam && deptParam !== productDeptId) setProductDeptId(deptParam);
+    if (!deptParam && productDeptId) setProductDeptId("");
+  }, [deptParam]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // Pre-compila la data di scadenza dal default del reparto (se non già toccata dall'utente)
   useEffect(() => {
@@ -381,11 +389,68 @@ export default function Production() {
     return true;
   });
 
+  // === Schermata di selezione reparto (cards) ===
+  // Se non è stato selezionato un reparto via URL, mostriamo SOLO le card dei reparti.
+  if (!deptParam) {
+    return (
+      <>
+        <PageHeader
+          title={pageLabel}
+          subtitle="Seleziona il reparto per cui creare una nuova lavorazione"
+        />
+        <div className="mb-4 flex flex-wrap items-center gap-2">
+          <Button asChild variant="outline" className="gap-2">
+            <Link to="/archivio?tab=products"><ArchiveIcon size={16} /> Archivio Prodotti</Link>
+          </Button>
+        </div>
+        {departments.length === 0 ? (
+          <Card className="p-10 text-center text-muted-foreground">
+            Nessun reparto disponibile. Aggiungine uno da <Link to="/impostazioni?tab=departments" className="text-primary underline">Impostazioni → Reparti</Link>.
+          </Card>
+        ) : (
+          <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 gap-4">
+            {departments.map((d: any) => (
+              <button
+                key={d.id}
+                type="button"
+                onClick={() => setSearchParams({ dept: d.id })}
+                className="group relative rounded-2xl overflow-hidden border border-border bg-card shadow-soft hover:shadow-lg hover:border-primary/60 transition text-left"
+              >
+                <div className="aspect-square w-full bg-muted overflow-hidden">
+                  {d.image_url ? (
+                    <img
+                      src={d.image_url}
+                      alt={d.name}
+                      className="h-full w-full object-cover group-hover:scale-105 transition-transform duration-300"
+                    />
+                  ) : (
+                    <div className="h-full w-full bg-gradient-to-br from-primary/15 to-primary/5 flex items-center justify-center">
+                      <Building size={42} className="text-primary/60" />
+                    </div>
+                  )}
+                </div>
+                <div className="p-3">
+                  <div className="font-display font-semibold text-sm truncate">{d.name}</div>
+                  <div className="text-[11px] text-muted-foreground">Crea lavorazione</div>
+                </div>
+              </button>
+            ))}
+          </div>
+        )}
+      </>
+    );
+  }
+
   return (
     <>
       <PageHeader title={pageLabel} subtitle={profile === "ristorazione" ? "Crea e archivia le ricette di cucina" : "Crea semilavorati e prodotti finiti con tracciabilità ingredienti"} />
 
       <div className="mb-4 flex flex-wrap items-center gap-2">
+        {profile !== "ristorazione" && (
+          <Button variant="ghost" className="gap-2" onClick={() => { setProductDeptId(""); setSearchParams({}); }}>
+            <ArrowLeft size={16} /> Cambia reparto
+          </Button>
+        )}
         <Button asChild variant="outline" className="gap-2">
           <Link to="/archivio?tab=products"><ArchiveIcon size={16} /> Archivio Prodotti</Link>
         </Button>
