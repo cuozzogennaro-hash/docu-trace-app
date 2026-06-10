@@ -90,7 +90,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
     (async () => {
       const { data } = await supabase
         .from("raw_materials")
-        .select("id, product_name, internal_lot, supplier_name, expiry_date, is_out_of_stock")
+        .select("id, product_name, internal_lot, supplier_name, expiry_date, is_out_of_stock, ingredients")
         .eq("is_out_of_stock", false)
         .order("product_name")
         .limit(500);
