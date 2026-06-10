@@ -320,6 +320,17 @@ export default function ProductDetail() {
       return true;
     };
 
+    // [Salumeria — porzionamento/affettato semplice]
+    // Se è stata selezionata UNA SOLA materia prima e questa ha già la sua
+    // lista ingredienti, omettiamo il nome del prodotto base e stampiamo
+    // direttamente solo i suoi ingredienti. Per 2+ materie prime resta la
+    // logica standard "Nome (sotto-ingredienti)".
+    const _salumeriaSingle =
+      _isSalumeria &&
+      Array.isArray(ingredients) &&
+      ingredients.length === 1 &&
+      !!((ingredients[0] as any)?.ingredients && String((ingredients[0] as any).ingredients).trim());
+
     for (const m of ingredients as any[]) {
       const cat = m.category || "materia_prima";
       if (cat === "aroma") {
@@ -344,6 +355,14 @@ export default function ProductDetail() {
             .forEach((c) => { if (_take(c)) additives.push({ text: c, bold: true }); });
         }
       } else {
+          if (_salumeriaSingle) {
+            const subs = String((m as any).ingredients || "")
+              .split(",")
+              .map((s) => s.trim())
+              .filter(Boolean);
+            subs.forEach((s) => { if (_take(s)) others.push({ text: s, bold: false }); });
+            continue;
+          }
           const meat = detectMeat(m.product_name);
           // Per Macelleria l'origine non è in `origin` ma nei campi di
           // tracciabilità (nato/allevato/macellato). Deriviamo l'origine
