@@ -476,14 +476,14 @@ export default function Incoming() {
     }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
 
-    // Temperatura di testata (universale, non bloccante).
-    const headerTempNum = headerTemperature.trim()
-      ? parseFloat(headerTemperature.replace(",", "."))
-      : null;
-    const headerTempValid = headerTempNum != null && !Number.isNaN(headerTempNum);
-    const headerTempCompliant = headerTempValid
-      ? intakeIsCompliant(headerTempNum as number, headerStorageMode)
-      : null;
+    // Temperatura per singola riga (opzionale, non bloccante).
+    function lineTempInfo(l: ProductLine) {
+      const raw = (l.intakeTemperature || "").trim();
+      if (!raw) return { value: null as number | null, compliant: null as boolean | null, mode: l.intakeStorageMode };
+      const n = parseFloat(raw.replace(",", "."));
+      if (Number.isNaN(n)) return { value: null, compliant: null, mode: l.intakeStorageMode };
+      return { value: n, compliant: intakeIsCompliant(n, l.intakeStorageMode), mode: l.intakeStorageMode };
+    }
 
     if (isOperatorAdmin) {
       const rowsToInsert = validLines.map((l) => ({
