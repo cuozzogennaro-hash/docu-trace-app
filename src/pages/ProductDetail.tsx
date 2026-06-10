@@ -34,7 +34,6 @@ export default function ProductDetail() {
   const [labelTemplates, setLabelTemplates] = useState<any[]>([]);
   const [selectedTemplate, setSelectedTemplate] = useState<string>("");
   const [showLabelDialog, setShowLabelDialog] = useState(false);
-  const [btPrinting, setBtPrinting] = useState(false);
   const [adminDeptName, setAdminDeptName] = useState<string>("");
   const [preservationOverride, setPreservationOverride] = useState<"fresh" | "vacuum" | "">("");
   const [allergenKeywordsDb, setAllergenKeywordsDb] = useState<string[] | null>(null);
