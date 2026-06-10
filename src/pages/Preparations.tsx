@@ -66,6 +66,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
   const [preparedAt, setPreparedAt] = useState(nowLocal());
   const [storage, setStorage] = useState<"frigo" | "freezer" | "ambiente">("frigo");
   const [expiry, setExpiry] = useState(() => addHoursLocal(nowLocal(), SHELF_DEFAULTS.frigo));
+  const [expiryTouched, setExpiryTouched] = useState(false);
   const [allergenIds, setAllergenIds] = useState<string[]>([]);
   const [rawMaterialIds, setRawMaterialIds] = useState<string[]>([]);
   const [ingredientsText, setIngredientsText] = useState("");
@@ -103,11 +104,11 @@ export default function Preparations({ embedded = false, departmentId }: { embed
 
   function setStorageAndRecalc(s: "frigo" | "freezer" | "ambiente") {
     setStorage(s);
-    setExpiry(addHoursLocal(preparedAt, SHELF_DEFAULTS[s]));
+    if (!expiryTouched) setExpiry(addHoursLocal(preparedAt, SHELF_DEFAULTS[s]));
   }
   function setPreparedAndRecalc(d: string) {
     setPreparedAt(d);
-    setExpiry(addHoursLocal(d, SHELF_DEFAULTS[storage]));
+    if (!expiryTouched) setExpiry(addHoursLocal(d, SHELF_DEFAULTS[storage]));
   }
   function toggleAllergen(id: string) {
     setAllergenIds((prev) => prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]);
@@ -130,6 +131,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
     const n = nowLocal();
     setPreparedAt(n);
     setExpiry(addHoursLocal(n, r.shelf_hours || SHELF_DEFAULTS[r.storage_type]));
+    setExpiryTouched(false);
     toast.success(`Ricetta "${r.name}" caricata`);
   }
 
@@ -140,6 +142,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
     const n = nowLocal();
     setPreparedAt(n);
     setExpiry(addHoursLocal(n, SHELF_DEFAULTS[storage]));
+    setExpiryTouched(false);
   }
 
   function handleSave() {
