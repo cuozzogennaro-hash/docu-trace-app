@@ -77,6 +77,21 @@ export default function Production() {
     }
   }, [profile, departments, productDeptId]);
 
+  // Pre-compila la data di scadenza dal default del reparto (se non già toccata dall'utente)
+  useEffect(() => {
+    if (expiryTouched) return;
+    if (!productDeptId || !prodDate) { setExpiryDate(""); return; }
+    const dept = allDepartments.find((d) => d.id === productDeptId) as any;
+    const days = dept?.default_shelf_life_days;
+    if (days && Number(days) > 0) {
+      const d = new Date(prodDate + "T00:00:00");
+      d.setDate(d.getDate() + Number(days));
+      setExpiryDate(d.toISOString().slice(0, 10));
+    } else {
+      setExpiryDate("");
+    }
+  }, [productDeptId, prodDate, allDepartments, expiryTouched]);
+
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
     const twoWeeksAgo = new Date();
