@@ -181,6 +181,7 @@ export default function Production() {
       toast.success(`Prodotto creato • ${lot}`);
       setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh"); setPreservationType("vacuum"); setMacelleriaPreservation("vaschetta");
       setRequiresBlastChilling(false); setManualIngredients("");
+      setExpiryTouched(false);
       setLot(generateInternalLot("P", new Date()));
       load();
       return;
@@ -350,6 +351,7 @@ export default function Production() {
     setRequiresBlastChilling(false);
     setManualIngredients("");
     setPluCode("");
+    setExpiryTouched(false);
     setLot(generateInternalLot("P", new Date()));
     load();
   }
