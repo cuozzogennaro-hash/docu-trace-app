@@ -44,6 +44,8 @@ export default function Production() {
   const [storageMode, setStorageMode] = useState<"refrigerato" | "abbattuto" | "surgelato">("refrigerato");
   const [requiresBlastChilling, setRequiresBlastChilling] = useState(false);
   const [manualIngredients, setManualIngredients] = useState("");
+  const [expiryDate, setExpiryDate] = useState<string>("");
+  const [expiryTouched, setExpiryTouched] = useState(false);
   // Bilance di reparto (visibile solo se scaleIntegrationActive)
   const [pluCode, setPluCode] = useState("");
   const [filterDeptId, setFilterDeptId] = useState<string>("");
@@ -74,6 +76,21 @@ export default function Production() {
       if (cucina) setProductDeptId(cucina.id);
     }
   }, [profile, departments, productDeptId]);
+
+  // Pre-compila la data di scadenza dal default del reparto (se non già toccata dall'utente)
+  useEffect(() => {
+    if (expiryTouched) return;
+    if (!productDeptId || !prodDate) { setExpiryDate(""); return; }
+    const dept = allDepartments.find((d) => d.id === productDeptId) as any;
+    const days = dept?.default_shelf_life_days;
+    if (days && Number(days) > 0) {
+      const d = new Date(prodDate + "T00:00:00");
+      d.setDate(d.getDate() + Number(days));
+      setExpiryDate(d.toISOString().slice(0, 10));
+    } else {
+      setExpiryDate("");
+    }
+  }, [productDeptId, prodDate, allDepartments, expiryTouched]);
 
   async function load() {
     const today = new Date().toISOString().slice(0, 10);
@@ -164,6 +181,7 @@ export default function Production() {
       toast.success(`Prodotto creato • ${lot}`);
       setName(""); setNotes(""); setSelected(new Set()); setMeatType("fresh"); setPreservationType("vacuum"); setMacelleriaPreservation("vaschetta");
       setRequiresBlastChilling(false); setManualIngredients("");
+      setExpiryTouched(false);
       setLot(generateInternalLot("P", new Date()));
       load();
       return;
@@ -176,6 +194,7 @@ export default function Production() {
         department_id: productDeptId, meat_type, preservation_type,
         requires_blast_chilling: needsBlast,
         manual_ingredients: manualIngredients.trim() || null,
+        expiry_date: expiryDate || null,
       } as any)
       .select()
       .single();
@@ -332,6 +351,7 @@ export default function Production() {
     setRequiresBlastChilling(false);
     setManualIngredients("");
     setPluCode("");
+    setExpiryTouched(false);
     setLot(generateInternalLot("P", new Date()));
     load();
   }
@@ -390,6 +410,18 @@ export default function Production() {
           <div className="space-y-2">
             <Label>Lotto interno</Label>
             <Input value={lot} readOnly className="font-mono bg-muted" />
+          </div>
+          <div className="space-y-2">
+            <Label>Data scadenza {expiryTouched ? "" : <span className="text-[10px] font-normal text-muted-foreground">(da reparto)</span>}</Label>
+            <Input
+              type="date"
+              value={expiryDate}
+              onChange={(e) => { setExpiryDate(e.target.value); setExpiryTouched(true); }}
+              placeholder="—"
+            />
+            <p className="text-[11px] text-muted-foreground">
+              Pre-compilata dal default del reparto. Modificabile manualmente.
+            </p>
           </div>
           <div className="space-y-2 lg:col-span-2">
             <Label>Note</Label>

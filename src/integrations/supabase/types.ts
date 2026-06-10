@@ -275,6 +275,7 @@ export type Database = {
       departments: {
         Row: {
           created_at: string
+          default_shelf_life_days: number | null
           id: string
           name: string
           scale_department_code: number | null
@@ -284,6 +285,7 @@ export type Database = {
         }
         Insert: {
           created_at?: string
+          default_shelf_life_days?: number | null
           id?: string
           name: string
           scale_department_code?: number | null
@@ -293,6 +295,7 @@ export type Database = {
         }
         Update: {
           created_at?: string
+          default_shelf_life_days?: number | null
           id?: string
           name?: string
           scale_department_code?: number | null
@@ -813,6 +816,7 @@ export type Database = {
         Row: {
           created_at: string
           department_id: string | null
+          expiry_date: string | null
           id: string
           internal_lot: string
           is_out_of_stock: boolean
@@ -829,6 +833,7 @@ export type Database = {
         Insert: {
           created_at?: string
           department_id?: string | null
+          expiry_date?: string | null
           id?: string
           internal_lot: string
           is_out_of_stock?: boolean
@@ -845,6 +850,7 @@ export type Database = {
         Update: {
           created_at?: string
           department_id?: string | null
+          expiry_date?: string | null
           id?: string
           internal_lot?: string
           is_out_of_stock?: boolean

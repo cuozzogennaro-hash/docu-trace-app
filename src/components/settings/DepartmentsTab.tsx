@@ -19,18 +19,21 @@ export default function DepartmentsTab() {
   const [editing, setEditing] = useState<{ id: string; name: string; scale_department_code?: number | null } | null>(null);
   const [name, setName] = useState("");
   const [scaleCode, setScaleCode] = useState<string>("");
+  const [shelfLifeDays, setShelfLifeDays] = useState<string>("");
   const [busy, setBusy] = useState(false);
 
   function openNew() {
     setEditing(null);
     setName("");
     setScaleCode("");
+    setShelfLifeDays("");
     setOpen(true);
   }
-  function openEdit(d: { id: string; name: string; scale_department_code?: number | null }) {
+  function openEdit(d: { id: string; name: string; scale_department_code?: number | null; default_shelf_life_days?: number | null }) {
     setEditing(d);
     setName(d.name);
     setScaleCode(d.scale_department_code != null ? String(d.scale_department_code) : "");
+    setShelfLifeDays(d.default_shelf_life_days != null ? String(d.default_shelf_life_days) : "");
     setOpen(true);
   }
 
@@ -44,16 +47,21 @@ export default function DepartmentsTab() {
     if (scaleCodeNum !== null && (!Number.isFinite(scaleCodeNum) || scaleCodeNum < 0)) {
       return toast.error("Codice reparto bilancia non valido");
     }
+    const shelfDaysNum = shelfLifeDays.trim() === "" ? null : parseInt(shelfLifeDays.trim(), 10);
+    if (shelfDaysNum !== null && (!Number.isFinite(shelfDaysNum) || shelfDaysNum < 1)) {
+      return toast.error("Giorni di scadenza non validi");
+    }
     setBusy(true);
     const { data: { user } } = await supabase.auth.getUser();
     if (!user) { setBusy(false); return toast.error("Sessione non valida"); }
     const res = editing
-      ? await supabase.from("departments").update({ name: trimmed, scale_department_code: scaleCodeNum } as any).eq("id", editing.id)
+      ? await supabase.from("departments").update({ name: trimmed, scale_department_code: scaleCodeNum, default_shelf_life_days: shelfDaysNum } as any).eq("id", editing.id)
       : await supabase.from("departments").insert({
           user_id: user.id,
           name: trimmed,
           sort_order: (departments[departments.length - 1]?.sort_order ?? 0) + 1,
           scale_department_code: scaleCodeNum,
+          default_shelf_life_days: shelfDaysNum,
         } as any);
     setBusy(false);
     if (res.error) return toast.error(res.error.message);
@@ -107,6 +115,20 @@ export default function DepartmentsTab() {
                 />
                 <p className="text-xs text-muted-foreground">
                   Codice numerico interno usato dalle bilance di reparto per identificare questo reparto. Lascia vuoto se non utilizzato.
+                </p>
+              </div>
+              <div className="space-y-2">
+                <Label>Scadenza di default (giorni)</Label>
+                <Input
+                  type="number"
+                  min={1}
+                  inputMode="numeric"
+                  value={shelfLifeDays}
+                  onChange={(e) => setShelfLifeDays(e.target.value)}
+                  placeholder="es. 3"
+                />
+                <p className="text-xs text-muted-foreground">
+                  In fase di creazione lavorazione la data di scadenza sarà pre-compilata come <em>data produzione + giorni</em>. Sempre modificabile a mano. Lascia vuoto per non pre-compilare nulla.
                 </p>
               </div>
             </div>
