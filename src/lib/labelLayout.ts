@@ -230,6 +230,25 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
     ingrPt: number;
   };
 
+  // ---- Scadenza ancorata in basso (sempre visibile sopra il footer) ----
+  // Calcolata PRIMA del flow ingredienti per definire il limite verticale
+  // entro cui il blocco ingredienti/extras/allergeni può espandersi.
+  const expiryItem: LabelItem | null = data.expiryLine
+    ? (() => {
+        const expiryPt = fitPt(data.expiryLine, innerW, footerPt, 6, true);
+        return {
+          x: p, y: 0, w: innerW,
+          fontPt: expiryPt, align: "right" as const, lineHeight: lh,
+          segments: [{ text: data.expiryLine, bold: true }],
+        };
+      })()
+    : null;
+  const expiryH = expiryItem ? ptMm(expiryItem.fontPt) * lh : 0;
+  const expiryY = expiryItem ? footerY - GAP - expiryH : footerY;
+  if (expiryItem) expiryItem.y = expiryY;
+  // Limite inferiore per il blocco ingredienti/extras/allergeni
+  const contentLimitY = (expiryItem ? expiryY : footerY) - GAP;
+
   const buildAttempt = (ingrPt: number): Attempt => {
     const items: LabelItem[] = headerItems.map((it) => ({ ...it }));
     let y = yHeader;
@@ -269,17 +288,6 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
       y += ptMm(allergPt) * lh * lines + GAP;
     }
 
-    if (data.expiryLine) {
-      const expiryPt = fitPt(data.expiryLine, innerW, footerPt, 6, true);
-      const lines = measureWrappedLines([{ text: data.expiryLine, bold: true }], innerW, expiryPt);
-      items.push({
-        x: p, y, w: innerW,
-        fontPt: expiryPt, align: "right", lineHeight: lh,
-        segments: [{ text: data.expiryLine, bold: true }],
-      });
-      y += ptMm(expiryPt) * lh * lines + GAP;
-    }
-
     return { items, bottomY: y, ingrPt };
   };
 
@@ -287,13 +295,16 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
   let chosen: Attempt = buildAttempt(ingrPtBase);
   if (ingredientsSegments) {
     let pt = ingrPtBase;
-    while (chosen.bottomY > footerY - GAP && pt > MIN_INGR_PT) {
+    while (chosen.bottomY > contentLimitY && pt > MIN_INGR_PT) {
       pt = Math.max(MIN_INGR_PT, pt - 0.5);
       chosen = buildAttempt(pt);
     }
   }
 
-  const overflow = chosen.bottomY > footerY - GAP;
+  const overflow = chosen.bottomY > contentLimitY;
+
+  // Scadenza (ancorata sopra il footer, sempre visibile)
+  if (expiryItem) chosen.items.push(expiryItem);
 
   // Footer (sempre presente, ancorato in basso)
   chosen.items.push({
@@ -313,7 +324,7 @@ export function computeLabelLayout(data: LabelData, wMm: number, hMm: number): L
     diagnostics: {
       ingredientsFontPt: chosen.ingrPt,
       contentHeightMm: chosen.bottomY - p,
-      availableHeightMm: footerY - p - GAP,
+      availableHeightMm: contentLimitY - p,
     },
   };
 }
