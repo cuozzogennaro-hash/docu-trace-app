@@ -762,6 +762,41 @@ export default function Incoming() {
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Numero documento</Label>
               <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
             </div>
+            {/* Temperatura di ingresso — TESTATA (universale, opzionale) */}
+            <div className="md:col-span-2 mt-1 p-3 rounded-lg border border-dashed bg-blue-50/40 space-y-2">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Thermometer size={14} className="text-blue-700" />
+                Temperatura di ingresso <span className="text-muted-foreground font-normal">(opzionale, vale per tutte le righe)</span>
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Modalità conservazione</Label>
+                  <Select value={headerStorageMode} onValueChange={(v: any) => setHeaderStorageMode(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
+                      <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
+                      <SelectItem value="ambient">Ambiente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Temperatura rilevata (°C)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={headerTemperature}
+                    onChange={(e) => setHeaderTemperature(e.target.value)}
+                    placeholder={headerStorageMode === "frozen" ? "-20" : headerStorageMode === "refrigerated" ? "3.5" : "20"}
+                    className="font-mono"
+                    inputMode="decimal"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Lascia vuoto per merci a temperatura ambiente o non deperibili: il salvataggio funziona comunque.
+              </p>
+            </div>
           </div>
         </div>
 
