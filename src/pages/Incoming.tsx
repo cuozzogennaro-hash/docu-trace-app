@@ -408,45 +408,17 @@ export default function Incoming() {
     try {
       const base64 = await toBase64(file);
       const { data, error } = await supabase.functions.invoke("ocr-document", {
-        body: { imageBase64: base64, mimeType: file.type },
+        body: { imageBase64: base64, mimeType: file.type, headerOnly: true },
       });
       if (error) throw error;
       const d = data?.data ?? {};
       if (d.supplier_name) setSupplierName(d.supplier_name);
-      // La data documento viene impostata SOLO se l'OCR la trova esplicitamente
-      // (vera fattura/DDT). Per le etichette di prodotto resta la data odierna
-      // di default e l'eventuale data produzione finisce sulla singola riga.
+      // L'OCR di testata estrae ESCLUSIVAMENTE i dati generali del documento
+      // (fornitore, data, numero). I prodotti NON vengono compilati qui: si
+      // inseriscono manualmente, da "Da ricorrente" o dalla foto Etichetta.
       if (d.document_date) setDocumentDate(d.document_date);
       if (d.document_number) setDocumentNumber(d.document_number);
-      if (Array.isArray(d.products) && d.products.length > 0) {
-        const dateForLot = d.document_date || documentDate;
-        setLines(
-          d.products.map((p: any) => ({
-            selected: true,
-            productName: p.product_name || "",
-            quantity: p.quantity || "",
-            supplierLot: p.supplier_lot || "",
-            category: "materia_prima",
-            expiry: "",
-            productionDate: p.production_date || "",
-            origin: p.origin || "",
-            internalLot: generateInternalLot("L", new Date(dateForLot + "T00:00:00")),
-            departmentId: departmentId || "",
-            bornIn: "",
-            raisedIn: "",
-            slaughteredIn: "",
-            slaughterMark: "",
-            ingredients: p.ingredients || "",
-            intakeTemperature: "",
-            intakeStorageMode: "refrigerated",
-            pluCode: "",
-            scaleIngredients: "",
-          }))
-        );
-        toast.success(`${d.products.length} prodotti trovati! Controlla e completa i dati.`);
-      } else {
-        toast.success("Documento analizzato! Controlla e completa i dati.");
-      }
+      toast.success("Testata documento compilata. Aggiungi i prodotti manualmente o con 'Etichetta'/'Da ricorrente'.");
     } catch (err: any) {
       toast.error(err.message ?? "Errore OCR");
     } finally {
