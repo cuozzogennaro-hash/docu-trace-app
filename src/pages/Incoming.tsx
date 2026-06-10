@@ -517,8 +517,6 @@ export default function Incoming() {
       setDocumentDate(new Date().toISOString().slice(0, 10));
       setDocumentNumber("");
       setDepartmentId("");
-      setHeaderTemperature("");
-      setHeaderStorageMode("refrigerated");
       setLines([newProductLine()]);
       setPreview(null);
       setImageFile(null);
@@ -555,11 +553,10 @@ export default function Incoming() {
       slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
       slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : null,
             ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
-      // Temperatura: valore di TESTATA propagato a TUTTE le righe (qualsiasi reparto).
-      // Non bloccante: se vuoto, viene salvato come null senza errori.
-      intake_temperature: headerTempValid ? (headerTempNum as number) : null,
-      intake_temp_compliant: headerTempValid ? headerTempCompliant : null,
-      intake_storage_mode: headerTempValid ? headerStorageMode : null,
+      // Temperatura: valore della SINGOLA riga (qualsiasi reparto). Non bloccante.
+      intake_temperature: lineTempInfo(l).value,
+      intake_temp_compliant: lineTempInfo(l).compliant,
+      intake_storage_mode: lineTempInfo(l).value != null ? l.intakeStorageMode : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
@@ -594,8 +591,6 @@ export default function Incoming() {
     setDocumentDate(new Date().toISOString().slice(0, 10));
     setDocumentNumber("");
     setDepartmentId("");
-    setHeaderTemperature("");
-    setHeaderStorageMode("refrigerated");
     setLines([newProductLine()]);
     setPreview(null);
     setImageFile(null);
