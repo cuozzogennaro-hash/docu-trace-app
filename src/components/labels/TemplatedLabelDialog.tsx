@@ -4,7 +4,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Bluetooth, Loader2, Printer } from "lucide-react";
+import { AlertTriangle, Bluetooth, Loader2, Printer } from "lucide-react";
 import { toast } from "sonner";
 import { useLabelTemplates, type LabelTemplate } from "@/hooks/useLabelTemplates";
 import {
@@ -73,13 +73,19 @@ export default function TemplatedLabelDialog({
   const current: LabelTemplate | null =
     templates.find((t) => t.id === currentId) || defaultTemplate || null;
 
-  const items = useMemo(() => {
-    if (!current) return [];
+  const layout = useMemo(() => {
+    if (!current) return { items: [], overflow: false, diagnostics: { ingredientsFontPt: 0, contentHeightMm: 0, availableHeightMm: 0 } };
     return computeLabelLayout(data, current.width_mm, current.height_mm);
   }, [current, data]);
+  const items = layout.items;
+  const overflow = layout.overflow;
 
   async function printWeb() {
     if (!current) { toast.error("Nessun template etichetta configurato"); return; }
+    if (overflow) {
+      toast.error("Attenzione: Etichetta troppo corta per la quantità di testo. Passare a un formato di etichetta più grande o ridurre gli ingredienti.");
+      return;
+    }
     const wMm = current.width_mm;
     const hMm = current.height_mm;
     const ptToPx = PX_PER_MM / 2.835;
@@ -124,6 +130,10 @@ ${labelsHtml}
 
   async function doBtPrint(printer: SavedPrinter) {
     if (!current) { toast.error("Nessun template etichetta configurato"); return; }
+    if (overflow) {
+      toast.error("Attenzione: Etichetta troppo corta per la quantità di testo. Passare a un formato di etichetta più grande o ridurre gli ingredienti.");
+      return;
+    }
     try {
       setPrinting(true);
       const rotate = !!current.layout_config?.rotate_print;
