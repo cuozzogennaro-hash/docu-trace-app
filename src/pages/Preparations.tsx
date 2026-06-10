@@ -510,6 +510,19 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           return r ? `${r.product_name} (lotto ${r.internal_lot})` : null;
         }).filter(Boolean) as string[];
         const ingredientsCombined = [...rmLines, printItem.ingredients_text].filter(Boolean).join(", ");
+        // Mappatura conservazione (SOLO Cucina): testo dinamico per l'etichetta.
+        const storageType = printItem.storage_type as "frigo" | "freezer" | "ambiente";
+        const conservazioneText =
+          storageType === "freezer"
+            ? "Conservare a -18°C. Prodotto congelato all'origine. Una volta scongelato non ricongelare."
+            : storageType === "ambiente"
+              ? "Conservare in luogo fresco e asciutto."
+              : "Conservare in frigorifero a 0/+4°C.";
+        const scadenzaLabel =
+          storageType === "freezer"
+            ? "Da consumarsi preferibilmente entro il"
+            : "Da consumarsi entro il";
+        const scadenzaValue = new Date(printItem.internal_expiry).toLocaleString("it-IT");
         return (
           <PrintLabelDialog
             open={!!printItem}
@@ -519,8 +532,8 @@ export default function Preparations({ embedded = false, departmentId }: { embed
             highlight={allergenNames}
             fields={[
               { label: "Preparato", value: new Date(printItem.prepared_at).toLocaleString("it-IT") },
-              { label: "Scadenza", value: new Date(printItem.internal_expiry).toLocaleString("it-IT") },
-              { label: "Conserv.", value: printItem.storage_type },
+              { label: scadenzaLabel, value: scadenzaValue },
+              { label: "Conservazione", value: conservazioneText },
               ...(ingredientsCombined ? [{ label: "Ingredienti", value: ingredientsCombined }] : []),
               ...(allergenNames.length ? [{ label: "Allergeni", value: allergenNames.join(", ") }] : []),
               ...(printItem.notes ? [{ label: "Note", value: printItem.notes }] : []),
