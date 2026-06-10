@@ -591,9 +591,14 @@ export default function ProductDetail() {
           <FileDown size={16} /> Scarica PDF
         </Button>
         {labelTemplates.length > 0 && (
-          <Button onClick={() => setShowLabelDialog(true)} variant="outline" className="mt-5 ml-2 gap-2">
-            <Printer size={16} /> Stampa Etichetta
-          </Button>
+          <>
+            <Button onClick={() => setShowLabelDialog(true)} variant="outline" className="mt-5 ml-2 gap-2">
+              <Printer size={16} /> Stampa Etichetta
+            </Button>
+            <Button onClick={printLabelA5} variant="outline" className="mt-5 ml-2 gap-2">
+              <FileText size={16} /> Report A5
+            </Button>
+          </>
         )}
       </Card>
 
@@ -627,7 +632,36 @@ export default function ProductDetail() {
         </Card>
       )}
 
-      __TEMPLATED_LABEL_DIALOG_PLACEHOLDER__
+      <TemplatedLabelDialog
+        open={showLabelDialog}
+        onOpenChange={(v) => { setShowLabelDialog(v); if (!v) setPreservationOverride(""); }}
+        data={labelData}
+        title="Stampa etichetta"
+        templatesOverride={labelTemplates as any}
+        extraControls={(() => {
+          const deptName = (
+            departments.find((d) => d.id === (product as any)?.department_id)?.name ||
+            adminDeptName || ""
+          ).toLowerCase().trim();
+          if (!deptName.startsWith("salum")) return null;
+          const current = preservationOverride || ((product as any)?.preservation_type as string) || "vacuum";
+          return (
+            <div className="p-3 rounded-md bg-emerald-50 border border-emerald-200 space-y-1.5">
+              <Label className="text-xs font-semibold text-emerald-900">Tipo conservazione per questa stampa</Label>
+              <Select value={current} onValueChange={(v: "fresh" | "vacuum") => setPreservationOverride(v)}>
+                <SelectTrigger><SelectValue /></SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="vacuum">Sottovuoto</SelectItem>
+                  <SelectItem value="fresh">Fresco</SelectItem>
+                </SelectContent>
+              </Select>
+              <p className="text-xs text-emerald-900/80">
+                Override Salumeria: ricalcola la scadenza in tempo reale nell'anteprima.
+              </p>
+            </div>
+          );
+        })()}
+      />
 
       <h2 className="font-display font-bold text-lg mb-3">
         Materie prime utilizzate ({ingredients.length})
