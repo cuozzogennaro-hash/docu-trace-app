@@ -1,11 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { useParams, useNavigate } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { ArrowLeft, Bluetooth, FileDown, Loader2, Printer, Trash2, FileText } from "lucide-react";
+import { ArrowLeft, FileDown, Loader2, Printer, Trash2, FileText } from "lucide-react";
 import { useCompany } from "@/hooks/useCompany";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
@@ -13,20 +12,11 @@ import { Label } from "@/components/ui/label";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useDepartments } from "@/hooks/useDepartments";
 import { useLabelRules } from "@/hooks/useLabelRules";
-import {
-  isNativeApp,
-  getSavedPrinter,
-  saveSavedPrinter,
-  sendToPrinter,
-  buildPhomemoRaster,
-  PHOMEMO_M02_WIDTH_BYTES,
-  type SavedPrinter,
-} from "@/lib/btPrinter";
-import BluetoothPrinterPicker from "@/components/kitchen/BluetoothPrinterPicker";
+import TemplatedLabelDialog from "@/components/labels/TemplatedLabelDialog";
+import { computeLabelLayout, formatDateDDMMYY, type LabelData } from "@/lib/labelLayout";
 
 export default function ProductDetail() {
   const { id } = useParams<{ id: string }>();
