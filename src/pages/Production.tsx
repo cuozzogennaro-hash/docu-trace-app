@@ -217,7 +217,6 @@ export default function Production() {
     if (rpcError || !rpcRes?.ok) {
       return toast.error(rpcError?.message || rpcRes?.error || "Errore di salvataggio");
     }
-    const prod = { id: rpcRes.id as string };
     // Coda bilance: inserisce solo se l'integrazione è attiva e PLU è compilato
     if (scaleIntegrationActive && store && pluCode.trim()) {
       // === Costruzione lista ingredienti per la bilancia ===
