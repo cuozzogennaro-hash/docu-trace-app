@@ -704,40 +704,35 @@ export default function Incoming() {
             Seleziona prima il reparto: condiziona la lettura della foto e le logiche di caricamento (es. tracciabilità carne per Macelleria).
           </p>
         </Card>
-        <div className="grid lg:grid-cols-[180px_1fr] gap-5">
-          <button
-            type="button"
-            onClick={() => {
-              if (!departmentId) { toast.error("Seleziona prima il reparto"); return; }
-              fileRef.current?.click();
-            }}
-            disabled={!departmentId && !preview}
-            className="aspect-square rounded-2xl bg-gradient-accent text-accent-foreground flex flex-col items-center justify-center gap-2 shadow-elevated hover:opacity-95 transition overflow-hidden relative disabled:opacity-50 disabled:cursor-not-allowed"
-          >
-            {preview ? (
-              <>
-                <img src={preview} alt="Anteprima documento" className="absolute inset-0 w-full h-full object-cover" />
-                <div className="absolute bottom-1 left-1 right-1 flex gap-1 z-10">
-                  <span
-                    onClick={(e) => { e.stopPropagation(); fileRef.current?.click(); }}
-                    className="flex-1 text-[10px] font-semibold bg-background/80 backdrop-blur rounded-md py-1 text-center cursor-pointer hover:bg-background/95 transition"
-                  >
-                    📷 Riscatta
-                  </span>
-                </div>
-              </>
-            ) : ocrLoading ? (
-              <>
-                <Loader2 className="animate-spin" size={32} />
-                <span className="text-xs font-medium">Analisi AI…</span>
-              </>
-            ) : (
-              <>
-                <Camera size={32} />
-                <span className="text-xs font-medium text-center px-2">Scatta foto<br />fattura/DDT</span>
-              </>
+        <div className="space-y-3">
+          {/* Pulsante OCR compatto: solo dati testata (fornitore, data, numero) */}
+          <div className="flex flex-wrap items-center gap-2">
+            <Button
+              type="button"
+              variant="outline"
+              size="sm"
+              className="gap-2 border-accent/40 text-accent-foreground bg-accent/10 hover:bg-accent/20"
+              onClick={() => {
+                if (!departmentId) { toast.error("Seleziona prima il reparto"); return; }
+                fileRef.current?.click();
+              }}
+              disabled={ocrLoading}
+            >
+              {ocrLoading ? <Loader2 className="animate-spin" size={14} /> : <Camera size={14} />}
+              {ocrLoading ? "Analisi AI…" : "Scatta foto fattura/DDT"}
+            </Button>
+            {preview && (
+              <div className="flex items-center gap-2">
+                <img src={preview} alt="Anteprima documento" className="h-10 w-10 rounded-md object-cover border" />
+                <Button type="button" variant="ghost" size="sm" className="h-8 text-xs" onClick={() => fileRef.current?.click()}>
+                  Riscatta
+                </Button>
+              </div>
             )}
-          </button>
+            <span className="text-[11px] text-muted-foreground">
+              Estrae solo fornitore, data e numero documento. I prodotti si inseriscono manualmente o con "Da ricorrente" / "Etichetta".
+            </span>
+          </div>
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Fornitore</Label>
@@ -756,41 +751,6 @@ export default function Incoming() {
             <div className="space-y-1.5 md:col-span-2">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Numero documento</Label>
               <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
-            </div>
-            {/* Temperatura di ingresso — TESTATA (universale, opzionale) */}
-            <div className="md:col-span-2 mt-1 p-3 rounded-lg border border-dashed bg-blue-50/40 space-y-2">
-              <Label className="text-xs font-semibold flex items-center gap-1.5">
-                <Thermometer size={14} className="text-blue-700" />
-                Temperatura di ingresso <span className="text-muted-foreground font-normal">(opzionale, vale per tutte le righe)</span>
-              </Label>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                <div className="space-y-1">
-                  <Label className="text-xs">Modalità conservazione</Label>
-                  <Select value={headerStorageMode} onValueChange={(v: any) => setHeaderStorageMode(v)}>
-                    <SelectTrigger><SelectValue /></SelectTrigger>
-                    <SelectContent>
-                      <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
-                      <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
-                      <SelectItem value="ambient">Ambiente</SelectItem>
-                    </SelectContent>
-                  </Select>
-                </div>
-                <div className="space-y-1">
-                  <Label className="text-xs">Temperatura rilevata (°C)</Label>
-                  <Input
-                    type="number"
-                    step="0.1"
-                    value={headerTemperature}
-                    onChange={(e) => setHeaderTemperature(e.target.value)}
-                    placeholder={headerStorageMode === "frozen" ? "-20" : headerStorageMode === "refrigerated" ? "3.5" : "20"}
-                    className="font-mono"
-                    inputMode="decimal"
-                  />
-                </div>
-              </div>
-              <p className="text-[11px] text-muted-foreground">
-                Lascia vuoto per merci a temperatura ambiente o non deperibili: il salvataggio funziona comunque.
-              </p>
             </div>
           </div>
         </div>
