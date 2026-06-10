@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon, Star, Repeat, Check } from "lucide-react";
+import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon, Star, Repeat, Check, History, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { generateInternalLot } from "@/lib/lot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
