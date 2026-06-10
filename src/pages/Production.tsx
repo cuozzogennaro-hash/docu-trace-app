@@ -6,7 +6,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
-import { Factory, Check, PackageMinus, Archive as ArchiveIcon, ChevronDown } from "lucide-react";
+import { Factory, Check, PackageMinus, Archive as ArchiveIcon, ChevronDown, Repeat } from "lucide-react";
 import { generateInternalLot } from "@/lib/lot";
 import { Link, useNavigate } from "react-router-dom";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -19,6 +19,15 @@ import { productionLabel, useActivityProfile } from "@/hooks/useActivityProfile"
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
 import Preparations from "@/pages/Preparations";
+import { useRecurringPreparations } from "@/hooks/useRecurringPreparations";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 const CATEGORY_LABELS: Record<string, string> = {
   materia_prima: "Materie Prime",
