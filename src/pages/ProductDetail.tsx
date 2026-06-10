@@ -42,10 +42,6 @@ export default function ProductDetail() {
   const [allergenNamesDb, setAllergenNamesDb] = useState<string[]>([]);
   // Mappa keyword(lowercase) -> nome canonico dell'allergene (es. "grano" -> "Glutine").
   const [allergenKeyToName, setAllergenKeyToName] = useState<Record<string, string>>({});
-  const [btPickerOpen, setBtPickerOpen] = useState(false);
-  const [pendingPrint, setPendingPrint] = useState(false);
-  const [savedBtPrinter, setSavedBtPrinter] = useState<SavedPrinter | null>(() => getSavedPrinter());
-  const native = isNativeApp();
 
   useEffect(() => {
     if (!id) return;
