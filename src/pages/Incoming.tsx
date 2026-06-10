@@ -7,7 +7,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Checkbox } from "@/components/ui/checkbox";
 import { toast } from "sonner";
-import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon, Star, Repeat, Check } from "lucide-react";
+import { Camera, Loader2, Package, Sparkles, Trash2, Plus, Archive as ArchiveIcon, Star, Repeat, Check, History, Search } from "lucide-react";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { generateInternalLot } from "@/lib/lot";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -127,6 +127,10 @@ export default function Incoming() {
   const [supplierName, setSupplierName] = useState("");
   const [documentDate, setDocumentDate] = useState(new Date().toISOString().slice(0, 10));
   const [documentNumber, setDocumentNumber] = useState("");
+  // Temperatura di ingresso a livello di TESTATA (universale, non bloccante).
+  // Propagata su tutte le righe in save().
+  const [headerStorageMode, setHeaderStorageMode] = useState<"refrigerated" | "frozen" | "ambient">("refrigerated");
+  const [headerTemperature, setHeaderTemperature] = useState<string>("");
   const [lines, setLines] = useState<ProductLine[]>([newProductLine()]);
   const [rows, setRows] = useState<any[]>([]);
   const [departmentId, setDepartmentId] = useState<string>("");
@@ -134,6 +138,27 @@ export default function Incoming() {
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [recurringPicked, setRecurringPicked] = useState<Set<string>>(new Set());
   const [recurringSearch, setRecurringSearch] = useState("");
+
+  // Storico prodotti già inseriti (DISTINCT su raw_materials) per il pulsante
+  // "Carica da storico" della singola riga prodotto.
+  type HistoryOption = {
+    product_name: string;
+    category: string | null;
+    ingredients: string | null;
+    origin: string | null;
+    department_id: string | null;
+    last_supplier: string | null;
+  };
+  const [historyOptions, setHistoryOptions] = useState<HistoryOption[] | null>(null);
+  const [historyLoading, setHistoryLoading] = useState(false);
+  const [historyLineIdx, setHistoryLineIdx] = useState<number | null>(null);
+  const [historySearch, setHistorySearch] = useState("");
+
+  // Singolo file input nascosto, condiviso fra tutte le righe per la fotocamera
+  // di etichetta prodotto. cameraLineIdx indica la riga di destinazione.
+  const lineFileRef = useRef<HTMLInputElement>(null);
+  const [cameraLineIdx, setCameraLineIdx] = useState<number | null>(null);
+  const [lineOcrIdx, setLineOcrIdx] = useState<number | null>(null);
 
   // Keep all product lines in sync with the top-level department
   useEffect(() => {
@@ -268,7 +293,110 @@ export default function Incoming() {
   }
 
   function addLine() {
-    setLines((prev) => [...prev, newProductLine(documentDate)]);
+    setLines((prev) => {
+      const last = prev[prev.length - 1];
+      const fresh = newProductLine(documentDate);
+      // Eredita dalla riga precedente i valori "di flusso" (reparto + categoria),
+      // lasciando vuoti i dati variabili (nome, lotto, scadenza...).
+      if (last) {
+        fresh.category = last.category || fresh.category;
+        fresh.departmentId = last.departmentId || fresh.departmentId || departmentId;
+      }
+      return [...prev, fresh];
+    });
+  }
+
+  async function loadHistoryOptions() {
+    if (historyOptions || historyLoading) return;
+    setHistoryLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from("raw_materials")
+        .select("product_name, category, ingredients, origin, department_id, supplier_name, created_at")
+        .order("created_at", { ascending: false })
+        .limit(2000);
+      if (error) throw error;
+      const map = new Map<string, HistoryOption>();
+      for (const r of data ?? []) {
+        const name = (r as any).product_name?.toString().trim();
+        if (!name) continue;
+        const key = name.toLowerCase();
+        if (map.has(key)) continue;
+        map.set(key, {
+          product_name: name,
+          category: (r as any).category ?? null,
+          ingredients: (r as any).ingredients ?? null,
+          origin: (r as any).origin ?? null,
+          department_id: (r as any).department_id ?? null,
+          last_supplier: (r as any).supplier_name ?? null,
+        });
+      }
+      setHistoryOptions(Array.from(map.values()));
+    } catch (e: any) {
+      toast.error(e.message ?? "Errore caricamento storico");
+      setHistoryOptions([]);
+    } finally {
+      setHistoryLoading(false);
+    }
+  }
+
+  function openHistoryFor(idx: number) {
+    setHistoryLineIdx(idx);
+    setHistorySearch("");
+    loadHistoryOptions();
+  }
+
+  function applyHistoryToLine(opt: HistoryOption) {
+    if (historyLineIdx == null) return;
+    updateLine(historyLineIdx, {
+      productName: opt.product_name,
+      category: opt.category || "materia_prima",
+      ingredients: opt.ingredients ?? "",
+      origin: opt.origin ?? "",
+      // departmentId resta quello già scelto; lotto fornitore e scadenza
+      // restano vuoti per inserimento manuale.
+    });
+    setHistoryLineIdx(null);
+  }
+
+  function openLineCamera(idx: number) {
+    setCameraLineIdx(idx);
+    // reset value to allow re-uploading the same file
+    if (lineFileRef.current) lineFileRef.current.value = "";
+    lineFileRef.current?.click();
+  }
+
+  async function onLineFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    const idx = cameraLineIdx;
+    setCameraLineIdx(null);
+    if (!file || idx == null) return;
+    setLineOcrIdx(idx);
+    try {
+      const base64 = await toBase64(file);
+      const { data, error } = await supabase.functions.invoke("ocr-document", {
+        body: { imageBase64: base64, mimeType: file.type },
+      });
+      if (error) throw error;
+      const d = data?.data ?? {};
+      const first = Array.isArray(d.products) && d.products.length > 0 ? d.products[0] : null;
+      if (!first) {
+        toast.error("Nessun prodotto riconosciuto sull'etichetta");
+        return;
+      }
+      updateLine(idx, {
+        productName: first.product_name || "",
+        ingredients: first.ingredients || "",
+        origin: first.origin || "",
+        supplierLot: first.supplier_lot || "",
+        productionDate: first.production_date || "",
+      });
+      toast.success("Etichetta letta: nome e ingredienti compilati");
+    } catch (err: any) {
+      toast.error(err.message ?? "Errore OCR etichetta");
+    } finally {
+      setLineOcrIdx(null);
+    }
   }
 
   async function onFile(e: React.ChangeEvent<HTMLInputElement>) {
@@ -348,6 +476,15 @@ export default function Incoming() {
     }
     if (departments.length === 0) return toast.error("Crea prima un reparto in Impostazioni");
 
+    // Temperatura di testata (universale, non bloccante).
+    const headerTempNum = headerTemperature.trim()
+      ? parseFloat(headerTemperature.replace(",", "."))
+      : null;
+    const headerTempValid = headerTempNum != null && !Number.isNaN(headerTempNum);
+    const headerTempCompliant = headerTempValid
+      ? intakeIsCompliant(headerTempNum as number, headerStorageMode)
+      : null;
+
     if (isOperatorAdmin) {
       const rowsToInsert = validLines.map((l) => ({
         supplier_name: supplierName,
@@ -380,6 +517,8 @@ export default function Incoming() {
       setDocumentDate(new Date().toISOString().slice(0, 10));
       setDocumentNumber("");
       setDepartmentId("");
+      setHeaderTemperature("");
+      setHeaderStorageMode("refrigerated");
       setLines([newProductLine()]);
       setPreview(null);
       setImageFile(null);
@@ -416,13 +555,11 @@ export default function Incoming() {
       slaughtered_in: isMacelleria(l.departmentId) ? l.slaughteredIn.trim() : null,
       slaughter_mark: isMacelleria(l.departmentId) ? l.slaughterMark.trim() : null,
             ingredients: isSalumeria(l.departmentId) ? (l.ingredients.trim() || null) : null,
-      intake_temperature: isCucina(l.departmentId) && l.intakeTemperature.trim()
-        ? parseFloat(l.intakeTemperature.replace(",", "."))
-        : null,
-      intake_temp_compliant: isCucina(l.departmentId) && l.intakeTemperature.trim()
-        ? intakeIsCompliant(parseFloat(l.intakeTemperature.replace(",", ".")), l.intakeStorageMode)
-        : null,
-      intake_storage_mode: isCucina(l.departmentId) ? l.intakeStorageMode : null,
+      // Temperatura: valore di TESTATA propagato a TUTTE le righe (qualsiasi reparto).
+      // Non bloccante: se vuoto, viene salvato come null senza errori.
+      intake_temperature: headerTempValid ? (headerTempNum as number) : null,
+      intake_temp_compliant: headerTempValid ? headerTempCompliant : null,
+      intake_storage_mode: headerTempValid ? headerStorageMode : null,
     }));
     const { error } = await supabase.from("raw_materials").insert(inserts);
     if (error) return toast.error(error.message);
@@ -457,6 +594,8 @@ export default function Incoming() {
     setDocumentDate(new Date().toISOString().slice(0, 10));
     setDocumentNumber("");
     setDepartmentId("");
+    setHeaderTemperature("");
+    setHeaderStorageMode("refrigerated");
     setLines([newProductLine()]);
     setPreview(null);
     setImageFile(null);
@@ -623,6 +762,41 @@ export default function Incoming() {
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Numero documento</Label>
               <Input value={documentNumber} onChange={(e) => setDocumentNumber(e.target.value)} />
             </div>
+            {/* Temperatura di ingresso — TESTATA (universale, opzionale) */}
+            <div className="md:col-span-2 mt-1 p-3 rounded-lg border border-dashed bg-blue-50/40 space-y-2">
+              <Label className="text-xs font-semibold flex items-center gap-1.5">
+                <Thermometer size={14} className="text-blue-700" />
+                Temperatura di ingresso <span className="text-muted-foreground font-normal">(opzionale, vale per tutte le righe)</span>
+              </Label>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                <div className="space-y-1">
+                  <Label className="text-xs">Modalità conservazione</Label>
+                  <Select value={headerStorageMode} onValueChange={(v: any) => setHeaderStorageMode(v)}>
+                    <SelectTrigger><SelectValue /></SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
+                      <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
+                      <SelectItem value="ambient">Ambiente</SelectItem>
+                    </SelectContent>
+                  </Select>
+                </div>
+                <div className="space-y-1">
+                  <Label className="text-xs">Temperatura rilevata (°C)</Label>
+                  <Input
+                    type="number"
+                    step="0.1"
+                    value={headerTemperature}
+                    onChange={(e) => setHeaderTemperature(e.target.value)}
+                    placeholder={headerStorageMode === "frozen" ? "-20" : headerStorageMode === "refrigerated" ? "3.5" : "20"}
+                    className="font-mono"
+                    inputMode="decimal"
+                  />
+                </div>
+              </div>
+              <p className="text-[11px] text-muted-foreground">
+                Lascia vuoto per merci a temperatura ambiente o non deperibili: il salvataggio funziona comunque.
+              </p>
+            </div>
           </div>
         </div>
 
@@ -645,6 +819,28 @@ export default function Incoming() {
                 <Label htmlFor={`sel-${idx}`} className="text-xs font-semibold cursor-pointer flex-1">
                   Importa in archivio
                 </Label>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-blue-600 hover:text-blue-700 hover:bg-blue-50"
+                  onClick={() => openHistoryFor(idx)}
+                  title="Carica da storico prodotti già inseriti"
+                >
+                  <History size={14} /> Da ricorrente
+                </Button>
+                <Button
+                  type="button"
+                  variant="ghost"
+                  size="sm"
+                  className="h-7 gap-1 text-emerald-700 hover:text-emerald-800 hover:bg-emerald-50"
+                  onClick={() => openLineCamera(idx)}
+                  disabled={lineOcrIdx === idx}
+                  title="Fotografa l'etichetta: l'AI compila nome e ingredienti"
+                >
+                  {lineOcrIdx === idx ? <Loader2 className="animate-spin" size={14} /> : <Camera size={14} />}
+                  Etichetta
+                </Button>
                 {!isOperatorAdmin && (
                   <Button
                     type="button"
@@ -773,67 +969,33 @@ export default function Incoming() {
                   </div>
                 );
               })()}
-              {isCucina(line.departmentId) && (() => {
-                const tempNum = parseFloat(line.intakeTemperature.replace(",", "."));
-                const hasTemp = !Number.isNaN(tempNum);
-                const compliant = hasTemp && intakeIsCompliant(tempNum, line.intakeStorageMode);
-                return (
-                  <div className={`mt-3 p-3 rounded-md border space-y-2 ${hasTemp && !compliant ? "bg-rose-50 border-rose-300" : "bg-blue-50 border-blue-200"}`}>
-                    <Label className="text-xs font-semibold flex items-center gap-1.5">
-                      <Thermometer size={14} /> Temperatura di ingresso (Cucina)
-                    </Label>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-2">
-                      <div className="space-y-1">
-                        <Label className="text-xs">Modalità conservazione</Label>
-                        <Select
-                          value={line.intakeStorageMode}
-                          onValueChange={(v: any) => updateLine(idx, { intakeStorageMode: v })}
-                        >
-                          <SelectTrigger><SelectValue /></SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="refrigerated">Refrigerato (≤ +4°C)</SelectItem>
-                            <SelectItem value="frozen">Surgelato (≤ −18°C)</SelectItem>
-                            <SelectItem value="ambient">Ambiente</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="space-y-1">
-                        <Label className="text-xs">Temperatura rilevata (°C)</Label>
-                        <Input
-                          type="number"
-                          step="0.1"
-                          value={line.intakeTemperature}
-                          onChange={(e) => updateLine(idx, { intakeTemperature: e.target.value })}
-                          placeholder={line.intakeStorageMode === "frozen" ? "-20" : line.intakeStorageMode === "refrigerated" ? "3.5" : "20"}
-                          className="font-mono"
-                        />
-                      </div>
+              {/* Avviso conformità temperatura di TESTATA (mostrato una sola volta sulla prima riga) */}
+              {idx === 0 && headerTemperature.trim() && (() => {
+                const tn = parseFloat(headerTemperature.replace(",", "."));
+                if (Number.isNaN(tn)) return null;
+                const ok = intakeIsCompliant(tn, headerStorageMode);
+                return ok ? (
+                  <div className="mt-3 text-xs text-emerald-700 font-medium">✓ Temperatura di ingresso conforme</div>
+                ) : (
+                  <div className="mt-3 p-2 rounded-md bg-rose-50 border border-rose-300 flex flex-col sm:flex-row sm:items-center gap-2">
+                    <div className="flex-1 text-xs text-rose-900 flex items-start gap-1.5">
+                      <AlertTriangle size={14} className="shrink-0 mt-0.5" />
+                      <span>Temperatura di ingresso <strong>non conforme</strong> ({tn.toFixed(1)}°C) per la modalità selezionata. Apri una contestazione al fornitore.</span>
                     </div>
-                    {hasTemp && !compliant && (
-                      <div className="flex flex-col sm:flex-row sm:items-center gap-2 pt-1">
-                        <div className="flex-1 text-xs text-rose-900 flex items-start gap-1.5">
-                          <AlertTriangle size={14} className="shrink-0 mt-0.5" />
-                          <span>Temperatura <strong>non conforme</strong> per la modalità selezionata. Apri una contestazione al fornitore.</span>
-                        </div>
-                        <Button
-                          type="button"
-                          size="sm"
-                          variant="destructive"
-                          onClick={() => {
-                            setDisputeLineIdx(idx);
-                            setDisputeText(
-                              `Il prodotto "${line.productName || "—"}" (lotto fornitore ${line.supplierLot || "—"}) è stato consegnato a ${tempNum.toFixed(1)}°C, fuori dai limiti di conservazione ${line.intakeStorageMode === "refrigerated" ? "refrigerata (≤ +4°C)" : line.intakeStorageMode === "frozen" ? "surgelata (≤ −18°C)" : "ambiente"}.\nFornitore: ${supplierName || "—"}\nDocumento: ${documentNumber || "—"} del ${documentDate || "—"}.`
-                            );
-                            setDisputeOpen(true);
-                          }}
-                        >
-                          Apri contestazione
-                        </Button>
-                      </div>
-                    )}
-                    {hasTemp && compliant && (
-                      <div className="text-xs text-emerald-700 font-medium">✓ Conforme</div>
-                    )}
+                    <Button
+                      type="button"
+                      size="sm"
+                      variant="destructive"
+                      onClick={() => {
+                        setDisputeLineIdx(idx);
+                        setDisputeText(
+                          `Consegna fornitore "${supplierName || "—"}" — documento ${documentNumber || "—"} del ${documentDate || "—"}.\nTemperatura rilevata all'ingresso: ${tn.toFixed(1)}°C, fuori dai limiti di conservazione ${headerStorageMode === "refrigerated" ? "refrigerata (≤ +4°C)" : headerStorageMode === "frozen" ? "surgelata (≤ −18°C)" : "ambiente"}.`,
+                        );
+                        setDisputeOpen(true);
+                      }}
+                    >
+                      Apri contestazione
+                    </Button>
                   </div>
                 );
               })()}
@@ -940,6 +1102,77 @@ export default function Incoming() {
             >
               Registra contestazione
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Hidden file input shared by per-row "Etichetta" cameras */}
+      <input
+        ref={lineFileRef}
+        type="file"
+        accept="image/*"
+        capture="environment"
+        className="hidden"
+        onChange={onLineFile}
+      />
+
+      {/* Dialog "Carica da ricorrente" per singola riga (storico distinto) */}
+      <Dialog open={historyLineIdx != null} onOpenChange={(o) => { if (!o) setHistoryLineIdx(null); }}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Carica prodotto da storico</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-2">
+            <div className="relative">
+              <Search size={14} className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground" />
+              <Input
+                autoFocus
+                placeholder="Cerca per nome prodotto…"
+                value={historySearch}
+                onChange={(e) => setHistorySearch(e.target.value)}
+                className="pl-9"
+              />
+            </div>
+            <div className="max-h-[50vh] overflow-auto space-y-1">
+              {historyLoading ? (
+                <div className="flex items-center gap-2 text-sm text-muted-foreground py-6 justify-center">
+                  <Loader2 className="animate-spin" size={14} /> Caricamento storico…
+                </div>
+              ) : (historyOptions ?? []).length === 0 ? (
+                <div className="text-sm text-muted-foreground italic py-6 text-center">
+                  Nessun prodotto nello storico ancora.
+                </div>
+              ) : (
+                (historyOptions ?? [])
+                  .filter((o) => {
+                    const q = historySearch.trim().toLowerCase();
+                    if (!q) return true;
+                    return o.product_name.toLowerCase().includes(q)
+                      || (o.last_supplier ?? "").toLowerCase().includes(q);
+                  })
+                  .slice(0, 200)
+                  .map((o) => (
+                    <button
+                      key={o.product_name}
+                      type="button"
+                      onClick={() => applyHistoryToLine(o)}
+                      className="w-full text-left px-2 py-2 rounded-md hover:bg-muted transition"
+                    >
+                      <div className="text-sm font-medium truncate">{o.product_name}</div>
+                      <div className="text-[11px] text-muted-foreground truncate">
+                        {o.last_supplier || "—"}
+                        {o.ingredients ? <> · ingredienti memorizzati</> : null}
+                      </div>
+                    </button>
+                  ))
+              )}
+            </div>
+            <p className="text-[11px] text-muted-foreground">
+              Verranno compilati nome, categoria, ingredienti e origine. Lotto fornitore e scadenza restano vuoti per l'inserimento manuale.
+            </p>
+          </div>
+          <DialogFooter>
+            <Button variant="ghost" onClick={() => setHistoryLineIdx(null)}>Chiudi</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
