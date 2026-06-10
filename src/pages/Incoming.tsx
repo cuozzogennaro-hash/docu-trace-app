@@ -606,9 +606,8 @@ export default function Incoming() {
           <div className="flex flex-wrap items-center gap-2">
             <Button
               type="button"
-              variant="outline"
               size="sm"
-              className="gap-2 border-accent/40 text-accent-foreground bg-accent/10 hover:bg-accent/20"
+              className="gap-2 bg-accent text-accent-foreground hover:bg-accent/90 shadow-sm"
               onClick={() => {
                 if (!departmentId) { toast.error("Seleziona prima il reparto"); return; }
                 fileRef.current?.click();
