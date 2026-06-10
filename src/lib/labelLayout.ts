@@ -34,8 +34,12 @@ export type LabelData = {
   extraLines?: string[];
   /** "Da consumarsi entro: ..." opzionale (in grassetto, sopra footer). */
   expiryLine?: string;
+  /** Alias semantico usato da alcuni callsite: data scadenza già salvata. */
+  expiryDate?: string | null;
   /** Fallback DB usato dal dialog se `expiryLine` non è già formattata. */
   internal_expiry?: string | null;
+  /** Alias camelCase del campo DB dei preparati. */
+  internalExpiry?: string | null;
   /** Fallback DB usato dal dialog se `expiryLine` non è già formattata. */
   expiry_date?: string | null;
   /** "Contiene: latte, uova..." opzionale (in grassetto). */

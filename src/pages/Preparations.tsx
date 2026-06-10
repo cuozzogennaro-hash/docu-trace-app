@@ -186,6 +186,7 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           operator_id: op.id,
           name,
           production_date: new Date(preparedAt).toISOString().slice(0, 10),
+          expiry_date: new Date(expiry).toISOString().slice(0, 10),
           internal_lot: lot,
           department_id: departmentId,
           preservation_type: storage === "freezer" ? "surgelato" : storage === "ambiente" ? "fresh" : "refrigerato",
@@ -547,14 +548,15 @@ export default function Preparations({ embedded = false, departmentId }: { embed
           storageType === "freezer"
             ? "Da consumarsi preferibilmente entro il"
             : "Da consumarsi entro il";
-        const scadenzaValue = formatDateDDMMYY(printItem.internal_expiry);
+        const scadenzaValue = printItem.internal_expiry ? formatDateDDMMYY(printItem.internal_expiry) : undefined;
+        const expiryLine = printItem.internal_expiry ? `${scadenzaLabel}: ${scadenzaValue}` : undefined;
         console.info("[Preparations label debug] Prima di TemplatedLabelDialog", {
           id: printItem.id,
           name: printItem.name,
           internal_expiry: printItem.internal_expiry,
           scadenzaLabel,
           scadenzaValue,
-          expiryLine: `${scadenzaLabel}: ${scadenzaValue}`,
+          expiryLine,
         });
         // Estrae il lotto dalle notes (es. "...Lotto R-26-...")
         const lotMatch = (printItem.notes || "").match(/Lotto\s+([A-Z0-9-]+)/i);
@@ -572,9 +574,10 @@ export default function Preparations({ embedded = false, departmentId }: { embed
               companyAddress: [company.address, company.city].filter(Boolean).join(" — ") || undefined,
               productionDate: formatDateDDMMYY(printItem.prepared_at),
               internal_expiry: printItem.internal_expiry,
+              expiryDate: printItem.internal_expiry,
               internalLot,
               ingredientsText: ingredientsCombined || undefined,
-              expiryLine: `${scadenzaLabel}: ${scadenzaValue}`,
+              expiryLine,
               extraLines,
               highlightAllergens: allergenNames,
             }}

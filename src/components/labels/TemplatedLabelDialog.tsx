@@ -71,8 +71,16 @@ export default function TemplatedLabelDialog({
   const native = isNativeApp();
 
   const normalizedData = useMemo<LabelData>(() => {
-    const fallbackExpiry = (data as LabelData & { internal_expiry?: string | null; expiry_date?: string | null }).internal_expiry
-      || (data as LabelData & { internal_expiry?: string | null; expiry_date?: string | null }).expiry_date;
+    const raw = data as LabelData & {
+      internal_expiry?: string | null;
+      internalExpiry?: string | null;
+      expiry_date?: string | null;
+      expiryDate?: string | null;
+    };
+    const fallbackExpiry = raw.internal_expiry
+      || raw.internalExpiry
+      || raw.expiry_date
+      || raw.expiryDate;
     const expiryLine = data.expiryLine?.trim()
       ? data.expiryLine.trim()
       : fallbackExpiry
@@ -81,11 +89,13 @@ export default function TemplatedLabelDialog({
     console.info("[TemplatedLabelDialog label debug] Normalizzazione prop scadenza", {
       productName: data.productName,
       rawExpiryLine: data.expiryLine,
+      internal_expiry: raw.internal_expiry,
+      internalExpiry: raw.internalExpiry,
       fallbackExpiry,
       normalizedExpiryLine: expiryLine,
       isUndefinedOrNull: expiryLine == null,
     });
-    return { ...data, expiryLine };
+    return { ...data, internal_expiry: raw.internal_expiry || fallbackExpiry || null, expiryLine };
   }, [data]);
 
   useEffect(() => {
