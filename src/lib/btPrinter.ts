@@ -246,9 +246,11 @@ async function findWritableCharacteristic(deviceId: string) {
 export async function pickAndConnectPrinter(): Promise<SavedPrinter> {
   await BleClient.initialize({ androidNeverForLocation: true });
   const device: BleDevice = await BleClient.requestDevice({
-    services: KNOWN_WRITE_SERVICES,
+    // Su Web Bluetooth servono filters non vuoti OPPURE acceptAllDevices.
+    // Usiamo acceptAllDevices così l'utente vede tutte le stampanti BLE
+    // anche se non advertisano i service UUID noti.
+    acceptAllDevices: true,
     optionalServices: KNOWN_WRITE_SERVICES,
-    namePrefix: "",
   });
   await BleClient.connect(device.deviceId, () => { /* on disconnect */ });
   const { service, characteristic } = await findWritableCharacteristic(device.deviceId);
