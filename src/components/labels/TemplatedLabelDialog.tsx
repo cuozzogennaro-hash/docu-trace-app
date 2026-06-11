@@ -320,15 +320,17 @@ ${labelsHtml}
                     <Printer size={16} /> Stampa di sistema
                   </Button>
                 )}
-                <Button
-                  onClick={handleBluetooth}
-                  disabled={printing || overflow}
-                  variant="secondary"
-                  className={`w-full gap-2 ${native ? "sm:col-span-2" : ""}`}
-                >
-                  {printing ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
-                  Stampa Bluetooth
-                </Button>
+                {native && (
+                  <Button
+                    onClick={handleBluetooth}
+                    disabled={printing || overflow}
+                    variant="secondary"
+                    className="w-full gap-2 sm:col-span-2"
+                  >
+                    {printing ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
+                    Stampa Bluetooth
+                  </Button>
+                )}
               </div>
 
               {overflow && (
