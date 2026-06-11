@@ -10,7 +10,7 @@ import {
  * ESC/POS Bluetooth printer helper for thermal label/receipt printers
  * (Xprinter, Munbyn, Rongta, HPRT, ecc.).
  *
- * Funziona solo su app nativa (Capacitor). Su web il pulsante BT è nascosto.
+ * Funziona sia in app nativa sia da browser compatibili con Web Bluetooth.
  */
 
 export const isNativeApp = () => Capacitor.isNativePlatform();
@@ -20,12 +20,14 @@ export const isNativeApp = () => Capacitor.isNativePlatform();
 // Munbyn, Rongta RPP, HPRT, ecc.).
 const KNOWN_WRITE_SERVICES = [
   "0000ff00-0000-1000-8000-00805f9b34fb",
+  "0000ffe0-0000-1000-8000-00805f9b34fb",
   "000018f0-0000-1000-8000-00805f9b34fb",
   "0000fee7-0000-1000-8000-00805f9b34fb",
   "49535343-fe7d-4ae5-8fa9-9fafd205e455",
 ];
 const KNOWN_WRITE_CHARS = [
   "0000ff02-0000-1000-8000-00805f9b34fb",
+  "0000ffe1-0000-1000-8000-00805f9b34fb",
   "00002af1-0000-1000-8000-00805f9b34fb",
   "0000fee8-0000-1000-8000-00805f9b34fb",
   "49535343-8841-43f4-a8d4-ecbe34729bb3",
@@ -246,14 +248,20 @@ async function findWritableCharacteristic(deviceId: string) {
 export async function pickAndConnectPrinter(): Promise<SavedPrinter> {
   await BleClient.initialize({ androidNeverForLocation: true });
   const device: BleDevice = await BleClient.requestDevice({
-    // Filtra per i service UUID noti delle stampanti termiche BLE.
-    // NB: `namePrefix: ""` non è ammesso da Web Bluetooth, quindi lo omettiamo.
-    services: KNOWN_WRITE_SERVICES,
+    // Su web molte stampanti non pubblicizzano i service nell'advertising:
+    // filtrare per UUID le nasconde dal popup. Lasciamo quindi la scelta aperta
+    // e chiediamo l'accesso ai service noti per poter scrivere dopo il pairing.
     optionalServices: KNOWN_WRITE_SERVICES,
   });
   await BleClient.connect(device.deviceId, () => { /* on disconnect */ });
   const { service, characteristic } = await findWritableCharacteristic(device.deviceId);
-  const saved: SavedPrinter = { deviceId: device.deviceId, name: device.name, service, characteristic };
+  const saved: SavedPrinter = {
+    deviceId: device.deviceId,
+    name: device.name,
+    service,
+    characteristic,
+    model: detectPrinterModel(device.name),
+  };
   saveSavedPrinter(saved);
   return saved;
 }
