@@ -8,6 +8,8 @@ import { toast } from "sonner";
 import {
   scanForPrinters,
   connectAndSavePrinter,
+  pickAndConnectPrinter,
+  isNativeApp,
   type DiscoveredDevice,
   type SavedPrinter,
 } from "@/lib/btPrinter";
@@ -24,8 +26,28 @@ export default function BluetoothPrinterPicker({ open, onOpenChange, onPicked }:
   const [connecting, setConnecting] = useState<string | null>(null);
   const [onlyPrinters, setOnlyPrinters] = useState(true);
   const [stopFn, setStopFn] = useState<null | (() => Promise<void>)>(null);
+  const native = isNativeApp();
 
   async function startScan() {
+    if (!native) {
+      // Web Bluetooth non supporta lo scan continuo: usa il chooser del browser.
+      try {
+        setConnecting("web");
+        const saved = await pickAndConnectPrinter();
+        toast.success(`Stampante collegata: ${saved.name || saved.deviceId}`);
+        onPicked(saved);
+        onOpenChange(false);
+      } catch (e: any) {
+        console.error("web bt error", e);
+        if (!/cancell/i.test(e?.message || "")) {
+          toast.error(e?.message || "Connessione Bluetooth fallita. Su web serve Chrome/Edge con Bluetooth attivo.");
+        }
+        onOpenChange(false);
+      } finally {
+        setConnecting(null);
+      }
+      return;
+    }
     setDevices([]);
     setScanning(true);
     try {
