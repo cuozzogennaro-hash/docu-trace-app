@@ -118,7 +118,9 @@ export default function BluetoothPrinterPicker({ open, onOpenChange, onPicked }:
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2"><Bluetooth size={18} /> Cerca stampante</DialogTitle>
           <DialogDescription>
-            Accendi la stampante e attendi che venga rilevata. Tocca il dispositivo per collegarlo.
+            {native
+              ? "Accendi la stampante e attendi che venga rilevata. Tocca il dispositivo per collegarlo."
+              : "Si aprirà la finestra Bluetooth del browser. Scegli la stampante dall’elenco dei dispositivi vicini."}
           </DialogDescription>
         </DialogHeader>
 
