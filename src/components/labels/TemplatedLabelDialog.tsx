@@ -210,10 +210,6 @@ ${labelsHtml}
 
   async function handleBluetooth() {
     if (!current) { toast.error("Nessun template etichetta configurato"); return; }
-    if (!native) {
-      toast.error("Stampa Bluetooth disponibile solo nell'app mobile.");
-      return;
-    }
     const saved = getSavedPrinter();
     if (!saved) {
       setPendingPrint(true);
@@ -320,17 +316,15 @@ ${labelsHtml}
                     <Printer size={16} /> Stampa di sistema
                   </Button>
                 )}
-                {native && (
-                  <Button
-                    onClick={handleBluetooth}
-                    disabled={printing || overflow}
-                    variant="secondary"
-                    className="w-full gap-2 sm:col-span-2"
-                  >
-                    {printing ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
-                    Stampa Bluetooth
-                  </Button>
-                )}
+                <Button
+                  onClick={handleBluetooth}
+                  disabled={printing || overflow}
+                  variant="secondary"
+                  className={`w-full gap-2 ${native ? "sm:col-span-2" : ""}`}
+                >
+                  {printing ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
+                  Stampa Bluetooth
+                </Button>
               </div>
 
               {overflow && (
@@ -347,7 +341,7 @@ ${labelsHtml}
                 </div>
               )}
 
-              {native && (
+              {(
                 <div className="rounded-md border bg-muted/40 p-2 text-xs flex items-center gap-2 flex-wrap">
                   <Bluetooth size={14} className="shrink-0" />
                   {savedBt ? (
