@@ -28,6 +28,27 @@ jobs:
       - name: Build Web App
         run: npm run build
 
+      - name: Fix App ID for iOS release
+        run: |
+          cat << 'EOF' > fix-app-id.js
+          const fs = require('fs');
+          const files = ['capacitor.config.ts', 'capacitor.config.json'];
+          files.forEach(file => {
+            if (fs.existsSync(file)) {
+              let content = fs.readFileSync(file, 'utf8');
+              if (file.endsWith('.ts')) {
+                content = content.replace(/appId:\s*['"][^'"]+['"]/, "appId: 'com.docutrace.app'");
+              } else {
+                content = content.replace(/"appId"\s*:\s*"[^"]+"/, '"appId": "com.docutrace.app"');
+              }
+              fs.writeFileSync(file, content);
+              console.log(`Updated ${file} to use com.docutrace.app`);
+            }
+          });
+          EOF
+          node fix-app-id.js
+          rm fix-app-id.js
+
       - name: Add and Sync Capacitor iOS
         run: |
           npx cap add ios
