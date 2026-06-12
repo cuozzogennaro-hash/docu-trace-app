@@ -28,8 +28,10 @@ jobs:
       - name: Build Web App
         run: npm run build
 
-      - name: Sync Capacitor iOS
-        run: npx cap sync ios
+      - name: Add and Sync Capacitor iOS
+        run: |
+          npx cap add ios
+          npx cap sync ios
 
       - name: Setup App Store Connect API Private Key
         run: |
