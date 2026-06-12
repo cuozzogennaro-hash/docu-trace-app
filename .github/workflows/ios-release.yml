@@ -30,7 +30,7 @@ jobs:
 
       - name: Fix App ID for iOS release
         run: |
-          cat << 'EOF' > fix-app-id.js
+          cat << 'EOF' > fix-app-id.cjs
           const fs = require('fs');
           const files = ['capacitor.config.ts', 'capacitor.config.json'];
           files.forEach(file => {
@@ -46,8 +46,8 @@ jobs:
             }
           });
           EOF
-          node fix-app-id.js
-          rm fix-app-id.js
+          node fix-app-id.cjs
+          rm fix-app-id.cjs
 
       - name: Add and Sync Capacitor iOS
         run: |
