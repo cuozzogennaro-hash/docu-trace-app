@@ -53,6 +53,8 @@ jobs:
         run: |
           npx cap add ios
           npx cap sync ios
+          cd ios/App
+          pod install
 
       - name: Setup App Store Connect API Private Key
         run: |
