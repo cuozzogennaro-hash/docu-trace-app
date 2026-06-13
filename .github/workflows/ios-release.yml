@@ -88,6 +88,34 @@ jobs:
           ruby add-plist.rb
           rm add-plist.rb
 
+      - name: Patch AppDelegate.swift to initialize Firebase
+        run: |
+          APPDELEGATE=ios/App/App/AppDelegate.swift
+          if ! grep -q "import FirebaseCore" "$APPDELEGATE"; then
+            # Add `import FirebaseCore` right after `import UIKit`
+            sed -i '' 's/^import UIKit$/import UIKit\nimport FirebaseCore/' "$APPDELEGATE"
+            echo "Added 'import FirebaseCore' to AppDelegate.swift"
+          fi
+          if ! grep -q "FirebaseApp.configure" "$APPDELEGATE"; then
+            # Insert FirebaseApp.configure() as the first line of didFinishLaunchingWithOptions
+            python3 - << 'PY'
+          import re, pathlib
+          p = pathlib.Path("ios/App/App/AppDelegate.swift")
+          src = p.read_text()
+          pattern = re.compile(
+              r"(func application\(_ application: UIApplication, didFinishLaunchingWithOptions[^\{]*\{)",
+              re.MULTILINE,
+          )
+          new_src, n = pattern.subn(r"\1\n        FirebaseApp.configure()", src, count=1)
+          if n == 0:
+              raise SystemExit("Could not find didFinishLaunchingWithOptions in AppDelegate.swift")
+          p.write_text(new_src)
+          print("Inserted FirebaseApp.configure() into AppDelegate.swift")
+          PY
+          fi
+          echo "--- AppDelegate.swift ---"
+          cat "$APPDELEGATE"
+
       - name: Setup App Store Connect API Private Key
         run: |
           mkdir -p ~/private_keys
