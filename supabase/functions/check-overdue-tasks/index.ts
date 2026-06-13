@@ -236,12 +236,11 @@ Deno.serve(async (req) => {
     // Get unique operator_ids from overdue tasks
     const operatorIds = [...new Set(tasksToNotify.map((t) => t.operator_id))];
 
-    // Get push tokens for those operators
+    // Get push tokens for those operators (web + native)
     const { data: operators, error: opError } = await supabase
       .from("operators")
-      .select("id, push_token")
-      .in("id", operatorIds)
-      .not("push_token", "is", null);
+      .select("id, push_token, native_push_token, native_platform")
+      .in("id", operatorIds);
 
     if (opError) {
       console.error("Error fetching operators:", opError);
@@ -252,21 +251,34 @@ Deno.serve(async (req) => {
     }
 
     const tokenMap = new Map<string, any>();
+    const nativeTokenMap = new Map<string, { token: string; platform: string | null }>();
     for (const p of operators || []) {
       if (p.push_token) tokenMap.set(p.id, p.push_token);
+      if ((p as any).native_push_token) {
+        nativeTokenMap.set(p.id, {
+          token: (p as any).native_push_token,
+          platform: (p as any).native_platform ?? null,
+        });
+      }
     }
 
     // Admin push tokens
     const adminUserIds = [...new Set(tasksToNotify.map((t) => t.user_id).filter(Boolean))];
     const adminTokenMap = new Map<string, any>();
+    const adminNativeTokenMap = new Map<string, { token: string; platform: string | null }>();
     if (adminUserIds.length > 0) {
       const { data: profiles } = await supabase
         .from("profiles")
-        .select("id, push_token")
-        .in("id", adminUserIds)
-        .not("push_token", "is", null);
+        .select("id, push_token, native_push_token, native_platform")
+        .in("id", adminUserIds);
       for (const p of profiles || []) {
         if (p.push_token) adminTokenMap.set(p.id, p.push_token);
+        if ((p as any).native_push_token) {
+          adminNativeTokenMap.set(p.id, {
+            token: (p as any).native_push_token,
+            platform: (p as any).native_platform ?? null,
+          });
+        }
       }
     }
 
