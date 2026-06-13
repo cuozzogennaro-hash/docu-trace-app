@@ -40,6 +40,101 @@ async function sendWebPush(subscription: any, payload: string, vapidPrivateKey: 
   await webpush.sendNotification(subscription, payload);
 }
 
+// ===== FCM HTTP v1 helpers =====
+let cachedFcmToken: { token: string; exp: number } | null = null;
+
+function pemToArrayBuffer(pem: string): ArrayBuffer {
+  const b64 = pem
+    .replace(/-----BEGIN [^-]+-----/g, "")
+    .replace(/-----END [^-]+-----/g, "")
+    .replace(/\s+/g, "");
+  const bin = atob(b64);
+  const buf = new Uint8Array(bin.length);
+  for (let i = 0; i < bin.length; i++) buf[i] = bin.charCodeAt(i);
+  return buf.buffer;
+}
+
+function b64url(bytes: Uint8Array | string): string {
+  const str = typeof bytes === "string" ? bytes : String.fromCharCode(...bytes);
+  return btoa(str).replace(/=+$/g, "").replace(/\+/g, "-").replace(/\//g, "_");
+}
+
+async function getFcmAccessToken(sa: any): Promise<string> {
+  const now = Math.floor(Date.now() / 1000);
+  if (cachedFcmToken && cachedFcmToken.exp - 60 > now) return cachedFcmToken.token;
+
+  const header = { alg: "RS256", typ: "JWT" };
+  const claim = {
+    iss: sa.client_email,
+    scope: "https://www.googleapis.com/auth/firebase.messaging",
+    aud: "https://oauth2.googleapis.com/token",
+    iat: now,
+    exp: now + 3600,
+  };
+  const enc = (o: unknown) => b64url(JSON.stringify(o));
+  const unsigned = `${enc(header)}.${enc(claim)}`;
+
+  const key = await crypto.subtle.importKey(
+    "pkcs8",
+    pemToArrayBuffer(sa.private_key),
+    { name: "RSASSA-PKCS1-v1_5", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const sig = new Uint8Array(
+    await crypto.subtle.sign("RSASSA-PKCS1-v1_5", key, new TextEncoder().encode(unsigned)),
+  );
+  const jwt = `${unsigned}.${b64url(sig)}`;
+
+  const resp = await fetch("https://oauth2.googleapis.com/token", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({
+      grant_type: "urn:ietf:params:oauth:grant-type:jwt-bearer",
+      assertion: jwt,
+    }),
+  });
+  if (!resp.ok) throw new Error(`FCM token exchange failed: ${resp.status} ${await resp.text()}`);
+  const data = await resp.json();
+  cachedFcmToken = { token: data.access_token, exp: now + (data.expires_in ?? 3600) };
+  return cachedFcmToken.token;
+}
+
+async function sendFcmV1(
+  sa: any,
+  deviceToken: string,
+  platform: string | null,
+  title: string,
+  body: string,
+  data: Record<string, string> = {},
+): Promise<void> {
+  const accessToken = await getFcmAccessToken(sa);
+  const message: any = {
+    token: deviceToken,
+    notification: { title, body },
+    data,
+  };
+  if (platform === "ios") {
+    message.apns = { payload: { aps: { sound: "default", badge: 1 } } };
+  } else if (platform === "android") {
+    message.android = { priority: "HIGH", notification: { sound: "default" } };
+  }
+  const resp = await fetch(
+    `https://fcm.googleapis.com/v1/projects/${sa.project_id}/messages:send`,
+    {
+      method: "POST",
+      headers: {
+        Authorization: `Bearer ${accessToken}`,
+        "Content-Type": "application/json",
+      },
+      body: JSON.stringify({ message }),
+    },
+  );
+  if (!resp.ok) {
+    throw new Error(`FCM send failed: ${resp.status} ${await resp.text()}`);
+  }
+}
+
 Deno.serve(async (req) => {
   if (req.method === "OPTIONS") {
     return new Response("ok", { headers: corsHeaders });
@@ -50,6 +145,15 @@ Deno.serve(async (req) => {
     const serviceRoleKey = Deno.env.get("SUPABASE_SERVICE_ROLE_KEY")!;
     const vapidPublicKey = Deno.env.get("VAPID_PUBLIC_KEY")!;
     const vapidPrivateKey = Deno.env.get("VAPID_PRIVATE_KEY")!;
+    const firebaseSaRaw = Deno.env.get("FIREBASE_SERVICE_ACCOUNT");
+    let firebaseSa: any = null;
+    if (firebaseSaRaw) {
+      try {
+        firebaseSa = JSON.parse(firebaseSaRaw);
+      } catch (e) {
+        console.error("Invalid FIREBASE_SERVICE_ACCOUNT JSON:", (e as Error).message);
+      }
+    }
 
     const supabase = createClient(supabaseUrl, serviceRoleKey);
 
