@@ -326,6 +326,24 @@ Deno.serve(async (req) => {
         }
       }
 
+      const nativeOp = nativeTokenMap.get(task.operator_id);
+      if (nativeOp && firebaseSa) {
+        try {
+          await sendFcmV1(
+            firebaseSa,
+            nativeOp.token,
+            nativeOp.platform,
+            "DocuTrace HACCP",
+            `⚠️ ${taskLabel} scaduta per ${assetName} (ore ${task.due_time})`,
+            { url: "/", task_id: task.id },
+          );
+          sent++;
+          taskNotified = true;
+        } catch (pushErr: any) {
+          console.error("FCM send error (operator):", pushErr?.message || pushErr);
+        }
+      }
+
       const adminSub = adminTokenMap.get(task.user_id);
       if (adminSub) {
         const adminPayload = JSON.stringify({
@@ -339,6 +357,24 @@ Deno.serve(async (req) => {
           taskNotified = true;
         } catch (pushErr: any) {
           console.error("Push send error (admin):", pushErr?.message || pushErr);
+        }
+      }
+
+      const nativeAdmin = adminNativeTokenMap.get(task.user_id);
+      if (nativeAdmin && firebaseSa) {
+        try {
+          await sendFcmV1(
+            firebaseSa,
+            nativeAdmin.token,
+            nativeAdmin.platform,
+            "DocuTrace HACCP",
+            `⚠️ ${opName} non ha eseguito ${taskLabel.toLowerCase()} per ${assetName} (ore ${task.due_time})`,
+            { url: "/", task_id: task.id },
+          );
+          sent++;
+          taskNotified = true;
+        } catch (pushErr: any) {
+          console.error("FCM send error (admin):", pushErr?.message || pushErr);
         }
       }
 
