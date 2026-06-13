@@ -1,0 +1,29 @@
+{
+  "project_info": {
+    "project_number": "683478047156",
+    "project_id": "haccp-trace-53aed",
+    "storage_bucket": "haccp-trace-53aed.firebasestorage.app"
+  },
+  "client": [
+    {
+      "client_info": {
+        "mobilesdk_app_id": "1:683478047156:android:8bac958ee690dc746e3ae1",
+        "android_client_info": {
+          "package_name": "com.docutrace.app"
+        }
+      },
+      "oauth_client": [],
+      "api_key": [
+        {
+          "current_key": "AIzaSyAzSENC1VrHSCLuv81DW8GNVTrQIWyg2tc"
+        }
+      ],
+      "services": {
+        "appinvite_service": {
+          "other_platform_oauth_client": []
+        }
+      }
+    }
+  ],
+  "configuration_version": "1"
+}
