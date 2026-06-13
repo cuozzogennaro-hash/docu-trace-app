@@ -6,8 +6,13 @@ import { useOperatorSession } from "@/hooks/useOperatorSession";
 
 /**
  * On native platforms (iOS/Android) request push permission, register with
- * APNs/FCM, and persist the resulting token in the database against either
- * the active operator or the logged-in admin profile.
+ * APNs/FCM via Firebase, and persist the resulting **FCM token** in the
+ * database against either the active operator or the logged-in admin profile.
+ *
+ * On iOS we still call @capacitor/push-notifications#register() so the system
+ * asks for permission and registers the device with APNs. Firebase's iOS SDK
+ * then swizzles the APNs delegate, exchanges the APNs token for an FCM token,
+ * and we read that token via @capacitor-firebase/messaging#getToken().
  *
  * This hook is a no-op on web — Web Push is still handled by
  * NotificationBanner.
@@ -25,6 +30,7 @@ export function useNativePushNotifications() {
     (async () => {
       try {
         const { PushNotifications } = await import("@capacitor/push-notifications");
+        const { FirebaseMessaging } = await import("@capacitor-firebase/messaging");
         const platform = Capacitor.getPlatform(); // 'ios' | 'android'
 
         let perm = await PushNotifications.checkPermissions();
@@ -38,9 +44,8 @@ export function useNativePushNotifications() {
 
         await PushNotifications.removeAllListeners();
 
-        await PushNotifications.addListener("registration", async (token) => {
-          if (cancelled) return;
-          const value = token.value;
+        const saveFcmToken = async (value: string) => {
+          if (cancelled || !value) return;
           try {
             if (operator) {
               await supabase.rpc("save_operator_native_push_token", {
@@ -55,8 +60,21 @@ export function useNativePushNotifications() {
                 .update({ native_push_token: value, native_platform: platform } as any)
                 .eq("id", user.id);
             }
+            console.log("[push] saved FCM token");
           } catch (err) {
-            console.error("[push] failed to save native token:", err);
+            console.error("[push] failed to save FCM token:", err);
+          }
+        };
+
+        // When APNs (iOS) or FCM (Android) returns a device token, fetch the
+        // matching FCM token from Firebase and store THAT (not the raw APNs
+        // token, which the FCM HTTP v1 API does not accept).
+        await PushNotifications.addListener("registration", async () => {
+          try {
+            const { token } = await FirebaseMessaging.getToken();
+            await saveFcmToken(token);
+          } catch (err) {
+            console.error("[push] FirebaseMessaging.getToken failed:", err);
           }
         });
 
@@ -69,6 +87,16 @@ export function useNativePushNotifications() {
         });
 
         await PushNotifications.register();
+
+        // Also listen for token refresh events from Firebase directly.
+        try {
+          await FirebaseMessaging.removeAllListeners();
+          await FirebaseMessaging.addListener("tokenReceived", (event: { token: string }) => {
+            saveFcmToken(event.token);
+          });
+        } catch (err) {
+          console.warn("[push] FirebaseMessaging listener setup failed:", err);
+        }
       } catch (err) {
         console.error("[push] init failed:", err);
       }
