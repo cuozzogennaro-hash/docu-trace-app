@@ -242,7 +242,10 @@ export default function AppShell() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0 flex flex-col">
-              <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
+              <div
+                className="flex items-center gap-3 px-4 py-5 border-b border-border"
+                style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.25rem)" }}
+              >
                 <img src={logoShield} alt="HACCP Trace" className="h-10 w-10 rounded-xl object-contain bg-white" />
                 <div>
                   <div className="font-display font-bold">HACCP Trace</div>
