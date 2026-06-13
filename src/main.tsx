@@ -2,8 +2,14 @@ import { createRoot } from "react-dom/client";
 import App from "./App.tsx";
 import "./index.css";
 import "./i18n";
+import { bootstrapNativePush } from "./lib/nativePushBootstrap";
 
 createRoot(document.getElementById("root")!).render(<App />);
+
+// On native iOS/Android, request notification permission and initialize
+// Firebase Messaging as early as possible so the system prompt is shown
+// to the user on first launch (independently of login state).
+bootstrapNativePush();
 
 // Register service worker at startup so push notifications work even when the app is closed
 if ("serviceWorker" in navigator) {
