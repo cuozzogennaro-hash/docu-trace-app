@@ -176,7 +176,13 @@ export default function AppShell() {
   return (
     <div className="min-h-screen bg-gradient-surface">
       {/* Desktop sidebar */}
-      <aside className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border p-4 shadow-soft overflow-y-auto">
+      <aside
+        className="hidden lg:flex fixed left-0 top-0 bottom-0 w-64 flex-col bg-card border-r border-border p-4 shadow-soft overflow-y-auto"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 1rem)",
+          paddingLeft: "calc(env(safe-area-inset-left, 0px) + 1rem)",
+        }}
+      >
         <div className="flex items-center gap-3 px-2 py-3 mb-4">
           <img src={logoShield} alt="HACCP Trace" className="h-10 w-10 rounded-xl object-contain bg-white" />
           <div>
@@ -220,7 +226,14 @@ export default function AppShell() {
       </aside>
 
       {/* Mobile header */}
-      <header className="lg:hidden sticky top-0 z-20 bg-card/90 backdrop-blur border-b border-border px-3 py-3 flex items-center justify-between shadow-soft">
+      <header
+        className="lg:hidden sticky top-0 z-20 bg-card/90 backdrop-blur border-b border-border px-3 py-3 flex items-center justify-between shadow-soft"
+        style={{
+          paddingTop: "calc(env(safe-area-inset-top, 0px) + 0.75rem)",
+          paddingLeft: "calc(env(safe-area-inset-left, 0px) + 0.75rem)",
+          paddingRight: "calc(env(safe-area-inset-right, 0px) + 0.75rem)",
+        }}
+      >
         <div className="flex items-center gap-2">
           <Sheet open={mobileMenuOpen} onOpenChange={setMobileMenuOpen}>
             <SheetTrigger asChild>
@@ -229,7 +242,10 @@ export default function AppShell() {
               </Button>
             </SheetTrigger>
             <SheetContent side="left" className="w-72 p-0 flex flex-col">
-              <div className="flex items-center gap-3 px-4 py-5 border-b border-border">
+              <div
+                className="flex items-center gap-3 px-4 py-5 border-b border-border"
+                style={{ paddingTop: "calc(env(safe-area-inset-top, 0px) + 1.25rem)" }}
+              >
                 <img src={logoShield} alt="HACCP Trace" className="h-10 w-10 rounded-xl object-contain bg-white" />
                 <div>
                   <div className="font-display font-bold">HACCP Trace</div>
