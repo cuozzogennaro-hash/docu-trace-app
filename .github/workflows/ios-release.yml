@@ -116,6 +116,53 @@ jobs:
           echo "--- AppDelegate.swift ---"
           cat "$APPDELEGATE"
 
+      - name: Enable Push Notifications capability and entitlements
+        run: |
+          ENT_PATH=ios/App/App/App.entitlements
+          cat > "$ENT_PATH" << 'PLIST'
+          <?xml version="1.0" encoding="UTF-8"?>
+          <!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+          <plist version="1.0">
+          <dict>
+            <key>aps-environment</key>
+            <string>production</string>
+          </dict>
+          </plist>
+          PLIST
+          echo "--- App.entitlements ---"
+          cat "$ENT_PATH"
+
+          cat << 'RUBY' > add-entitlements.rb
+          require 'xcodeproj'
+          project_path = 'ios/App/App.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+          target  = project.targets.find { |t| t.name == 'App' }
+          group   = project.main_group.find_subpath('App', true)
+          ent_file = 'App.entitlements'
+
+          unless group.files.any? { |f| f.path == ent_file }
+            group.new_reference(ent_file)
+            puts "Added #{ent_file} reference to project"
+          end
+
+          target.build_configurations.each do |config|
+            config.build_settings['CODE_SIGN_ENTITLEMENTS'] = 'App/App.entitlements'
+          end
+
+          # Register the Push Notifications system capability so Xcode/App Store
+          # Connect recognize the entitlement during signing.
+          root = project.root_object
+          attrs = root.attributes['TargetAttributes'] ||= {}
+          tattr = attrs[target.uuid] ||= {}
+          caps  = tattr['SystemCapabilities'] ||= {}
+          caps['com.apple.Push'] = { 'enabled' => 1 }
+
+          project.save
+          puts "Push Notifications capability enabled"
+          RUBY
+          ruby add-entitlements.rb
+          rm add-entitlements.rb
+
       - name: Setup App Store Connect API Private Key
         run: |
           mkdir -p ~/private_keys
