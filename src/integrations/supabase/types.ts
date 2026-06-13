@@ -658,6 +658,8 @@ export type Database = {
           is_admin: boolean
           login_handle: string
           name: string
+          native_platform: string | null
+          native_push_token: string | null
           pin_hash: string
           push_token: Json | null
           role: string | null
@@ -673,6 +675,8 @@ export type Database = {
           is_admin?: boolean
           login_handle: string
           name: string
+          native_platform?: string | null
+          native_push_token?: string | null
           pin_hash: string
           push_token?: Json | null
           role?: string | null
@@ -688,6 +692,8 @@ export type Database = {
           is_admin?: boolean
           login_handle?: string
           name?: string
+          native_platform?: string | null
+          native_push_token?: string | null
           pin_hash?: string
           push_token?: Json | null
           role?: string | null
@@ -877,6 +883,8 @@ export type Database = {
           email: string | null
           id: string
           last_seen_at: string | null
+          native_platform: string | null
+          native_push_token: string | null
           onboarding_completed: boolean
           push_token: Json | null
           store_id: string | null
@@ -888,6 +896,8 @@ export type Database = {
           email?: string | null
           id: string
           last_seen_at?: string | null
+          native_platform?: string | null
+          native_push_token?: string | null
           onboarding_completed?: boolean
           push_token?: Json | null
           store_id?: string | null
@@ -899,6 +909,8 @@ export type Database = {
           email?: string | null
           id?: string
           last_seen_at?: string | null
+          native_platform?: string | null
+          native_push_token?: string | null
           onboarding_completed?: boolean
           push_token?: Json | null
           store_id?: string | null
@@ -1727,6 +1739,15 @@ export type Database = {
           msg_id: number
           read_ct: number
         }[]
+      }
+      save_operator_native_push_token: {
+        Args: {
+          p_native_token: string
+          p_operator_id: string
+          p_pin: string
+          p_platform: string
+        }
+        Returns: Json
       }
       save_operator_push_token: {
         Args: { p_operator_id: string; p_pin: string; p_push_token: Json }

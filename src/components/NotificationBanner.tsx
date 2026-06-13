@@ -5,6 +5,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { toast } from "sonner";
+import { isNativePlatform } from "@/lib/platform";
 
 const VAPID_PUBLIC_KEY = "BGmT6oQ93QrYnd-5CImnf19dXjid2-HobSAI1SxUaFEC1wfJY4ZAd3kEO6YnTbCzyBT5ZaVR4eYAIvor_s7d4GQ";
 
@@ -25,6 +26,7 @@ export default function NotificationBanner() {
   const [visible, setVisible] = useState(false);
 
   useEffect(() => {
+    if (isNativePlatform()) return;
     if (!("Notification" in window) || !("serviceWorker" in navigator)) return;
     if (Notification.permission === "default") {
       setVisible(true);
@@ -79,7 +81,7 @@ export default function NotificationBanner() {
     }
   }
 
-  if (!visible) return null;
+  if (isNativePlatform() || !visible) return null;
 
   return (
     <div className="mb-4 flex items-center gap-3 rounded-lg border border-primary/30 bg-primary/5 px-4 py-3">

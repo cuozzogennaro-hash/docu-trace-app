@@ -9,6 +9,9 @@ const config: CapacitorConfig = {
   // get the app rejected. For local hot-reload during development, temporarily
   // re-add a `server` block locally — but never commit it for a release build.
   plugins: {
+    PushNotifications: {
+      presentationOptions: ["badge", "sound", "alert"],
+    },
     BluetoothLe: {
       displayStrings: {
         scanning: 'Ricerca stampanti…',

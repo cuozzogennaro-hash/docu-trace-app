@@ -9,6 +9,7 @@ import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import OperatorSwitcherDialog from "@/components/operator/OperatorSwitcherDialog";
 import NotificationBanner from "@/components/NotificationBanner";
 import ActivityProfileDialog from "@/components/ActivityProfileDialog";
+import { useNativePushNotifications } from "@/hooks/useNativePushNotifications";
 import { NAV_VISIBILITY, useActivityProfile, productionLabel, recurringLabel, hasKitchen } from "@/hooks/useActivityProfile";
 import { supabase } from "@/integrations/supabase/client";
 import { Collapsible, CollapsibleContent, CollapsibleTrigger } from "@/components/ui/collapsible";
@@ -93,6 +94,9 @@ export default function AppShell() {
   const { profile } = useActivityProfile();
   const [profileDialogOpen, setProfileDialogOpen] = useState(false);
   const { isSuperAdmin } = useSuperAdmin();
+
+  // Native push notifications (iOS/Android via Capacitor). No-op on web.
+  useNativePushNotifications();
 
   // Mostra il dialog scelta profilo al primo accesso (titolare loggato, profilo non ancora scelto)
   useEffect(() => {
