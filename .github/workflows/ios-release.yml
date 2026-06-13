@@ -16,6 +16,17 @@ jobs:
       - name: Checkout repository
         uses: actions/checkout@v4
 
+      - name: Select Xcode 26
+        run: |
+          XCODE_PATH=$(ls -d /Applications/Xcode_26*.app | head -n 1)
+          if [ -n "$XCODE_PATH" ]; then
+            echo "Selecting Xcode: $XCODE_PATH"
+            sudo xcode-select -s "$XCODE_PATH/Contents/Developer"
+          else
+            echo "Warning: Xcode 26 not found. Current version is:"
+            xcodebuild -version
+          fi
+
       - name: Setup Node.js
         uses: actions/setup-node@v4
         with:
