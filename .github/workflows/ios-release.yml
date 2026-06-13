@@ -61,6 +61,32 @@ jobs:
           npx cap add ios
           npx cap sync ios
 
+      - name: Inject GoogleService-Info.plist into iOS project
+        run: |
+          # Ensure the Firebase plist is present in the generated iOS app folder
+          cp native-config/ios/GoogleService-Info.plist ios/App/App/GoogleService-Info.plist
+
+          # Register the plist inside the Xcode project so it is bundled in the IPA
+          gem install xcodeproj --no-document
+          cat << 'RUBY' > add-plist.rb
+          require 'xcodeproj'
+          project_path = 'ios/App/App.xcodeproj'
+          project = Xcodeproj::Project.open(project_path)
+          target  = project.targets.find { |t| t.name == 'App' }
+          group   = project.main_group.find_subpath('App', true)
+          file    = 'GoogleService-Info.plist'
+          unless group.files.any? { |f| f.path == file }
+            ref = group.new_reference(file)
+            target.add_resources([ref])
+            project.save
+            puts "Added #{file} to Xcode project"
+          else
+            puts "#{file} already present in Xcode project"
+          end
+          RUBY
+          ruby add-plist.rb
+          rm add-plist.rb
+
       - name: Setup App Store Connect API Private Key
         run: |
           mkdir -p ~/private_keys
