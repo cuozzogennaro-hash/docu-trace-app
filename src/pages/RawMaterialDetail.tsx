@@ -11,6 +11,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
 import jsPDF from "jspdf";
 import autoTable from "jspdf-autotable";
+import { savePdfDocument } from "@/lib/nativeShare";
 
 export default function RawMaterialDetail() {
   const { id } = useParams<{ id: string }>();
@@ -78,7 +79,7 @@ export default function RawMaterialDetail() {
     })();
   }, [id, session?.user?.id, operator?.id]);
 
-  function downloadPdf() {
+  async function downloadPdf() {
     if (!material) return;
     const isMacelleria = departmentName.toLowerCase().trim() === "macelleria";
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
@@ -149,7 +150,12 @@ export default function RawMaterialDetail() {
       doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
     }
 
-    doc.save(`materia_prima_${material.internal_lot}.pdf`);
+    try {
+      await savePdfDocument(doc, `materia_prima_${material.internal_lot}.pdf`);
+    } catch (err: any) {
+      console.error("PDF save error:", err);
+      toast.error(err?.message || "Impossibile salvare il PDF");
+    }
   }
 
   async function saveAsRecurring() {

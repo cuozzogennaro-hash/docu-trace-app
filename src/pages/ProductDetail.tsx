@@ -10,6 +10,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { useOperatorSession } from "@/hooks/useOperatorSession";
 import { Label } from "@/components/ui/label";
 import jsPDF from "jspdf";
+import { savePdfDocument, openHtmlDocument } from "@/lib/nativeShare";
 import autoTable from "jspdf-autotable";
 import { toast } from "sonner";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -412,7 +413,7 @@ export default function ProductDetail() {
       preservationOverride, allergenKeywordsDb, allergenNamesDb, allergenKeyToName]);
 
   // Report A5 (etichetta ingrandita su foglio A5) — usa lo stesso layout grafico.
-  function printLabelA5() {
+  async function printLabelA5() {
     if (!product) return;
     const tpl = labelTemplates.find((t: any) => t.id === selectedTemplate) || labelTemplates[0];
     if (!tpl) { toast.error("Nessun template etichetta disponibile"); return; }
@@ -437,9 +438,12 @@ export default function ProductDetail() {
 <body><div class="actions"><button onclick="window.print()">Stampa</button></div>
 <div class="page">${headerHtml}<div class="label-wrap"><div class="label">${itemsHtml}</div></div></div>
 <script>window.addEventListener('load',function(){setTimeout(function(){window.print();},300);});</script></body></html>`;
-    const win = window.open("", "_blank");
-    if (win) { win.document.open(); win.document.write(html); win.document.close(); }
-    else { const url = URL.createObjectURL(new Blob([html], { type: "text/html" })); window.location.href = url; }
+    try {
+      await openHtmlDocument(html, `etichetta_A5_${product.internal_lot || "prodotto"}.html`);
+    } catch (err: any) {
+      console.error("A5 report error:", err);
+      toast.error(err?.message || "Impossibile aprire il report A5");
+    }
   }
 
 
@@ -459,7 +463,7 @@ export default function ProductDetail() {
     toast.success("Ingrediente rimosso");
   }
 
-  function downloadPdf() {
+  async function downloadPdf() {
     if (!product) return;
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -567,7 +571,12 @@ export default function ProductDetail() {
       doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
     }
 
-    doc.save(`prodotto_${product.internal_lot}.pdf`);
+    try {
+      await savePdfDocument(doc, `prodotto_${product.internal_lot}.pdf`);
+    } catch (err: any) {
+      console.error("PDF save error:", err);
+      toast.error(err?.message || "Impossibile salvare il PDF");
+    }
   }
 
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
