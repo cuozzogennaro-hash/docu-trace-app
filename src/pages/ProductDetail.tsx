@@ -463,7 +463,7 @@ export default function ProductDetail() {
     toast.success("Ingrediente rimosso");
   }
 
-  function downloadPdf() {
+  async function downloadPdf() {
     if (!product) return;
     const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
 
@@ -571,7 +571,12 @@ export default function ProductDetail() {
       doc.text(`Generato il ${new Date().toLocaleDateString("it-IT")} — Pagina ${i}/${pageCount}`, 14, 290);
     }
 
-    doc.save(`prodotto_${product.internal_lot}.pdf`);
+    try {
+      await savePdfDocument(doc, `prodotto_${product.internal_lot}.pdf`);
+    } catch (err: any) {
+      console.error("PDF save error:", err);
+      toast.error(err?.message || "Impossibile salvare il PDF");
+    }
   }
 
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
