@@ -1636,6 +1636,20 @@ export type Database = {
         }
         Returns: number
       }
+      operator_admin_create_expiry_nc: {
+        Args: {
+          p_description: string
+          p_operator_id: string
+          p_pin: string
+          p_severity: string
+          p_title: string
+        }
+        Returns: Json
+      }
+      operator_admin_expiries: {
+        Args: { p_operator_id: string; p_pin: string }
+        Returns: Json
+      }
       operator_admin_get_product: {
         Args: { p_id: string; p_operator_id: string; p_pin: string }
         Returns: Json
@@ -1700,6 +1714,15 @@ export type Database = {
       }
       operator_admin_list: {
         Args: { p_operator_id: string; p_pin: string; p_table: string }
+        Returns: Json
+      }
+      operator_admin_mark_out_of_stock: {
+        Args: {
+          p_id: string
+          p_kind: string
+          p_operator_id: string
+          p_pin: string
+        }
         Returns: Json
       }
       operator_company: { Args: { p_operator_id: string }; Returns: Json }

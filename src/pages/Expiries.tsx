@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router-dom";
 import { supabase } from "@/integrations/supabase/client";
+import { useOperatorSession } from "@/hooks/useOperatorSession";
 import PageHeader from "@/components/PageHeader";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -43,6 +44,7 @@ const TYPE_META = {
 
 export default function Expiries() {
   const { t } = useTranslation();
+  const { operator } = useOperatorSession();
   const [rows, setRows] = useState<Row[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<FilterKey>("expired");
@@ -52,6 +54,61 @@ export default function Expiries() {
   async function load() {
     setLoading(true);
     try {
+      // Operator (admin) session: go through SECURITY DEFINER RPC, since RLS
+      // would otherwise return zero rows (no auth.uid()).
+      if (operator?.is_admin && operator.pin) {
+        const { data, error } = await supabase.rpc("operator_admin_expiries" as any, {
+          p_operator_id: operator.id,
+          p_pin: operator.pin,
+        });
+        const payload = data as any;
+        if (error || !payload?.ok) {
+          toast.error(t("Errore caricamento scadenze"));
+          setRows([]);
+          return;
+        }
+        const deptMap = new Map<string, string>(
+          (payload.departments ?? []).map((d: any) => [d.id, d.name as string]),
+        );
+        const shelf = (payload.shelf_life ?? {}) as { days_fresh?: number; days_vacuum?: number };
+        const out: Row[] = [];
+        for (const r of payload.raw_materials ?? []) {
+          const exp = r.expiry_date as string | null;
+          if (!exp) continue;
+          out.push({
+            id: r.id, kind: "raw", name: r.product_name, lot: r.internal_lot,
+            department_id: r.department_id,
+            department_name: r.department_id ? deptMap.get(r.department_id) ?? null : null,
+            expiry: exp, status: getExpiryStatus(exp), days: daysUntil(exp),
+            detailPath: `/archivio/materia-prima/${r.id}`,
+          });
+        }
+        for (const p of payload.products ?? []) {
+          const exp = computeProductExpiry(p.production_date, p.preservation_type, shelf);
+          if (!exp) continue;
+          out.push({
+            id: p.id, kind: "product", name: p.name, lot: p.internal_lot,
+            department_id: p.department_id,
+            department_name: p.department_id ? deptMap.get(p.department_id) ?? null : null,
+            expiry: exp, status: getExpiryStatus(exp), days: daysUntil(exp),
+            detailPath: `/archivio/prodotto/${p.id}`,
+          });
+        }
+        for (const pr of payload.preparations ?? []) {
+          const exp = pr.internal_expiry ? String(pr.internal_expiry).slice(0, 10) : null;
+          if (!exp) continue;
+          out.push({
+            id: pr.id, kind: "preparation", name: pr.name, lot: null,
+            department_id: null, department_name: null,
+            expiry: exp, status: getExpiryStatus(exp), days: daysUntil(exp),
+            detailPath: null,
+          });
+        }
+        out.sort((a, b) => (a.expiry || "").localeCompare(b.expiry || ""));
+        setRows(out);
+        return;
+      }
+
       const [rmRes, prRes, prepRes, deptRes, rulesRes] = await Promise.all([
         supabase
           .from("raw_materials")
@@ -142,7 +199,7 @@ export default function Expiries() {
     }
   }
 
-  useEffect(() => { load(); }, []);
+  useEffect(() => { load(); /* eslint-disable-next-line */ }, [operator?.id]);
 
   const counts = useMemo(() => {
     const c = { expired: 0, today: 0, soon: 0, week: 0, all: rows.length };
@@ -174,6 +231,17 @@ export default function Expiries() {
   }, [rows, filter, typeFilter, deptFilter]);
 
   async function markOutOfStock(row: Row) {
+    if (operator?.is_admin && operator.pin) {
+      const { data, error } = await supabase.rpc("operator_admin_mark_out_of_stock" as any, {
+        p_operator_id: operator.id, p_pin: operator.pin,
+        p_kind: row.kind, p_id: row.id,
+      });
+      const res = data as any;
+      if (error || !res?.ok) return toast.error(t("Errore"));
+      toast.success(t("Segnato come esaurito"));
+      setRows((prev) => prev.filter((r) => !(r.id === row.id && r.kind === row.kind)));
+      return;
+    }
     const table = row.kind === "raw" ? "raw_materials" : row.kind === "product" ? "products" : "preparations";
     const { error } = await supabase.from(table as any).update({ is_out_of_stock: true }).eq("id", row.id);
     if (error) return toast.error(error.message);
@@ -182,15 +250,26 @@ export default function Expiries() {
   }
 
   async function createNonConformity(row: Row) {
+    const title = `${t("Prodotto scaduto")}: ${row.name}${row.lot ? " — " + row.lot : ""}`;
+    const desc = `${t("Scadenza")}: ${row.expiry ? new Date(row.expiry).toLocaleDateString("it-IT") : "—"}`;
+    const severity = row.status === "expired" ? "high" : "medium";
+    if (operator?.is_admin && operator.pin) {
+      const { data, error } = await supabase.rpc("operator_admin_create_expiry_nc" as any, {
+        p_operator_id: operator.id, p_pin: operator.pin,
+        p_title: title, p_description: desc, p_severity: severity,
+      });
+      const res = data as any;
+      if (error || !res?.ok) return toast.error(t("Errore"));
+      toast.success(t("Non conformità creata"));
+      return;
+    }
     const { data: userData } = await supabase.auth.getUser();
     const uid = userData.user?.id;
     if (!uid) return toast.error(t("Errore"));
-    const title = `${t("Prodotto scaduto")}: ${row.name}${row.lot ? " — " + row.lot : ""}`;
-    const desc = `${t("Scadenza")}: ${row.expiry ? new Date(row.expiry).toLocaleDateString("it-IT") : "—"}`;
     const { error } = await supabase.from("non_conformities").insert({
       user_id: uid,
       area: "scadenza",
-      severity: row.status === "expired" ? "high" : "medium",
+      severity,
       title,
       description: desc,
       status: "open",
