@@ -111,7 +111,22 @@ export type SavedPrinter = {
 };
 
 export function getSavedPrinter(): SavedPrinter | null {
-  try { return JSON.parse(localStorage.getItem(LS_KEY) || "null"); } catch { return null; }
+  try {
+    const raw = JSON.parse(localStorage.getItem(LS_KEY) || "null") as SavedPrinter | null;
+    if (!raw) return null;
+    // Ri-valuta il protocollo in base al nome attuale: copre i casi in cui
+    // la stampante era stata salvata prima dell'aggiunta di un modello al
+    // detector (es. CLABEL salvata come "tspl" e ora riconosciuta come
+    // raster simil-Phomemo).
+    const detected = detectPrinterModel(raw.name);
+    if (detected === "phomemo" && raw.model !== "phomemo") {
+      raw.model = "phomemo";
+      try { localStorage.setItem(LS_KEY, JSON.stringify(raw)); } catch { /* noop */ }
+    } else if (!raw.model) {
+      raw.model = detected;
+    }
+    return raw;
+  } catch { return null; }
 }
 export function saveSavedPrinter(p: SavedPrinter | null) {
   if (p) localStorage.setItem(LS_KEY, JSON.stringify(p));
