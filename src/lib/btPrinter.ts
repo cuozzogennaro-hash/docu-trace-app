@@ -76,27 +76,30 @@ export function looksLikePrinter(name?: string | null): boolean {
 }
 
 /**
- * Famiglia di protocollo della stampante. Le stampanti TSPL/ESC-POS
- * "classiche" accettano i bytes prodotti da buildTSPL() del flusso etichette;
- * le Phomemo M-series (M02/M02S/M03/M04…) usano invece un protocollo raster
- * ESC-POS con header proprietari e larghezza fissa di 384 dot.
+ * Famiglia di protocollo della stampante.
+ * - escpos: raster standard, scelta più sicura per Bluetooth perché evita che
+ *   comandi testuali come SIZE/GAP vengano stampati letteralmente.
+ * - tspl: solo stampanti label che interpretano esplicitamente TSPL.
+ * - phomemo: raster ESC/POS con inizializzazione proprietaria Phomemo.
  */
-export type PrinterModel = "tspl" | "phomemo";
+export type PrinterModel = "escpos" | "tspl" | "phomemo";
 
 const PHOMEMO_HINTS = ["PHOMEMO", "M02", "M03", "M04", "T02"];
+const TSPL_HINTS = ["XPRINTER", "XP-", "TSC", "TTP", "TDP", "GODEX"];
 
 export function detectPrinterModel(name?: string | null): PrinterModel {
-  if (!name) return "tspl";
+  if (!name) return "escpos";
   const n = name.toUpperCase();
   if (PHOMEMO_HINTS.some((p) => n.includes(p))) return "phomemo";
   // CLABEL / C-LABEL / NIIMBOT (e cloni) usano un protocollo raster
-  // simil-Phomemo: non comprendono TSPL (stamperebbero i comandi
+  // ESC/POS: non comprendono TSPL (stamperebbero i comandi
   // "SIZE / GAP / DIRECTION..." come testo). Li instradiamo sulla
   // pipeline raster monocromatica.
   if (n.includes("CLABEL") || n.includes("C-LABEL") || n.includes("NIIMBOT")) {
-    return "phomemo";
+    return "escpos";
   }
-  return "tspl";
+  if (TSPL_HINTS.some((p) => n.includes(p))) return "tspl";
+  return "escpos";
 }
 
 const LS_KEY = "haccp.btprinter";
@@ -106,21 +109,23 @@ export type SavedPrinter = {
   name?: string;
   service: string;
   characteristic: string;
-  /** Famiglia protocollo. Default "tspl" per retrocompatibilità. */
+  /** Famiglia protocollo. Default "escpos" per evitare stampa di comandi TSPL come testo. */
   model?: PrinterModel;
+  /** True se l'operatore ha scelto manualmente il protocollo dal dialog. */
+  protocolManual?: boolean;
 };
 
 export function getSavedPrinter(): SavedPrinter | null {
   try {
     const raw = JSON.parse(localStorage.getItem(LS_KEY) || "null") as SavedPrinter | null;
     if (!raw) return null;
-    // Ri-valuta il protocollo in base al nome attuale: copre i casi in cui
-    // la stampante era stata salvata prima dell'aggiunta di un modello al
-    // detector (es. CLABEL salvata come "tspl" e ora riconosciuta come
-    // raster simil-Phomemo).
+    // Ri-valuta il protocollo solo se non è stato impostato manualmente.
+    // Le vecchie associazioni salvate come "tspl" senza scelta esplicita
+    // vengono migrate a raster quando il nome non indica una TSPL reale:
+    // è esattamente il caso in cui la stampante stampa "SIZE/GAP" su carta.
     const detected = detectPrinterModel(raw.name);
-    if (detected === "phomemo" && raw.model !== "phomemo") {
-      raw.model = "phomemo";
+    if (!raw.protocolManual && raw.model !== detected) {
+      raw.model = detected;
       try { localStorage.setItem(LS_KEY, JSON.stringify(raw)); } catch { /* noop */ }
     } else if (!raw.model) {
       raw.model = detected;
@@ -380,6 +385,50 @@ export function buildPhomemoRaster(
 
   chunks.push(end);
 
+  const total = chunks.reduce((s, c) => s + c.length, 0);
+  const out = new Uint8Array(total);
+  let off = 0;
+  for (const c of chunks) { out.set(c, off); off += c.length; }
+  return out;
+}
+
+/**
+ * Raster ESC/POS standard (GS v 0). È la modalità più compatibile per molte
+ * stampanti Bluetooth che accettano immagini ma NON interpretano TSPL: in quel
+ * caso inviare TSPL produce la stampa letterale di "SIZE", "GAP", "BITMAP".
+ */
+export function buildEscPosRaster(
+  bitmap: Uint8Array,
+  widthBytes: number,
+  heightDots: number,
+  copies: number = 1,
+): Uint8Array {
+  const start = [
+    0x1b, 0x40,       // ESC @ init
+    0x1b, 0x33, 0x10, // line spacing compatto
+  ];
+  const end = [
+    0x0a, 0x0a,
+    0x1b, 0x32,       // ripristina line spacing default
+  ];
+  const ROWS_PER_CHUNK = 256;
+  const chunks: number[][] = [start];
+
+  for (let copy = 0; copy < Math.max(1, copies); copy++) {
+    for (let y = 0; y < heightDots; y += ROWS_PER_CHUNK) {
+      const rows = Math.min(ROWS_PER_CHUNK, heightDots - y);
+      chunks.push([
+        0x1d, 0x76, 0x30, 0x00,
+        widthBytes & 0xff, (widthBytes >> 8) & 0xff,
+        rows & 0xff, (rows >> 8) & 0xff,
+      ]);
+      const offset = y * widthBytes;
+      chunks.push(Array.from(bitmap.subarray(offset, offset + rows * widthBytes)));
+    }
+    if (copy < copies - 1) chunks.push([0x0a, 0x0a]);
+  }
+
+  chunks.push(end);
   const total = chunks.reduce((s, c) => s + c.length, 0);
   const out = new Uint8Array(total);
   let off = 0;
