@@ -222,8 +222,8 @@ ${labelsHtml}
   return (
     <>
       <Dialog open={open} onOpenChange={onOpenChange}>
-        <DialogContent className="max-w-2xl">
-          <DialogHeader>
+        <DialogContent className="max-w-2xl max-h-[calc(100dvh-1rem)] sm:max-h-[calc(100dvh-2rem)] p-0 overflow-hidden flex flex-col">
+          <DialogHeader className="px-6 pt-6 pb-3 shrink-0">
             <DialogTitle>{title}</DialogTitle>
             <DialogDescription>
               Usa il template configurato in Impostazioni → Etichette. Verifica l'anteprima e stampa.
@@ -237,111 +237,113 @@ ${labelsHtml}
               Nessun template etichetta configurato. Crealo in <strong>Impostazioni → Etichette</strong>.
             </div>
           ) : (
-            <div className="space-y-4">
-              {extraControls}
-              {templates.length > 1 && (
-                <div>
-                  <Label className="text-sm font-medium">Template etichetta</Label>
-                  <Select value={currentId} onValueChange={setSelectedId}>
-                    <SelectTrigger><SelectValue placeholder="Seleziona template" /></SelectTrigger>
-                    <SelectContent>
-                      {templates.map((t) => (
-                        <SelectItem key={t.id} value={t.id}>
-                          {t.name} ({t.width_mm}×{t.height_mm} mm)
-                        </SelectItem>
-                      ))}
-                    </SelectContent>
-                  </Select>
-                </div>
-              )}
-              <div>
-                <Label className="text-sm font-medium">Quantità etichette</Label>
-                <Input
-                  type="number"
-                  min={1}
-                  max={100}
-                  value={qty === 0 ? "" : qty}
-                  onFocus={(e) => e.target.select()}
-                  onChange={(e) => {
-                    const v = e.target.value;
-                    if (v === "") { setQty(0); return; }
-                    const n = parseInt(v, 10);
-                    if (!isNaN(n)) setQty(Math.min(100, Math.max(0, n)));
-                  }}
-                  onBlur={() => { if (!qty || qty < 1) setQty(1); }}
-                />
-              </div>
-
-              {current && (
-                <div>
-                  <Label className="text-sm font-medium mb-2 block">Anteprima</Label>
-                  <div className="border rounded-lg p-3 bg-muted/30 overflow-auto">
-                    <div
-                      className="relative bg-white border border-dashed border-border mx-auto"
-                      style={{ width: current.width_mm * PX_PER_MM, height: current.height_mm * PX_PER_MM }}
-                    >
-                      {items.map((it, idx) => (
-                        <div
-                          key={idx}
-                          className="absolute text-black"
-                          style={{
-                            left: it.x * PX_PER_MM,
-                            top: it.y * PX_PER_MM,
-                            width: it.w * PX_PER_MM,
-                            fontSize: it.fontPt * (PX_PER_MM / 2.835),
-                            lineHeight: it.lineHeight,
-                            textAlign: it.align,
-                            wordBreak: "break-word",
-                            overflow: "hidden",
-                            backgroundColor: it.eraseBackground ? "#fff" : "transparent",
-                            fontFamily: "Helvetica, Arial, sans-serif",
-                          }}
-                        >
-                          {it.segments.map((s, i) => (
-                            <span key={i} style={{ fontWeight: s.bold ? 700 : 400 }}>{s.text}</span>
-                          ))}
-                        </div>
-                      ))}
-                    </div>
-                  </div>
-                  <p className="text-xs text-muted-foreground mt-1 text-center">
-                    {current.width_mm} × {current.height_mm} mm
-                  </p>
-                </div>
-              )}
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
-                {!native && (
-                  <Button onClick={printWeb} disabled={overflow} className="w-full gap-2">
-                    <Printer size={16} /> Stampa di sistema
-                  </Button>
-                )}
-                <Button
-                  onClick={handleBluetooth}
-                  disabled={printing || overflow}
-                  variant="secondary"
-                  className={`w-full gap-2 ${native ? "sm:col-span-2" : ""}`}
-                >
-                  {printing ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
-                  Stampa Bluetooth
-                </Button>
-              </div>
-
-              {overflow && (
-                <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm flex items-start gap-2">
-                  <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+            <div className="flex min-h-0 flex-1 flex-col">
+              <div className="flex-1 overflow-y-auto px-6 pb-4 space-y-4">
+                {extraControls}
+                {templates.length > 1 && (
                   <div>
-                    <div className="font-semibold">Etichetta troppo corta</div>
-                    <div className="text-xs opacity-90">
-                      Il contenuto non entra nell'etichetta {current?.width_mm}×{current?.height_mm} mm
-                      nemmeno al font minimo (4pt). Passare a un formato di etichetta più grande
-                      o ridurre gli ingredienti. La stampa è stata bloccata per garantire la conformità.
+                    <Label className="text-sm font-medium">Template etichetta</Label>
+                    <Select value={currentId} onValueChange={setSelectedId}>
+                      <SelectTrigger><SelectValue placeholder="Seleziona template" /></SelectTrigger>
+                      <SelectContent>
+                        {templates.map((t) => (
+                          <SelectItem key={t.id} value={t.id}>
+                            {t.name} ({t.width_mm}×{t.height_mm} mm)
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
+                <div>
+                  <Label className="text-sm font-medium">Quantità etichette</Label>
+                  <Input
+                    type="number"
+                    min={1}
+                    max={100}
+                    value={qty === 0 ? "" : qty}
+                    onFocus={(e) => e.target.select()}
+                    onChange={(e) => {
+                      const v = e.target.value;
+                      if (v === "") { setQty(0); return; }
+                      const n = parseInt(v, 10);
+                      if (!isNaN(n)) setQty(Math.min(100, Math.max(0, n)));
+                    }}
+                    onBlur={() => { if (!qty || qty < 1) setQty(1); }}
+                  />
+                </div>
+
+                {current && (
+                  <div>
+                    <Label className="text-sm font-medium mb-2 block">Anteprima</Label>
+                    <div className="border rounded-lg p-3 bg-muted/30 overflow-auto max-h-[45dvh]">
+                      <div
+                        className="relative bg-white border border-dashed border-border mx-auto"
+                        style={{ width: current.width_mm * PX_PER_MM, height: current.height_mm * PX_PER_MM }}
+                      >
+                        {items.map((it, idx) => (
+                          <div
+                            key={idx}
+                            className="absolute text-black"
+                            style={{
+                              left: it.x * PX_PER_MM,
+                              top: it.y * PX_PER_MM,
+                              width: it.w * PX_PER_MM,
+                              fontSize: it.fontPt * (PX_PER_MM / 2.835),
+                              lineHeight: it.lineHeight,
+                              textAlign: it.align,
+                              wordBreak: "break-word",
+                              overflow: "hidden",
+                              backgroundColor: it.eraseBackground ? "#fff" : "transparent",
+                              fontFamily: "Helvetica, Arial, sans-serif",
+                            }}
+                          >
+                            {it.segments.map((s, i) => (
+                              <span key={i} style={{ fontWeight: s.bold ? 700 : 400 }}>{s.text}</span>
+                            ))}
+                          </div>
+                        ))}
+                      </div>
+                    </div>
+                    <p className="text-xs text-muted-foreground mt-1 text-center">
+                      {current.width_mm} × {current.height_mm} mm
+                    </p>
+                  </div>
+                )}
+              </div>
+
+              <div className="shrink-0 border-t bg-background px-6 py-4 space-y-3">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+                  {!native && (
+                    <Button onClick={printWeb} disabled={overflow} className="w-full gap-2">
+                      <Printer size={16} /> Stampa di sistema
+                    </Button>
+                  )}
+                  <Button
+                    onClick={handleBluetooth}
+                    disabled={printing || overflow}
+                    variant="secondary"
+                    className={`w-full gap-2 ${native ? "sm:col-span-2" : ""}`}
+                  >
+                    {printing ? <Loader2 size={16} className="animate-spin" /> : <Bluetooth size={16} />}
+                    Stampa Bluetooth
+                  </Button>
+                </div>
+
+                {overflow && (
+                  <div className="rounded-md border border-destructive/40 bg-destructive/10 text-destructive p-3 text-sm flex items-start gap-2">
+                    <AlertTriangle size={16} className="mt-0.5 shrink-0" />
+                    <div>
+                      <div className="font-semibold">Etichetta troppo corta</div>
+                      <div className="text-xs opacity-90">
+                        Il contenuto non entra nell'etichetta {current?.width_mm}×{current?.height_mm} mm
+                        nemmeno al font minimo (4pt). Passare a un formato di etichetta più grande
+                        o ridurre gli ingredienti. La stampa è stata bloccata per garantire la conformità.
+                      </div>
                     </div>
                   </div>
-                </div>
-              )}
+                )}
 
-              {(
                 <div className="rounded-md border bg-muted/40 p-2 text-xs flex items-center gap-2 flex-wrap">
                   <Bluetooth size={14} className="shrink-0" />
                   {savedBt ? (
@@ -368,7 +370,7 @@ ${labelsHtml}
                     </>
                   )}
                 </div>
-              )}
+              </div>
             </div>
           )}
         </DialogContent>
