@@ -405,10 +405,9 @@ export function buildEscPosRaster(
 ): Uint8Array {
   const start = [
     0x1b, 0x40,       // ESC @ init
-    0x1b, 0x33, 0x10, // line spacing compatto
+    0x1b, 0x33, 0x00, // nessun avanzamento extra tra righe raster
   ];
   const end = [
-    0x0a, 0x0a,
     0x1b, 0x32,       // ripristina line spacing default
   ];
   const ROWS_PER_CHUNK = 256;
@@ -425,7 +424,10 @@ export function buildEscPosRaster(
       const offset = y * widthBytes;
       chunks.push(Array.from(bitmap.subarray(offset, offset + rows * widthBytes)));
     }
-    if (copy < copies - 1) chunks.push([0x0a, 0x0a]);
+    // FF chiede alle label printer ESC/POS compatibili di avanzare al gap/inizio
+    // etichetta successiva. Evita i vecchi LF arbitrari, che su formati 40×70
+    // potevano far slittare la stampa sulla seconda etichetta.
+    chunks.push([0x0c]);
   }
 
   chunks.push(end);
