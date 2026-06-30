@@ -63,6 +63,10 @@ export const PRINTER_NAME_PREFIXES = [
   "M120",
   "M220",
   "T02",
+  // CLABEL / Niimbot (cloni raster simil-Phomemo)
+  "CLABEL",
+  "C-LABEL",
+  "NIIMBOT",
 ];
 
 export function looksLikePrinter(name?: string | null): boolean {
@@ -85,6 +89,13 @@ export function detectPrinterModel(name?: string | null): PrinterModel {
   if (!name) return "tspl";
   const n = name.toUpperCase();
   if (PHOMEMO_HINTS.some((p) => n.includes(p))) return "phomemo";
+  // CLABEL / C-LABEL / NIIMBOT (e cloni) usano un protocollo raster
+  // simil-Phomemo: non comprendono TSPL (stamperebbero i comandi
+  // "SIZE / GAP / DIRECTION..." come testo). Li instradiamo sulla
+  // pipeline raster monocromatica.
+  if (n.includes("CLABEL") || n.includes("C-LABEL") || n.includes("NIIMBOT")) {
+    return "phomemo";
+  }
   return "tspl";
 }
 
