@@ -20,6 +20,7 @@ import {
   getSavedPrinter,
   saveSavedPrinter,
   sendToPrinter,
+  buildEscPosRaster,
   buildPhomemoRaster,
   PHOMEMO_M02_WIDTH_BYTES,
   type SavedPrinter,
@@ -195,8 +196,13 @@ ${labelsHtml}
         pctx.drawImage(canvas, Math.max(0, Math.floor((headWidthDots - canvas.width) / 2)), 0);
         const { bitmap, widthBytes } = canvasToMonoBitmap(padded, 1);
         bytes = buildPhomemoRaster(bitmap, widthBytes, padded.height, Math.max(1, qty));
-      } else {
+      } else if (printer.model === "tspl") {
         bytes = buildTSPLBytes(items, current.width_mm, current.height_mm, rotate, Math.max(1, qty));
+      } else {
+        const ESC_POS_DPMM = 8;
+        const { canvas } = renderLabelCanvas(items, current.width_mm, current.height_mm, ESC_POS_DPMM, rotate);
+        const { bitmap, widthBytes } = canvasToMonoBitmap(canvas, 1);
+        bytes = buildEscPosRaster(bitmap, widthBytes, canvas.height, Math.max(1, qty));
       }
       toast.message(`Invio ${bytes.length} byte alla stampante…`);
       await sendToPrinter(bytes, printer);
@@ -376,22 +382,23 @@ ${labelsHtml}
                   <div className="rounded-md border bg-muted/20 p-2 text-xs flex items-center gap-2 flex-wrap">
                     <span className="shrink-0 text-muted-foreground">Protocollo stampante:</span>
                     <Select
-                      value={(savedBt.model || "tspl") as PrinterModel}
+                      value={(savedBt.model || "escpos") as PrinterModel}
                       onValueChange={(v) => {
-                        const updated: SavedPrinter = { ...savedBt, model: v as PrinterModel };
+                        const updated: SavedPrinter = { ...savedBt, model: v as PrinterModel, protocolManual: true };
                         saveSavedPrinter(updated);
                         setSavedBt(updated);
-                        toast.success(`Protocollo impostato: ${v === "phomemo" ? "Raster (Phomemo/CLABEL/Niimbot)" : "TSPL (Xprinter/CLABEL CT221D...)"}`);
+                        toast.success(`Protocollo impostato: ${v === "tspl" ? "TSPL" : v === "phomemo" ? "Phomemo" : "Raster ESC/POS"}`);
                       }}
                     >
                       <SelectTrigger className="h-8 w-auto flex-1 min-w-[200px]"><SelectValue /></SelectTrigger>
                       <SelectContent>
-                        <SelectItem value="tspl">TSPL (Xprinter, generiche termiche)</SelectItem>
-                        <SelectItem value="phomemo">Raster (Phomemo / CLABEL / Niimbot)</SelectItem>
+                        <SelectItem value="escpos">Raster ESC/POS (CLABEL / generiche)</SelectItem>
+                        <SelectItem value="tspl">TSPL (solo Xprinter/TSC compatibili)</SelectItem>
+                        <SelectItem value="phomemo">Phomemo proprietario</SelectItem>
                       </SelectContent>
                     </Select>
                     <span className="basis-full text-[11px] text-muted-foreground">
-                      Se l'etichetta stampa testo come "SIZE 40 mm,70 mm" invece del contenuto, passa a <strong>Raster</strong>.
+                      Se l'etichetta stampa testo come "SIZE 40 mm,70 mm", usa <strong>Raster ESC/POS</strong>. TSPL va usato solo su stampanti che lo supportano davvero.
                     </span>
                   </div>
                 )}
