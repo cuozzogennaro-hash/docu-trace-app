@@ -23,6 +23,7 @@ import {
   buildPhomemoRaster,
   PHOMEMO_M02_WIDTH_BYTES,
   type SavedPrinter,
+  type PrinterModel,
 } from "@/lib/btPrinter";
 import BluetoothPrinterPicker from "@/components/kitchen/BluetoothPrinterPicker";
 
@@ -370,6 +371,30 @@ ${labelsHtml}
                     </>
                   )}
                 </div>
+
+                {savedBt && (
+                  <div className="rounded-md border bg-muted/20 p-2 text-xs flex items-center gap-2 flex-wrap">
+                    <span className="shrink-0 text-muted-foreground">Protocollo stampante:</span>
+                    <Select
+                      value={(savedBt.model || "tspl") as PrinterModel}
+                      onValueChange={(v) => {
+                        const updated: SavedPrinter = { ...savedBt, model: v as PrinterModel };
+                        saveSavedPrinter(updated);
+                        setSavedBt(updated);
+                        toast.success(`Protocollo impostato: ${v === "phomemo" ? "Raster (Phomemo/CLABEL/Niimbot)" : "TSPL (Xprinter/CLABEL CT221D...)"}`);
+                      }}
+                    >
+                      <SelectTrigger className="h-8 w-auto flex-1 min-w-[200px]"><SelectValue /></SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="tspl">TSPL (Xprinter, generiche termiche)</SelectItem>
+                        <SelectItem value="phomemo">Raster (Phomemo / CLABEL / Niimbot)</SelectItem>
+                      </SelectContent>
+                    </Select>
+                    <span className="basis-full text-[11px] text-muted-foreground">
+                      Se l'etichetta stampa testo come "SIZE 40 mm,70 mm" invece del contenuto, passa a <strong>Raster</strong>.
+                    </span>
+                  </div>
+                )}
               </div>
             </div>
           )}
