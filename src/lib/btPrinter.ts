@@ -24,6 +24,7 @@ const KNOWN_WRITE_SERVICES = [
   "000018f0-0000-1000-8000-00805f9b34fb",
   "0000fee7-0000-1000-8000-00805f9b34fb",
   "49535343-fe7d-4ae5-8fa9-9fafd205e455",
+  "0000af30-0000-1000-8000-00805f9b34fb", // Phomemo M02 Service
 ];
 const KNOWN_WRITE_CHARS = [
   "0000ff02-0000-1000-8000-00805f9b34fb",
@@ -31,6 +32,8 @@ const KNOWN_WRITE_CHARS = [
   "00002af1-0000-1000-8000-00805f9b34fb",
   "0000fee8-0000-1000-8000-00805f9b34fb",
   "49535343-8841-43f4-a8d4-ecbe34729bb3",
+  "0000af31-0000-1000-8000-00805f9b34fb", // Phomemo M02 Write Characteristic
+  "0000e708-0000-1000-8000-00805f9b34fb", // Alternativa per alcuni firmware
 ];
 
 // Prefissi nome più comuni per stampanti termiche BLE ESC/POS.
@@ -147,6 +150,13 @@ export type DiscoveredDevice = {
   isLikelyPrinter: boolean;
 };
 
+let bleInitialized = false;
+async function ensureBleInitialized() {
+  if (bleInitialized) return;
+  await BleClient.initialize({ androidNeverForLocation: true });
+  bleInitialized = true;
+}
+
 let scanning = false;
 
 /**
@@ -157,7 +167,7 @@ let scanning = false;
 export async function scanForPrinters(
   onDevice: (d: DiscoveredDevice) => void
 ): Promise<() => Promise<void>> {
-  await BleClient.initialize({ androidNeverForLocation: true });
+  await ensureBleInitialized();
 
   const seen = new Map<string, DiscoveredDevice>();
 
@@ -198,12 +208,17 @@ export async function scanForPrinters(
  * Si connette al device scelto dall'utente e salva la stampante.
  */
 export async function connectAndSavePrinter(deviceId: string, name?: string): Promise<SavedPrinter> {
-  await BleClient.initialize({ androidNeverForLocation: true });
+  await ensureBleInitialized();
   // assicurati che lo scan sia fermo prima della connect
   if (scanning) {
     try { await BleClient.stopLEScan(); } catch { /* noop */ }
     scanning = false;
   }
+  
+  // Forza disconnessione precedente e attende 500ms per resettare l'hardware Bluetooth
+  try { await BleClient.disconnect(deviceId); } catch {}
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
   await BleClient.connect(deviceId, () => { /* on disconnect */ });
   const { service, characteristic } = await findWritableCharacteristic(deviceId);
   const saved: SavedPrinter = {
@@ -277,13 +292,18 @@ async function findWritableCharacteristic(deviceId: string) {
 }
 
 export async function pickAndConnectPrinter(): Promise<SavedPrinter> {
-  await BleClient.initialize({ androidNeverForLocation: true });
+  await ensureBleInitialized();
   const device: BleDevice = await BleClient.requestDevice({
     // Su web molte stampanti non pubblicizzano i service nell'advertising:
     // filtrare per UUID le nasconde dal popup. Lasciamo quindi la scelta aperta
     // e chiediamo l'accesso ai service noti per poter scrivere dopo il pairing.
     optionalServices: KNOWN_WRITE_SERVICES,
   });
+
+  // Forza disconnessione precedente e attende 500ms per resettare l'hardware Bluetooth
+  try { await BleClient.disconnect(device.deviceId); } catch {}
+  await new Promise((resolve) => setTimeout(resolve, 500));
+
   await BleClient.connect(device.deviceId, () => { /* on disconnect */ });
   const { service, characteristic } = await findWritableCharacteristic(device.deviceId);
   const saved: SavedPrinter = {
@@ -298,11 +318,16 @@ export async function pickAndConnectPrinter(): Promise<SavedPrinter> {
 }
 
 async function ensureConnected(p: SavedPrinter) {
-  await BleClient.initialize({ androidNeverForLocation: true });
+  await ensureBleInitialized();
   try {
+    // Forza disconnessione precedente e attende prima della riconnessione
+    try { await BleClient.disconnect(p.deviceId); } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await BleClient.connect(p.deviceId, () => { /* on disconnect */ });
   } catch {
-    // già connessa o errore di connessione: riprova una volta
+    // riprova una volta pulendo la sessione
+    try { await BleClient.disconnect(p.deviceId); } catch {}
+    await new Promise((resolve) => setTimeout(resolve, 500));
     await BleClient.connect(p.deviceId);
   }
 }

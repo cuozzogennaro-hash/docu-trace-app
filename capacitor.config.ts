@@ -1,7 +1,7 @@
 import type { CapacitorConfig } from '@capacitor/cli';
 
 const config: CapacitorConfig = {
-  appId: 'app.lovable.220cd5d1565d4443b75610dfe60373cf',
+  appId: 'com.docutrace.app',
   appName: 'HACCP Trace',
   webDir: 'dist',
   // NOTE: do NOT add a `server.url` block here for the Play Store / App Store build.
