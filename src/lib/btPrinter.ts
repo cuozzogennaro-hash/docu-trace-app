@@ -335,8 +335,10 @@ async function ensureConnected(p: SavedPrinter) {
 export async function sendToPrinter(data: Uint8Array, printer?: SavedPrinter) {
   const p = printer ?? getSavedPrinter() ?? (await pickAndConnectPrinter());
   await ensureConnected(p);
-  // chunk a 180 byte per evitare MTU issues
-  const chunk = 180;
+  
+  // Chunk a 20 byte (il payload massimo garantito per MTU = 23 standard in BLE)
+  // con un piccolo delay di 10ms per evitare buffer overflow su stampanti lente come Clabel/Niimbot.
+  const chunk = 20;
   for (let i = 0; i < data.length; i += chunk) {
     const slice = data.slice(i, i + chunk);
     await BleClient.writeWithoutResponse(
@@ -345,6 +347,7 @@ export async function sendToPrinter(data: Uint8Array, printer?: SavedPrinter) {
       p.characteristic,
       numbersToDataView(Array.from(slice))
     );
+    await new Promise((resolve) => setTimeout(resolve, 10));
   }
 }
 
