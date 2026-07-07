@@ -949,6 +949,7 @@ export type Database = {
           production_date: string | null
           quantity: string | null
           raised_in: string | null
+          reordered_at: string | null
           slaughter_mark: string | null
           slaughtered_in: string | null
           supplier_id: string | null
@@ -979,6 +980,7 @@ export type Database = {
           production_date?: string | null
           quantity?: string | null
           raised_in?: string | null
+          reordered_at?: string | null
           slaughter_mark?: string | null
           slaughtered_in?: string | null
           supplier_id?: string | null
@@ -1009,6 +1011,7 @@ export type Database = {
           production_date?: string | null
           quantity?: string | null
           raised_in?: string | null
+          reordered_at?: string | null
           slaughter_mark?: string | null
           slaughtered_in?: string | null
           supplier_id?: string | null
