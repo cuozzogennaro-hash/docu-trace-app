@@ -20,6 +20,7 @@ export default function Shopping() {
       .from("raw_materials")
       .select("*")
       .eq("is_out_of_stock", true)
+      .is("reordered_at", null)
       .order("category")
       .order("product_name");
     const list = data ?? [];
@@ -29,7 +30,7 @@ export default function Shopping() {
   useEffect(() => { load(); }, []);
 
   async function done(id: string) {
-    const { error } = await supabase.from("raw_materials").update({ is_out_of_stock: false }).eq("id", id);
+    const { error } = await supabase.from("raw_materials").update({ reordered_at: new Date().toISOString() }).eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Segnato come riordinato");
     load();
@@ -49,7 +50,7 @@ export default function Shopping() {
   async function bulkDone() {
     const ids = Array.from(selected);
     if (ids.length === 0) return;
-    const { error } = await supabase.from("raw_materials").update({ is_out_of_stock: false }).in("id", ids);
+    const { error } = await supabase.from("raw_materials").update({ reordered_at: new Date().toISOString() }).in("id", ids);
     if (error) return toast.error(error.message);
     toast.success(`${ids.length} articoli segnati come riordinati`);
     load();

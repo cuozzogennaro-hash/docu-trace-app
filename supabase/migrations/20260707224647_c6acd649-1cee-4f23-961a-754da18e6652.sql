@@ -1,0 +1,2 @@
+ALTER TABLE public.raw_materials ADD COLUMN IF NOT EXISTS reordered_at timestamptz;
+CREATE INDEX IF NOT EXISTS idx_raw_materials_shopping ON public.raw_materials (user_id) WHERE is_out_of_stock = true AND reordered_at IS NULL;
