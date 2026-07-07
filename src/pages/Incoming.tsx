@@ -134,6 +134,7 @@ export default function Incoming() {
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [recurringPicked, setRecurringPicked] = useState<Set<string>>(new Set());
   const [recurringSearch, setRecurringSearch] = useState("");
+  const [supplierOptions, setSupplierOptions] = useState<string[]>([]);
 
   // Storico prodotti già inseriti (DISTINCT su raw_materials) per il pulsante
   // "Carica da storico" della singola riga prodotto.
@@ -199,6 +200,25 @@ export default function Incoming() {
         .order("last_used_at", { ascending: false, nullsFirst: false })
         .order("product_name");
       setRecurring(data ?? []);
+    })();
+  }, [isOperatorAdmin]);
+
+  // Load distinct supplier names for the autocomplete dropdown
+  useEffect(() => {
+    if (isOperatorAdmin) return;
+    (async () => {
+      const { data } = await supabase
+        .from("raw_materials")
+        .select("supplier_name")
+        .not("supplier_name", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      const set = new Set<string>();
+      for (const r of (data as any[]) ?? []) {
+        const n = (r.supplier_name ?? "").toString().trim();
+        if (n) set.add(n);
+      }
+      setSupplierOptions(Array.from(set).sort((a, b) => a.localeCompare(b)));
     })();
   }, [isOperatorAdmin]);
 
@@ -632,7 +652,21 @@ export default function Incoming() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Fornitore</Label>
-              <Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} />
+              <Input
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+                list="supplier-options"
+                placeholder="Seleziona o digita un nuovo fornitore"
+                autoComplete="off"
+              />
+              <datalist id="supplier-options">
+                {supplierOptions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+              <p className="text-[11px] text-muted-foreground">
+                Scegli dall'elenco dei fornitori già usati o scrivi un nuovo nome.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Data documento</Label>
