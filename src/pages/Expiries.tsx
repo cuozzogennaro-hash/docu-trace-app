@@ -333,43 +333,52 @@ export default function Expiries() {
           {filtered.map((r) => {
             const Meta = TYPE_META[r.kind];
             return (
-              <Card key={`${r.kind}-${r.id}`} className="p-3 lg:p-4 flex items-center gap-3">
-                <div className={`w-2 h-12 rounded-full shrink-0 ${expiryDotClass(r.status)}`} />
-                <Meta.icon size={18} className="text-muted-foreground shrink-0" />
-                <div className="flex-1 min-w-0">
-                  <div className="font-semibold truncate">{r.name}</div>
-                  <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5">
-                    <span>{t(Meta.labelKey)}</span>
-                    {r.lot && <span className="font-mono">{r.lot}</span>}
-                    {r.department_name && <span>· {r.department_name}</span>}
-                    {r.expiry && <span>· {t("Scadenza")}: {new Date(r.expiry).toLocaleDateString("it-IT")}</span>}
+              <Card key={`${r.kind}-${r.id}`} className="p-3 lg:p-4">
+                <div className="flex flex-col sm:flex-row sm:items-center gap-3">
+                  <div className="flex items-start gap-3 flex-1 min-w-0">
+                    <div className={`w-2 h-12 rounded-full shrink-0 ${expiryDotClass(r.status)}`} />
+                    <Meta.icon size={18} className="text-muted-foreground shrink-0 mt-0.5" />
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold break-words">{r.name}</div>
+                      <div className="text-xs text-muted-foreground flex flex-wrap gap-x-3 gap-y-0.5 mt-0.5">
+                        <span>{t(Meta.labelKey)}</span>
+                        {r.lot && <span className="font-mono">{r.lot}</span>}
+                        {r.department_name && <span>· {r.department_name}</span>}
+                        {r.expiry && <span>· {t("Scadenza")}: {new Date(r.expiry).toLocaleDateString("it-IT")}</span>}
+                      </div>
+                    </div>
+                    <Badge variant="outline" className={`shrink-0 sm:hidden ${expiryBadgeClass(r.status)}`}>
+                      {expiryLabel(r.status, r.days)}
+                    </Badge>
                   </div>
-                </div>
-                <Badge variant="outline" className={`shrink-0 ${expiryBadgeClass(r.status)}`}>
-                  {expiryLabel(r.status, r.days)}
-                </Badge>
-                <div className="flex items-center gap-1 shrink-0">
-                  <Button size="sm" variant="outline" onClick={() => markOutOfStock(r)} className="gap-1.5">
-                    <PackageX size={14} />
-                    <span className="hidden sm:inline">{t("Fuori stock")}</span>
-                  </Button>
-                  {r.status === "expired" && (
-                    <Button
-                      size="sm"
-                      variant="destructive"
-                      onClick={() => createNonConformity(r)}
-                      className="gap-1.5"
-                      title={t("Registra non conformità per prodotto scaduto ancora in giacenza")}
-                    >
-                      <ShieldAlert size={14} />
-                      <span className="hidden sm:inline">{t("Non conformità")}</span>
+                  <div className="flex items-center gap-2 sm:gap-1 justify-end sm:shrink-0">
+                    <Badge variant="outline" className={`shrink-0 hidden sm:inline-flex ${expiryBadgeClass(r.status)}`}>
+                      {expiryLabel(r.status, r.days)}
+                    </Badge>
+                    <Button size="sm" variant="outline" onClick={() => markOutOfStock(r)} className="gap-1.5">
+                      <PackageX size={14} />
+                      <span className="hidden sm:inline">{t("Fuori stock")}</span>
+                      <span className="sm:hidden">{t("Esaurito")}</span>
                     </Button>
-                  )}
-                  {r.detailPath && (
-                    <Button size="sm" variant="ghost" asChild title={t("Apri dettaglio")}>
-                      <Link to={r.detailPath}><ExternalLink size={15} /></Link>
-                    </Button>
-                  )}
+                    {r.status === "expired" && (
+                      <Button
+                        size="sm"
+                        variant="destructive"
+                        onClick={() => createNonConformity(r)}
+                        className="gap-1.5"
+                        title={t("Registra non conformità per prodotto scaduto ancora in giacenza")}
+                      >
+                        <ShieldAlert size={14} />
+                        <span className="hidden sm:inline">{t("Non conformità")}</span>
+                        <span className="sm:hidden">NC</span>
+                      </Button>
+                    )}
+                    {r.detailPath && (
+                      <Button size="sm" variant="ghost" asChild title={t("Apri dettaglio")}>
+                        <Link to={r.detailPath}><ExternalLink size={15} /></Link>
+                      </Button>
+                    )}
+                  </div>
                 </div>
               </Card>
             );
