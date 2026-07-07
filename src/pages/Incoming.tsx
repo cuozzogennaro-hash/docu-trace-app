@@ -134,6 +134,7 @@ export default function Incoming() {
   const [recurringOpen, setRecurringOpen] = useState(false);
   const [recurringPicked, setRecurringPicked] = useState<Set<string>>(new Set());
   const [recurringSearch, setRecurringSearch] = useState("");
+  const [supplierOptions, setSupplierOptions] = useState<string[]>([]);
 
   // Storico prodotti già inseriti (DISTINCT su raw_materials) per il pulsante
   // "Carica da storico" della singola riga prodotto.
@@ -199,6 +200,25 @@ export default function Incoming() {
         .order("last_used_at", { ascending: false, nullsFirst: false })
         .order("product_name");
       setRecurring(data ?? []);
+    })();
+  }, [isOperatorAdmin]);
+
+  // Load distinct supplier names for the autocomplete dropdown
+  useEffect(() => {
+    if (isOperatorAdmin) return;
+    (async () => {
+      const { data } = await supabase
+        .from("raw_materials")
+        .select("supplier_name")
+        .not("supplier_name", "is", null)
+        .order("created_at", { ascending: false })
+        .limit(1000);
+      const set = new Set<string>();
+      for (const r of (data as any[]) ?? []) {
+        const n = (r.supplier_name ?? "").toString().trim();
+        if (n) set.add(n);
+      }
+      setSupplierOptions(Array.from(set).sort((a, b) => a.localeCompare(b)));
     })();
   }, [isOperatorAdmin]);
 
