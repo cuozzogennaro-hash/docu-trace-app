@@ -652,7 +652,21 @@ export default function Incoming() {
           <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Fornitore</Label>
-              <Input value={supplierName} onChange={(e) => setSupplierName(e.target.value)} />
+              <Input
+                value={supplierName}
+                onChange={(e) => setSupplierName(e.target.value)}
+                list="supplier-options"
+                placeholder="Seleziona o digita un nuovo fornitore"
+                autoComplete="off"
+              />
+              <datalist id="supplier-options">
+                {supplierOptions.map((s) => (
+                  <option key={s} value={s} />
+                ))}
+              </datalist>
+              <p className="text-[11px] text-muted-foreground">
+                Scegli dall'elenco dei fornitori già usati o scrivi un nuovo nome.
+              </p>
             </div>
             <div className="space-y-1.5">
               <Label className="flex items-center gap-1"><Sparkles size={12} className="text-accent" /> Data documento</Label>
