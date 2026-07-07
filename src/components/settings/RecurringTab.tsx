@@ -7,9 +7,11 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Plus, Pencil, Trash2, Repeat } from "lucide-react";
+import { Plus, Pencil, Trash2, Repeat, ChefHat, Package } from "lucide-react";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { toast } from "sonner";
 import { useDepartments } from "@/hooks/useDepartments";
+import { useRecurringPreparations } from "@/hooks/useRecurringPreparations";
 
 const CATEGORIES = [
   { value: "materia_prima", label: "Materia Prima" },
@@ -50,6 +52,7 @@ const emptyForm = {
 
 export default function RecurringTab() {
   const { departments } = useDepartments();
+  const { rows: preparations, remove: removePreparation } = useRecurringPreparations();
   const [list, setList] = useState<Recurring[]>([]);
   const [open, setOpen] = useState(false);
   const [editing, setEditing] = useState<Recurring | null>(null);
@@ -129,17 +132,31 @@ export default function RecurringTab() {
     load();
   }
 
+  async function removePrep(id: string, name: string) {
+    if (!confirm(`Eliminare la lavorazione ricorrente "${name}"?`)) return;
+    try { await removePreparation(id); toast.success("Eliminata"); }
+    catch (e: any) { toast.error(e.message); }
+  }
+
   return (
     <div className="space-y-4">
-      <div className="flex items-center justify-between flex-wrap gap-2">
-        <div>
-          <h3 className="font-display text-lg font-semibold flex items-center gap-2">
-            <Repeat size={18} /> Prodotti Ricorrenti
-          </h3>
-          <p className="text-sm text-muted-foreground">
-            Modelli per velocizzare l'ingresso merci: dati di fornitore, ingredienti e tracciabilità precompilati.
-          </p>
-        </div>
+      <div>
+        <h3 className="font-display text-lg font-semibold flex items-center gap-2">
+          <Repeat size={18} /> Prodotti Ricorrenti
+        </h3>
+        <p className="text-sm text-muted-foreground">
+          Modelli riutilizzabili. Le materie prime compaiono in <b>Ingresso Merci</b>, le lavorazioni in <b>Mise en place / Lavorazioni</b>.
+        </p>
+      </div>
+
+      <Tabs defaultValue="raw" className="w-full">
+        <TabsList>
+          <TabsTrigger value="raw" className="gap-1.5"><Package size={14} /> Materie prime ({list.length})</TabsTrigger>
+          <TabsTrigger value="prep" className="gap-1.5"><ChefHat size={14} /> Lavorazioni ({preparations.length})</TabsTrigger>
+        </TabsList>
+
+        <TabsContent value="raw" className="space-y-4 mt-4">
+          <div className="flex items-center justify-end">
         <Dialog open={open} onOpenChange={(v) => { setOpen(v); if (!v) reset(); }}>
           <DialogTrigger asChild>
             <Button className="bg-gradient-primary gap-2"><Plus size={16} /> Nuovo</Button>
@@ -211,11 +228,11 @@ export default function RecurringTab() {
             </DialogFooter>
           </DialogContent>
         </Dialog>
-      </div>
+          </div>
 
       {list.length === 0 ? (
         <Card className="p-10 text-center text-muted-foreground">
-          Nessun prodotto ricorrente. Aggiungine uno o salvalo dall'Ingresso Merci / Archivio.
+          Nessuna materia prima ricorrente. Aggiungine una o salvala dall'Ingresso Merci / Archivio.
         </Card>
       ) : (
         <div className="space-y-2">
@@ -240,6 +257,36 @@ export default function RecurringTab() {
           })}
         </div>
       )}
+        </TabsContent>
+
+        <TabsContent value="prep" className="space-y-4 mt-4">
+          <p className="text-xs text-muted-foreground">
+            Le lavorazioni ricorrenti si creano dalla pagina <b>Mise en place / Lavorazioni</b> salvando una ricetta. Qui puoi consultarle ed eliminarle.
+          </p>
+          {preparations.length === 0 ? (
+            <Card className="p-10 text-center text-muted-foreground">
+              Nessuna lavorazione ricorrente. Salvane una dalla pagina Lavorazioni.
+            </Card>
+          ) : (
+            <div className="space-y-2">
+              {preparations.map((p) => (
+                <Card key={p.id} className="p-4 flex items-center justify-between gap-3">
+                  <div className="min-w-0 flex-1">
+                    <div className="font-semibold truncate">{p.name}</div>
+                    <div className="text-xs text-muted-foreground">
+                      {p.storage_type} • conservazione {p.shelf_hours}h
+                      {p.use_count > 0 && <> • usata {p.use_count}×</>}
+                    </div>
+                  </div>
+                  <Button size="icon" variant="ghost" onClick={() => removePrep(p.id, p.name)}>
+                    <Trash2 size={16} className="text-destructive" />
+                  </Button>
+                </Card>
+              ))}
+            </div>
+          )}
+        </TabsContent>
+      </Tabs>
     </div>
   );
 }
