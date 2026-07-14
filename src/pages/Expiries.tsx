@@ -286,8 +286,9 @@ export default function Expiries() {
   async function exportAndShare() {
     setExporting(true);
     try {
-      const expired = rows.filter((r) => r.status === "expired");
-      const soon = rows
+      // Segui la vista corrente (filtro tipo + reparto + tab in alto)
+      const expired = filtered.filter((r) => r.status === "expired");
+      const soon = filtered
         .filter((r) => r.status !== "expired" && r.days !== null && r.days <= 7)
         .sort((a, b) => (a.expiry || "").localeCompare(b.expiry || ""));
 
@@ -305,7 +306,23 @@ export default function Expiries() {
       doc.setFont("helvetica", "normal");
       doc.setFontSize(9);
       doc.setTextColor(120);
-      doc.text(`Generato il ${generatedAt}`, 14, 24);
+      const deptName =
+        deptFilter === "all"
+          ? "Tutti i reparti"
+          : departments.find((d) => d.id === deptFilter)?.name || "—";
+      const typeName =
+        typeFilter === "all"
+          ? "Tutti i tipi"
+          : typeFilter === "raw"
+          ? "Materie prime"
+          : typeFilter === "product"
+          ? "Prodotti"
+          : "Preparazioni";
+      doc.text(
+        `Generato il ${generatedAt} — Reparto: ${deptName} · Tipo: ${typeName}`,
+        14,
+        24,
+      );
       doc.setTextColor(0);
 
       const typeLabel = (k: Row["kind"]) =>
