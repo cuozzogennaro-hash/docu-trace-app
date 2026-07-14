@@ -10,7 +10,11 @@ import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { AlertCircle, Package, Factory, ChefHat, PackageX, AlertTriangle, ExternalLink, ShieldAlert } from "lucide-react";
+import { FileDown } from "lucide-react";
 import { toast } from "sonner";
+import jsPDF from "jspdf";
+import autoTable from "jspdf-autotable";
+import { savePdfDocument } from "@/lib/nativeShare";
 import {
   computeProductExpiry,
   daysUntil,
@@ -50,6 +54,7 @@ export default function Expiries() {
   const [filter, setFilter] = useState<FilterKey>("expired");
   const [deptFilter, setDeptFilter] = useState<string>("all");
   const [typeFilter, setTypeFilter] = useState<"all" | "raw" | "product" | "preparation">("all");
+  const [exporting, setExporting] = useState(false);
 
   async function load() {
     setLoading(true);
@@ -278,6 +283,140 @@ export default function Expiries() {
     toast.success(t("Non conformità creata"));
   }
 
+  async function exportAndShare() {
+    setExporting(true);
+    try {
+      const expired = rows.filter((r) => r.status === "expired");
+      const soon = rows
+        .filter((r) => r.status !== "expired" && r.days !== null && r.days <= 7)
+        .sort((a, b) => (a.expiry || "").localeCompare(b.expiry || ""));
+
+      if (expired.length === 0 && soon.length === 0) {
+        toast.info(t("Nessun prodotto scaduto o in scadenza"));
+        return;
+      }
+
+      const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
+      const generatedAt = new Date().toLocaleString("it-IT");
+
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(16);
+      doc.text("Scadenze — Prodotti e Materie Prime", 14, 18);
+      doc.setFont("helvetica", "normal");
+      doc.setFontSize(9);
+      doc.setTextColor(120);
+      doc.text(`Generato il ${generatedAt}`, 14, 24);
+      doc.setTextColor(0);
+
+      const typeLabel = (k: Row["kind"]) =>
+        k === "raw" ? "Materia prima" : k === "product" ? "Prodotto" : "Preparazione";
+      const fmt = (iso: string | null) =>
+        iso ? new Date(iso).toLocaleDateString("it-IT") : "—";
+
+      const buildBody = (list: Row[]) =>
+        list.map((r) => [
+          typeLabel(r.kind),
+          r.name,
+          r.lot || "—",
+          r.department_name || "—",
+          fmt(r.expiry),
+          expiryLabel(r.status, r.days),
+        ]);
+
+      let y = 32;
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(185, 28, 28);
+      doc.text(`Scaduti (${expired.length})`, 14, y);
+      doc.setTextColor(0);
+      if (expired.length === 0) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(120);
+        doc.text("Nessun prodotto scaduto.", 14, y + 6);
+        doc.setTextColor(0);
+        y += 10;
+      } else {
+        autoTable(doc, {
+          startY: y + 4,
+          head: [["Tipo", "Nome", "Lotto", "Reparto", "Scadenza", "Stato"]],
+          body: buildBody(expired),
+          styles: { fontSize: 8, cellPadding: 1.5 },
+          headStyles: { fillColor: [185, 28, 28] },
+        });
+        y =
+          (doc as unknown as { lastAutoTable?: { finalY: number } }).lastAutoTable
+            ?.finalY ?? y + 10;
+      }
+
+      y += 10;
+      if (y > 250) {
+        doc.addPage();
+        y = 20;
+      }
+      doc.setFont("helvetica", "bold");
+      doc.setFontSize(12);
+      doc.setTextColor(180, 83, 9);
+      doc.text(`In scadenza entro 7 giorni (${soon.length})`, 14, y);
+      doc.setTextColor(0);
+      if (soon.length === 0) {
+        doc.setFont("helvetica", "normal");
+        doc.setFontSize(10);
+        doc.setTextColor(120);
+        doc.text("Nessun prodotto in scadenza.", 14, y + 6);
+        doc.setTextColor(0);
+      } else {
+        autoTable(doc, {
+          startY: y + 4,
+          head: [["Tipo", "Nome", "Lotto", "Reparto", "Scadenza", "Stato"]],
+          body: buildBody(soon),
+          styles: { fontSize: 8, cellPadding: 1.5 },
+          headStyles: { fillColor: [180, 83, 9] },
+        });
+      }
+
+      const pageCount = doc.getNumberOfPages();
+      for (let i = 1; i <= pageCount; i++) {
+        doc.setPage(i);
+        doc.setFontSize(8);
+        doc.setTextColor(140);
+        doc.text(
+          `Pagina ${i} di ${pageCount}`,
+          doc.internal.pageSize.getWidth() - 14,
+          doc.internal.pageSize.getHeight() - 8,
+          { align: "right" },
+        );
+      }
+
+      const filename = `scadenze_${new Date().toISOString().slice(0, 10)}.pdf`;
+
+      // Try Web Share API with file (mobile browsers → shows WhatsApp, etc.)
+      try {
+        const blob: Blob = doc.output("blob");
+        const file = new File([blob], filename, { type: "application/pdf" });
+        const nav = navigator as any;
+        if (nav.canShare && nav.canShare({ files: [file] }) && nav.share) {
+          await nav.share({
+            files: [file],
+            title: "Scadenze",
+            text: "Elenco prodotti scaduti / in scadenza",
+          });
+          return;
+        }
+      } catch (err: any) {
+        if (/abort|cancel/i.test(String(err?.message ?? err))) return;
+        // fall through to download / native share sheet
+      }
+
+      await savePdfDocument(doc, filename);
+    } catch (err: any) {
+      console.error(err);
+      toast.error(t("Errore durante la generazione del PDF"));
+    } finally {
+      setExporting(false);
+    }
+  }
+
   return (
     <>
       <PageHeader title={t("Scadenze")} subtitle={t("Monitoraggio scadenze di materie prime, prodotti e preparazioni")} />
@@ -322,6 +461,17 @@ export default function Expiries() {
             </SelectContent>
           </Select>
         )}
+        <Button
+          size="sm"
+          variant="outline"
+          onClick={exportAndShare}
+          disabled={exporting || loading || rows.length === 0}
+          className="gap-1.5 ml-auto"
+          title={t("Genera PDF e condividi (WhatsApp, email, ecc.)")}
+        >
+          <FileDown size={14} />
+          <span>{exporting ? t("Generazione…") : t("Esporta PDF & Condividi")}</span>
+        </Button>
       </Card>
 
       {loading ? (
