@@ -70,7 +70,7 @@ export async function generateHaccpDeclarationPdf(
   const doc = new jsPDF({ orientation: "portrait", unit: "mm", format: "a4" });
   const pageW = doc.internal.pageSize.getWidth();
   const pageH = doc.internal.pageSize.getHeight();
-  const M = 20;
+  const M = 18;
   const contentW = pageW - M * 2;
 
   const logo = await logoData(company.logo_url);
@@ -114,9 +114,9 @@ export async function generateHaccpDeclarationPdf(
   ];
   const contacts = [company.phone && `Tel. ${company.phone}`, company.email].filter(Boolean).join("  •  ");
   if (contacts) rows.push(`Recapiti: ${contacts}`);
-  for (const r of rows) y = line(doc, r, M, y, contentW) + 1.5;
+  for (const r of rows) y = line(doc, r, M, y, contentW, 5) + 0.5;
 
-  y += 3;
+  y += 2;
   y = line(
     doc,
     "sotto la propria responsabilità e pienamente consapevole delle sanzioni previste dalla legge in caso di dichiarazioni mendaci,",
@@ -126,7 +126,7 @@ export async function generateHaccpDeclarationPdf(
   );
 
   // ---- DICHIARA
-  y += 6;
+  y += 5;
   doc.setFont("helvetica", "bold");
   doc.setFontSize(12);
   doc.setTextColor(...BLUE);
@@ -155,9 +155,9 @@ export async function generateHaccpDeclarationPdf(
 
   // Highlight box
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(9.5);
+  doc.setFontSize(8.8);
   const measure = (t: string) => (doc.splitTextToSize(t, contentW - 14) as string[]).length;
-  const boxH = points.reduce((acc, p) => acc + measure(p) * 4.6 + 2.5, 0) + 6;
+  const boxH = points.reduce((acc, p) => acc + measure(p) * 4.15 + 2.0, 0) + 6;
   doc.setFillColor(248, 249, 250);
   doc.rect(M, y, contentW, boxH, "F");
   doc.setFillColor(...BLUE);
@@ -169,9 +169,9 @@ export async function generateHaccpDeclarationPdf(
     doc.setTextColor(50);
     const lines = doc.splitTextToSize(p, contentW - 14) as string[];
     doc.text(lines, M + 9, by);
-    by += lines.length * 4.6 + 2.5;
+    by += lines.length * 4.15 + 2.0;
   }
-  y += boxH + 7;
+  y += boxH + 6;
 
   doc.setFontSize(10);
   const recipient = input.recipient.trim();
@@ -200,11 +200,13 @@ export async function generateHaccpDeclarationPdf(
   doc.setTextColor(50);
 
   // ---- Firma (nuova pagina se non c'è spazio sufficiente)
-  if (y > pageH - 75) {
+  let sigY: number;
+  if (y > pageH - 60) {
     doc.addPage();
-    y = 30;
+    sigY = 40;
+  } else {
+    sigY = Math.max(y + 18, pageH - 55);
   }
-  const sigY = Math.max(y + 20, pageH - 70);
   const dateStr = input.date ? new Date(input.date).toLocaleDateString("it-IT") : "";
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
@@ -245,8 +247,8 @@ export async function generateHaccpDeclarationPdf(
     .replace(/^-|-$/g, "");
   fs.writeFileSync("/tmp/qa/out.pdf", Buffer.from(doc.output("arraybuffer")));
 }
-
-await generateHaccpDeclarationPdf(
-  { business_name: "M.G.A. Alimentari S.r.l.", vat: "01234567890", address: "Via Roma 12", city: "Bergamo", email: "info@mga.it", phone: "035 123456", logo_url: null },
-  { legalRep: "Mario Giuseppe Alberti", sector: "Gastronomia, macelleria e salumeria", province: "BG", scia: "Prot. n. 12345 del 03/02/2021", hygieneManager: "Mario Giuseppe Alberti", recipient: "Ristorante Da Luigi S.n.c.", place: "Bergamo", date: "2026-07-27", includePestControl: true, includeTraceability: true, includeAllergens: true, includeWater: true, includeSupplierChecks: true },
-);
+    .toLowerCase()
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-|-$/g, "");
+  fs.writeFileSync("/tmp/qa/out.pdf", Buffer.from(doc.output("arraybuffer")));
+}
