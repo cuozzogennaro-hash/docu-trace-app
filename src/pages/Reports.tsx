@@ -14,6 +14,7 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { FileText, Thermometer, Sparkles, Factory, Package, Loader2, FileDown, Snowflake, Flame, Droplet, ChefHat, ClipboardCheck, PenLine, X, Archive, Upload, ShieldCheck, Trash2, Building2, ChevronRight } from "lucide-react";
 import { toast } from "sonner";
 import { Link } from "react-router-dom";
+import HaccpDeclarationCard from "@/components/reports/HaccpDeclarationCard";
 
 type ReportKey =
   | "temperatures"
@@ -1494,6 +1495,9 @@ export default function Reports() {
           </div>
         </Card>
       </Link>
+
+      {/* B2B: dichiarazione di conformità HACCP */}
+      <HaccpDeclarationCard />
 
       {/* ASL inspection package */}
       <Card className="p-5 mb-6 shadow-elevated border-primary/30 bg-gradient-to-br from-primary/5 to-transparent">
