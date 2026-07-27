@@ -201,11 +201,11 @@ export async function generateHaccpDeclarationPdf(
 
   // ---- Firma (nuova pagina se non c'è spazio sufficiente)
   let sigY: number;
-  if (y > pageH - 60) {
+  if (y > pageH - 55) {
     doc.addPage();
     sigY = 40;
   } else {
-    sigY = Math.max(y + 18, pageH - 55);
+    sigY = Math.max(y + 15, pageH - 50);
   }
   const dateStr = input.date ? new Date(input.date).toLocaleDateString("it-IT") : "";
   doc.setFontSize(10);
