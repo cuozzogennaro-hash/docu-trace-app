@@ -15,7 +15,6 @@ export type DeclarationInput = {
   legalRep: string;
   sector: string;
   province: string;
-  scia: string;
   hygieneManager: string;
   recipient: string;
   place: string;
@@ -138,7 +137,6 @@ export async function generateHaccpDeclarationPdf(
     "che l'azienda ha predisposto, implementato e mantiene attivo un Piano di Autocontrollo Igienico-Sanitario redatto secondo i principi del sistema HACCP (Hazard Analysis and Critical Control Points), in conformità al Regolamento CE n. 852/2004;",
     "che le procedure operative, le buone prassi igieniche (GHP/GMP) e il monitoraggio dei punti critici di controllo (CCP) sono costantemente applicati, registrati, verificati e riesaminati periodicamente;",
     "che tutto il personale addetto alla manipolazione, allo stoccaggio o al trasporto degli alimenti ha ricevuto adeguata formazione e addestramento in materia di igiene alimentare, secondo le specifiche normative regionali vigenti;",
-    `che l'attività è regolarmente registrata presso l'Autorità Sanitaria Competente tramite Notifica Sanitaria (SCIA)${input.scia.trim() ? ` — estremi: ${input.scia.trim()}` : ""};`,
   ];
   if (input.includeTraceability)
     points.push("che è attivo un sistema di rintracciabilità dei lotti in entrata e in uscita, ai sensi dell'art. 18 del Reg. CE 178/2002, che consente il ritiro/richiamo dei prodotti secondo procedure documentate;");
