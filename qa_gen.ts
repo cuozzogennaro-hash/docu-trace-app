@@ -247,12 +247,12 @@ export async function generateHaccpDeclarationPdf(
     .replace(/^-|-$/g, "");
   fs.writeFileSync("/tmp/qa/out" + (globalThis.__n = (globalThis.__n||0)+1) + ".pdf", Buffer.from(doc.output("arraybuffer")));
 }
-    doc.text(`Pagina ${i} di ${total}`, pageW - M, pageH - 10, { align: "right" });
-  }
 
-  const slug = (company.business_name ?? "azienda")
-    .toLowerCase()
-    .replace(/[^a-z0-9]+/g, "-")
-    .replace(/^-|-$/g, "");
-  fs.writeFileSync("/tmp/qa/out" + (globalThis.__n = (globalThis.__n||0)+1) + ".pdf", Buffer.from(doc.output("arraybuffer")));
-}
+await generateHaccpDeclarationPdf(
+  { business_name: "M.G.A. Alimentari S.r.l.", vat: "01234567890", address: "Via Roma 12", city: "Bergamo", email: "info@mga.it", phone: "035 123456", logo_url: null },
+  { legalRep: "Mario Giuseppe Alberti", sector: "Gastronomia, macelleria e salumeria", province: "BG", scia: "Prot. n. 12345 del 03/02/2021", hygieneManager: "Mario Giuseppe Alberti", recipient: "Ristorante Da Luigi S.n.c.", place: "Bergamo", date: "2026-07-27", includePestControl: true, includeTraceability: true, includeAllergens: true, includeWater: true, includeSupplierChecks: true },
+);
+await generateHaccpDeclarationPdf(
+  { business_name: null, vat: null, address: null, city: null, email: null, phone: null, logo_url: null },
+  { legalRep: "", sector: "", province: "", scia: "", hygieneManager: "", recipient: "", place: "", date: "", includePestControl: false, includeTraceability: false, includeAllergens: false, includeWater: false, includeSupplierChecks: false },
+);
