@@ -15,7 +15,6 @@ export type DeclarationInput = {
   legalRep: string;
   sector: string;
   province: string;
-  scia: string;
   hygieneManager: string;
   recipient: string;
   place: string;

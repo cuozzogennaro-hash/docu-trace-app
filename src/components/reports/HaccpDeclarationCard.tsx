@@ -17,7 +17,6 @@ export default function HaccpDeclarationCard() {
   const [legalRep, setLegalRep] = useState("");
   const [sector, setSector] = useState("");
   const [province, setProvince] = useState("");
-  const [scia, setScia] = useState("");
   const [hygieneManager, setHygieneManager] = useState("");
   const [recipient, setRecipient] = useState("");
   const [place, setPlace] = useState("");
@@ -35,7 +34,6 @@ export default function HaccpDeclarationCard() {
         legalRep,
         sector,
         province,
-        scia,
         hygieneManager,
         recipient,
         place,
@@ -92,10 +90,6 @@ export default function HaccpDeclarationCard() {
                 <div className="space-y-1.5">
                   <Label>Provincia</Label>
                   <Input value={province} onChange={(e) => setProvince(e.target.value)} placeholder="Es. MI" />
-                </div>
-                <div className="space-y-1.5">
-                  <Label>Estremi Notifica Sanitaria / SCIA</Label>
-                  <Input value={scia} onChange={(e) => setScia(e.target.value)} placeholder="N. protocollo e data" />
                 </div>
                 <div className="space-y-1.5">
                   <Label>Responsabile autocontrollo</Label>
