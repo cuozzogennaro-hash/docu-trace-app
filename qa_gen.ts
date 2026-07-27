@@ -200,6 +200,7 @@ export async function generateHaccpDeclarationPdf(
   doc.setTextColor(50);
 
   // ---- Firma (nuova pagina se non c'è spazio sufficiente)
+  console.log("y=",y,"pageH=",pageH);
   let sigY: number;
   if (y > pageH - 55) {
     doc.addPage();
