@@ -245,7 +245,6 @@ export async function generateHaccpDeclarationPdf(
     .replace(/^-|-$/g, "");
   fs.writeFileSync("/tmp/qa/out.pdf", Buffer.from(doc.output("arraybuffer")));
 }
-}
 
 await generateHaccpDeclarationPdf(
   { business_name: "M.G.A. Alimentari S.r.l.", vat: "01234567890", address: "Via Roma 12", city: "Bergamo", email: "info@mga.it", phone: "035 123456", logo_url: null },
