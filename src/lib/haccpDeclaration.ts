@@ -100,7 +100,7 @@ export async function generateHaccpDeclarationPdf(
   doc.line(M, y + 15, pageW - M, y + 15);
   doc.setLineWidth(0.2);
   doc.setTextColor(50);
-  y += 24;
+  y += 22;
 
   // ---- Anagrafica
   doc.setFontSize(10);
@@ -155,9 +155,9 @@ export async function generateHaccpDeclarationPdf(
 
   // Highlight box
   doc.setFont("helvetica", "normal");
-  doc.setFontSize(8.8);
+  doc.setFontSize(8.3);
   const measure = (t: string) => (doc.splitTextToSize(t, contentW - 14) as string[]).length;
-  const boxH = points.reduce((acc, p) => acc + measure(p) * 4.15 + 2.0, 0) + 6;
+  const boxH = points.reduce((acc, p) => acc + measure(p) * 3.9 + 1.6, 0) + 5;
   doc.setFillColor(248, 249, 250);
   doc.rect(M, y, contentW, boxH, "F");
   doc.setFillColor(...BLUE);
@@ -169,9 +169,9 @@ export async function generateHaccpDeclarationPdf(
     doc.setTextColor(50);
     const lines = doc.splitTextToSize(p, contentW - 14) as string[];
     doc.text(lines, M + 9, by);
-    by += lines.length * 4.15 + 2.0;
+    by += lines.length * 3.9 + 1.6;
   }
-  y += boxH + 6;
+  y += boxH + 5;
 
   doc.setFontSize(10);
   const recipient = input.recipient.trim();
@@ -201,11 +201,11 @@ export async function generateHaccpDeclarationPdf(
 
   // ---- Firma (nuova pagina se non c'è spazio sufficiente)
   let sigY: number;
-  if (y > pageH - 55) {
+  if (y > pageH - 48) {
     doc.addPage();
     sigY = 40;
   } else {
-    sigY = Math.max(y + 15, pageH - 50);
+    sigY = Math.max(y + 14, pageH - 50);
   }
   const dateStr = input.date ? new Date(input.date).toLocaleDateString("it-IT") : "";
   doc.setFontSize(10);
@@ -213,7 +213,7 @@ export async function generateHaccpDeclarationPdf(
   doc.setTextColor(50);
   doc.text("Luogo e data", M, sigY);
   doc.setFont("helvetica", "normal");
-  doc.text(`${fill(input.place || company.city, 22)}, il ${fill(dateStr, 12)}`, M, sigY + 12);
+  doc.text(`${fill(input.place || company.city, 22)}, il ${fill(dateStr, 12)}`, M, sigY + 10);
 
   const rx = pageW / 2 + 5;
   doc.setFont("helvetica", "bold");
@@ -224,7 +224,7 @@ export async function generateHaccpDeclarationPdf(
   doc.text("(Timbro e firma leggibile)", rx, sigY + 4.5);
   doc.setTextColor(50);
   doc.setDrawColor(80);
-  doc.line(rx, sigY + 25, pageW - M, sigY + 25);
+  doc.line(rx, sigY + 20, pageW - M, sigY + 20);
 
   // ---- Footer su tutte le pagine
   const total = doc.getNumberOfPages();
