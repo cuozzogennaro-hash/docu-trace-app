@@ -199,18 +199,19 @@ export async function generateHaccpDeclarationPdf(
   );
   doc.setTextColor(50);
 
-  // ---- Firma
-  const sigY = Math.max(y + 22, pageH - 70);
+  // ---- Firma (nuova pagina se non c'è spazio sufficiente)
+  if (y > pageH - 75) {
+    doc.addPage();
+    y = 30;
+  }
+  const sigY = Math.max(y + 20, pageH - 70);
   const dateStr = input.date ? new Date(input.date).toLocaleDateString("it-IT") : "";
   doc.setFontSize(10);
   doc.setFont("helvetica", "bold");
+  doc.setTextColor(50);
   doc.text("Luogo e data", M, sigY);
   doc.setFont("helvetica", "normal");
-  doc.text(
-    `${fill(input.place || company.city, 22)}, il ${fill(dateStr, 12)}`,
-    M,
-    sigY + 10,
-  );
+  doc.text(`${fill(input.place || company.city, 22)}, il ${fill(dateStr, 12)}`, M, sigY + 12);
 
   const rx = pageW / 2 + 5;
   doc.setFont("helvetica", "bold");
@@ -223,15 +224,20 @@ export async function generateHaccpDeclarationPdf(
   doc.setDrawColor(80);
   doc.line(rx, sigY + 25, pageW - M, sigY + 25);
 
-  // ---- Footer
-  doc.setFontSize(7.5);
-  doc.setTextColor(140);
-  doc.text(
-    `${company.business_name ?? "Azienda"} — Documento generato il ${new Date().toLocaleString("it-IT")}`,
-    M,
-    pageH - 12,
-  );
-  doc.text("Pagina 1 di 1", pageW - M, pageH - 12, { align: "right" });
+  // ---- Footer su tutte le pagine
+  const total = doc.getNumberOfPages();
+  for (let i = 1; i <= total; i++) {
+    doc.setPage(i);
+    doc.setFont("helvetica", "normal");
+    doc.setFontSize(7.5);
+    doc.setTextColor(140);
+    doc.text(
+      `${company.business_name ?? "Azienda"} — Documento generato il ${new Date().toLocaleString("it-IT")}`,
+      M,
+      pageH - 10,
+    );
+    doc.text(`Pagina ${i} di ${total}`, pageW - M, pageH - 10, { align: "right" });
+  }
 
   const slug = (company.business_name ?? "azienda")
     .toLowerCase()
