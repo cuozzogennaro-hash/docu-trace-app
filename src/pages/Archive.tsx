@@ -516,6 +516,34 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
   const [deptFilter, setDeptFilter] = useState<string>("all"); // "all" | "none" | dept id
   const { session } = useAuth();
   const { operator } = useOperatorSession();
+  const [blocked, setBlocked] = useState<
+    { materialName: string; products: { id: string; name: string; internal_lot: string | null }[] }[]
+  >([]);
+
+  async function findBlockingProducts(ids: string[]) {
+    const { data, error } = await supabase
+      .from("product_ingredients")
+      .select("raw_material_id, raw_materials(product_name), products(id, name, internal_lot)")
+      .in("raw_material_id", ids);
+    if (error) {
+      toast.error(error.message);
+      return [];
+    }
+    const map = new Map<string, { materialName: string; products: { id: string; name: string; internal_lot: string | null }[] }>();
+    (data ?? []).forEach((row: any) => {
+      if (!row.products) return;
+      const key = row.raw_material_id;
+      const entry = map.get(key) ?? {
+        materialName: row.raw_materials?.product_name ?? "Materia prima",
+        products: [],
+      };
+      if (!entry.products.some((p) => p.id === row.products.id)) {
+        entry.products.push({ id: row.products.id, name: row.products.name, internal_lot: row.products.internal_lot });
+      }
+      map.set(key, entry);
+    });
+    return Array.from(map.values());
+  }
 
   const supportsDept = tableKey === "raw_materials" || tableKey === "products" || tableKey === "temperatures" || tableKey === "sanitations";
 
