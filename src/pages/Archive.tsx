@@ -516,6 +516,34 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
   const [deptFilter, setDeptFilter] = useState<string>("all"); // "all" | "none" | dept id
   const { session } = useAuth();
   const { operator } = useOperatorSession();
+  const [blocked, setBlocked] = useState<
+    { materialName: string; products: { id: string; name: string; internal_lot: string | null }[] }[]
+  >([]);
+
+  async function findBlockingProducts(ids: string[]) {
+    const { data, error } = await supabase
+      .from("product_ingredients")
+      .select("raw_material_id, raw_materials(product_name), products(id, name, internal_lot)")
+      .in("raw_material_id", ids);
+    if (error) {
+      toast.error(error.message);
+      return [];
+    }
+    const map = new Map<string, { materialName: string; products: { id: string; name: string; internal_lot: string | null }[] }>();
+    (data ?? []).forEach((row: any) => {
+      if (!row.products) return;
+      const key = row.raw_material_id;
+      const entry = map.get(key) ?? {
+        materialName: row.raw_materials?.product_name ?? "Materia prima",
+        products: [],
+      };
+      if (!entry.products.some((p) => p.id === row.products.id)) {
+        entry.products.push({ id: row.products.id, name: row.products.name, internal_lot: row.products.internal_lot });
+      }
+      map.set(key, entry);
+    });
+    return Array.from(map.values());
+  }
 
   const supportsDept = tableKey === "raw_materials" || tableKey === "products" || tableKey === "temperatures" || tableKey === "sanitations";
 
@@ -676,6 +704,10 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
 
   async function remove(id: string) {
     if (!confirm("Eliminare questo record?")) return;
+    if (tableKey === "raw_materials") {
+      const blocking = await findBlockingProducts([id]);
+      if (blocking.length > 0) { setBlocked(blocking); return; }
+    }
     const { error } = await supabase.from(tableKey).delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Eliminato");
@@ -685,11 +717,52 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
   async function removeMany(ids: string[], label: string) {
     if (ids.length === 0) return;
     if (!confirm(`Eliminare ${ids.length} record di "${label}"? L'azione è irreversibile.`)) return;
+    if (tableKey === "raw_materials") {
+      const blocking = await findBlockingProducts(ids);
+      if (blocking.length > 0) { setBlocked(blocking); return; }
+    }
     const { error } = await supabase.from(tableKey).delete().in("id", ids);
     if (error) return toast.error(error.message);
     toast.success(`${ids.length} record eliminati`);
     load();
   }
+
+  const BlockedDialog = (
+    <Dialog open={blocked.length > 0} onOpenChange={(o) => !o && setBlocked([])}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle size={18} className="text-amber-500" /> Impossibile eliminare
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          <p className="text-sm text-muted-foreground">
+            Queste materie prime sono utilizzate come ingrediente in prodotti presenti in archivio.
+            Per mantenere la tracciabilità, elimina prima i prodotti collegati.
+          </p>
+          {blocked.map((b) => (
+            <div key={b.materialName} className="rounded-lg border p-3 space-y-2">
+              <div className="font-semibold text-sm">{b.materialName}</div>
+              {b.products.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => { setBlocked([]); navigate(`/archivio/prodotto/${p.id}`); }}
+                  className="w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-md bg-muted/50 hover:bg-muted transition"
+                >
+                  <span className="min-w-0 truncate text-sm">
+                    {p.name}
+                    {p.internal_lot && <span className="text-muted-foreground font-mono text-xs"> · {p.internal_lot}</span>}
+                  </span>
+                  <ChevronRight size={14} className="shrink-0 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
 
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (rows.length === 0) return <Card className="p-12 text-center text-muted-foreground">Nessun record.</Card>;
@@ -1029,6 +1102,7 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
             )}
           </DialogContent>
         </Dialog>
+      {BlockedDialog}
       </>
     );
   }
@@ -1153,6 +1227,7 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
             )}
           </DialogContent>
         </Dialog>
+      {BlockedDialog}
       </>
     );
   }
@@ -1229,6 +1304,7 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
           )}
         </DialogContent>
       </Dialog>
+      {BlockedDialog}
     </>
   );
 }
