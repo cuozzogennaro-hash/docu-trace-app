@@ -1102,6 +1102,7 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
             )}
           </DialogContent>
         </Dialog>
+      {BlockedDialog}
       </>
     );
   }
@@ -1226,6 +1227,7 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
             )}
           </DialogContent>
         </Dialog>
+      {BlockedDialog}
       </>
     );
   }
@@ -1302,6 +1304,7 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
           )}
         </DialogContent>
       </Dialog>
+      {BlockedDialog}
     </>
   );
 }
