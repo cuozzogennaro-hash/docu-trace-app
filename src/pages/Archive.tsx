@@ -676,6 +676,10 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
 
   async function remove(id: string) {
     if (!confirm("Eliminare questo record?")) return;
+    if (tableKey === "raw_materials") {
+      const blocking = await findBlockingProducts([id]);
+      if (blocking.length > 0) { setBlocked(blocking); return; }
+    }
     const { error } = await supabase.from(tableKey).delete().eq("id", id);
     if (error) return toast.error(error.message);
     toast.success("Eliminato");
@@ -685,6 +689,10 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
   async function removeMany(ids: string[], label: string) {
     if (ids.length === 0) return;
     if (!confirm(`Eliminare ${ids.length} record di "${label}"? L'azione è irreversibile.`)) return;
+    if (tableKey === "raw_materials") {
+      const blocking = await findBlockingProducts(ids);
+      if (blocking.length > 0) { setBlocked(blocking); return; }
+    }
     const { error } = await supabase.from(tableKey).delete().in("id", ids);
     if (error) return toast.error(error.message);
     toast.success(`${ids.length} record eliminati`);
