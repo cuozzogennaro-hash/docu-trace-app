@@ -727,6 +727,43 @@ function ArchiveTable({ tableKey, company, productsLabel }: { tableKey: TableKey
     load();
   }
 
+  const BlockedDialog = (
+    <Dialog open={blocked.length > 0} onOpenChange={(o) => !o && setBlocked([])}>
+      <DialogContent className="max-w-lg">
+        <DialogHeader>
+          <DialogTitle className="flex items-center gap-2">
+            <AlertTriangle size={18} className="text-amber-500" /> Impossibile eliminare
+          </DialogTitle>
+        </DialogHeader>
+        <div className="space-y-4 max-h-[60vh] overflow-y-auto">
+          <p className="text-sm text-muted-foreground">
+            Queste materie prime sono utilizzate come ingrediente in prodotti presenti in archivio.
+            Per mantenere la tracciabilità, elimina prima i prodotti collegati.
+          </p>
+          {blocked.map((b) => (
+            <div key={b.materialName} className="rounded-lg border p-3 space-y-2">
+              <div className="font-semibold text-sm">{b.materialName}</div>
+              {b.products.map((p) => (
+                <button
+                  key={p.id}
+                  type="button"
+                  onClick={() => { setBlocked([]); navigate(`/archivio/prodotto/${p.id}`); }}
+                  className="w-full flex items-center justify-between gap-2 text-left px-3 py-2 rounded-md bg-muted/50 hover:bg-muted transition"
+                >
+                  <span className="min-w-0 truncate text-sm">
+                    {p.name}
+                    {p.internal_lot && <span className="text-muted-foreground font-mono text-xs"> · {p.internal_lot}</span>}
+                  </span>
+                  <ChevronRight size={14} className="shrink-0 text-muted-foreground" />
+                </button>
+              ))}
+            </div>
+          ))}
+        </div>
+      </DialogContent>
+    </Dialog>
+  );
+
   if (loading) return <div className="py-12 flex justify-center"><Loader2 className="animate-spin" /></div>;
   if (rows.length === 0) return <Card className="p-12 text-center text-muted-foreground">Nessun record.</Card>;
 
